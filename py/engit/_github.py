@@ -61,6 +61,7 @@ def create_release(
     notes: str,
     *,
     draft: bool = False,
+    prerelease: bool = False,
     latest: bool = True,
 ) -> str:
     """Create a GitHub release for an existing tag.
@@ -70,6 +71,7 @@ def create_release(
         title: Release title displayed on GitHub.
         notes: Release notes body (Markdown supported).
         draft: When ``True``, create the release as a draft.
+        prerelease: When ``True``, mark the release as a pre-release.
         latest: When ``True``, mark this as the latest release.
 
     Returns:
@@ -87,10 +89,53 @@ def create_release(
     ]
     if draft:
         cmd.append('--draft')
-    if latest:
+    if prerelease:
+        cmd.append('--prerelease')
+    if latest and not prerelease:
         cmd.append('--latest')
 
     return _run(*cmd)
+
+
+def release_exists(tag: str) -> bool:
+    """Return ``True`` if a GitHub release already exists for *tag*.
+
+    Args:
+        tag: Tag name to check (e.g. ``'v1.2.3'``).
+
+    Returns:
+        ``True`` when a release is found, ``False`` when a 404 is returned.
+
+    Raises:
+        ~._exceptions.GhCliNotFoundError: If ``gh`` is not installed.
+        ~._exceptions.GitHubError: On unexpected API errors.
+
+    """
+    _require_gh()
+    result = subprocess.run(
+        ['gh', 'release', 'view', tag, '--json', 'tagName'],
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def get_release_url(tag: str) -> str | None:
+    """Return the HTML URL of an existing GitHub release, or ``None``.
+
+    Args:
+        tag: Tag name to look up.
+
+    """
+    _require_gh()
+    result = subprocess.run(
+        ['gh', 'release', 'view', tag, '--json', 'url', '--jq', '.url'],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
 
 
 # ---------------------------------------------------------------------------

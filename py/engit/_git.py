@@ -248,6 +248,24 @@ def push_tag(tag: str, remote: str = 'origin', cwd: Path | None = None) -> None:
     _run('push', remote, tag, cwd=cwd)
 
 
+def push_branch_and_tag(tag: str, branch: str, remote: str = 'origin', cwd: Path | None = None) -> None:
+    """Push a branch and a tag together in one operation.
+
+    Equivalent to ``git push <remote> <branch> <tag>``.
+
+    Args:
+        tag: Tag name to push.
+        branch: Branch name to push.
+        remote: Remote name. Defaults to ``'origin'``.
+        cwd: Working directory. Defaults to the current directory.
+
+    Raises:
+        ~._exceptions.GitError: If the push fails.
+
+    """
+    _run('push', remote, branch, tag, cwd=cwd)
+
+
 # ---------------------------------------------------------------------------
 # Commit history
 # ---------------------------------------------------------------------------
@@ -300,3 +318,176 @@ def get_all_commits(cwd: Path | None = None) -> list[str]:
         return []
 
     return [line for line in raw.splitlines() if line.strip()]
+
+
+# ---------------------------------------------------------------------------
+# Branch helpers
+# ---------------------------------------------------------------------------
+
+def get_current_branch(cwd: Path | None = None) -> str | None:
+    """Return the name of the currently checked-out branch, or ``None`` if detached.
+
+    Args:
+        cwd: Working directory. Defaults to the current directory.
+
+    """
+    try:
+        result = _run('rev-parse', '--abbrev-ref', 'HEAD', cwd=cwd)
+        return None if result == 'HEAD' else result
+    except GitError:
+        return None
+
+
+def get_branch_comparison(
+    branch: str,
+    remote: str = 'origin',
+    cwd: Path | None = None,
+) -> str:
+    """Return a human-readable ahead/behind summary for *branch* vs its upstream.
+
+    Returns an empty string if the branch has no upstream or the comparison
+    cannot be determined.
+
+    Args:
+        branch: Local branch name.
+        remote: Remote name. Defaults to ``'origin'``.
+        cwd: Working directory. Defaults to the current directory.
+
+    Returns:
+        A string such as ``'ahead 2'``, ``'behind 1'``, ``'ahead 1, behind 3'``,
+        or ``''`` when in sync or unknown.
+
+    """
+    upstream = f'{remote}/{branch}'
+    try:
+        raw = _run(
+            'rev-list',
+            '--left-right',
+            '--count',
+            f'{upstream}...HEAD',
+            cwd=cwd,
+        )
+    except GitError:
+        return ''
+
+    parts = raw.split()
+    if len(parts) != 2:
+        return ''
+    behind, ahead = int(parts[0]), int(parts[1])
+    pieces = []
+    if ahead:
+        pieces.append(f'ahead {ahead}')
+    if behind:
+        pieces.append(f'behind {behind}')
+    return ', '.join(pieces)
+
+
+def get_last_commit_summary(cwd: Path | None = None) -> str:
+    """Return the subject and short SHA of the most recent commit.
+
+    Args:
+        cwd: Working directory. Defaults to the current directory.
+
+    Returns:
+        A string like ``'abc1234 Fix the thing'``, or ``''`` if history is empty.
+
+    """
+    try:
+        return _run('log', '--oneline', '-1', cwd=cwd)
+    except GitError:
+        return ''
+
+
+# ---------------------------------------------------------------------------
+# Tag existence
+# ---------------------------------------------------------------------------
+
+def tag_exists(tag: str, cwd: Path | None = None) -> bool:
+    """Return ``True`` if *tag* exists in the local repository.
+
+    Args:
+        tag: Tag name to check.
+        cwd: Working directory. Defaults to the current directory.
+
+    """
+    try:
+        result = _run('tag', '--list', tag, cwd=cwd)
+        return bool(result.strip())
+    except GitError:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Branch merging / cleanup helpers
+# ---------------------------------------------------------------------------
+
+def get_merged_branches(cwd: Path | None = None) -> list[str]:
+    """Return local branches that have been merged into the current branch.
+
+    The current branch itself (prefixed with ``*``) is excluded.
+
+    Args:
+        cwd: Working directory. Defaults to the current directory.
+
+    Returns:
+        A list of branch name strings.
+
+    """
+    try:
+        raw = _run('branch', '--merged', cwd=cwd)
+    except GitError:
+        return []
+    branches = []
+    for line in raw.splitlines():
+        name = line.lstrip('* ').strip()
+        if name:
+            branches.append(name)
+    return branches
+
+
+def delete_local_branch(branch: str, force: bool = False, cwd: Path | None = None) -> None:
+    """Delete a local branch.
+
+    Args:
+        branch: Branch name to delete.
+        force: Use ``-D`` (force-delete) instead of ``-d``.
+        cwd: Working directory. Defaults to the current directory.
+
+    Raises:
+        ~._exceptions.GitError: If deletion fails.
+
+    """
+    flag = '-D' if force else '-d'
+    _run('branch', flag, branch, cwd=cwd)
+
+
+def prune_remote(remote: str = 'origin', cwd: Path | None = None) -> None:
+    """Run ``git remote prune`` to remove stale remote-tracking refs.
+
+    Args:
+        remote: Remote name. Defaults to ``'origin'``.
+        cwd: Working directory. Defaults to the current directory.
+
+    Raises:
+        ~._exceptions.GitError: If the prune fails.
+
+    """
+    _run('remote', 'prune', remote, cwd=cwd)
+
+
+def get_remote_tracking_branch(branch: str, cwd: Path | None = None) -> str | None:
+    """Return the remote-tracking ref for *branch*, or ``None`` if unset.
+
+    Args:
+        branch: Local branch name.
+        cwd: Working directory. Defaults to the current directory.
+
+    """
+    try:
+        remote = _run('config', f'branch.{branch}.remote', cwd=cwd)
+        merge = _run('config', f'branch.{branch}.merge', cwd=cwd)
+    except GitError:
+        return None
+    if merge.startswith('refs/heads/'):
+        merge = merge[len('refs/heads/'):]
+    return f'{remote}/{merge}'

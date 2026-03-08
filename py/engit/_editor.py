@@ -5,80 +5,97 @@ comment convention: lines beginning with ``#`` are stripped before the
 result is returned. Cancel is detected by checking whether the editor
 wrote to the file (mtime change): closing without saving cancels, while
 saving — even without edits — confirms.
+
+Editor resolution order mirrors ``bfdeditor``:
+    1. ``GIT_EDITOR``  — set by git and VS Code's ``code --wait`` workflow
+    2. ``VISUAL``      — preferred full-screen editor (POSIX convention)
+    3. ``EDITOR``      — fallback editor
+    4. Platform default (``notepad`` on Windows, ``vim`` elsewhere)
 """
 
 from __future__ import annotations
 
 import os
+import shlex
+import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 
-def open_in_editor(content: str) -> str | None:
-    """Present *content* in the user's ``$EDITOR`` and return the edited result.
+def _find_editor() -> list[str]:
+    """Return the editor command as a list of tokens.
 
-    Lines beginning with ``#`` are treated as comments and stripped from the
-    returned string, matching git's commit-message convention.
+    Searches ``GIT_EDITOR``, ``VISUAL``, and ``EDITOR`` in that order,
+    matching the priority used by bfdeditor/git.  Falls back to a
+    platform default (``notepad`` on Windows, ``vim`` elsewhere).
+
+    """
+    posix = sys.platform != 'win32'
+    for var in ('GIT_EDITOR', 'VISUAL', 'EDITOR'):
+        value = os.environ.get(var, '').strip()
+        if value:
+            parts = shlex.split(value, posix=posix)
+            # posix=False leaves surrounding quotes intact; strip them.
+            if not posix:
+                parts = [p.strip('"\"') for p in parts]
+            return parts
+    # Platform default — Classic Notepad on Windows (full path so it works even
+    # when System32 is not on PATH), vim elsewhere.
+    # To use a different editor set GIT_EDITOR / VISUAL / EDITOR in your shell
+    # or in engit.bat before calling this tool.
+    if sys.platform == 'win32':
+        return [r'C:\Windows\notepad.exe']
+    return ['vim']
+
+
+def open_in_editor(content: str, filename: str = 'engit_edit.txt') -> str | None:
+    """Present *content* in the user's editor and return the edited result.
+
+    Editor resolution (mirrors bfdeditor / git priority):
+        ``GIT_EDITOR`` → ``VISUAL`` → ``EDITOR`` → platform default.
+
+    The editor command string is split with :func:`shlex.split` so that
+    values like ``code --wait`` work correctly.
 
     Cancel detection uses the file's modification time: if the editor exits
-    without the file being saved, the mtime is unchanged and ``None`` is
-    returned. Saving the file — even without edits — is treated as confirmation
-    and returns the content with comments stripped.
-
-    Falls back to a simple terminal prompt when no ``$EDITOR`` is set.
+    without the file being saved (mtime unchanged), ``None`` is returned.
+    Saving the file — even without content changes — is treated as
+    confirmation.
 
     Args:
         content: Initial text to display for editing.
+        filename: Base filename for the temp file (e.g. ``'tag_v1.2.3.txt'``).
+            Shown in the editor's title bar.
 
     Returns:
-        The edited text with comment lines removed, or ``None`` if the user
-        canceled by closing the editor without saving.
+        The raw edited text, or ``None`` if the user canceled by closing the
+        editor without saving.
 
     """
-    editor = os.environ.get('EDITOR') or os.environ.get('VISUAL')
+    cmd = _find_editor()
+    editor_name = ' '.join(cmd)
 
-    if editor:
-        with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.txt',
-            delete=False,
-            encoding='utf-8',
-        ) as tmp:
-            tmp.write(content)
-            tmp_path = Path(tmp.name)
+    tmp_dir = Path(tempfile.mkdtemp(prefix='engit-'))
+    tmp_path = tmp_dir / filename
+    tmp_path.write_text(content, encoding='utf-8')
 
-        mtime_before = tmp_path.stat().st_mtime_ns
+    mtime_before = tmp_path.stat().st_mtime_ns
 
-        try:
-            subprocess.run([editor, str(tmp_path)], check=True)
-            mtime_after = tmp_path.stat().st_mtime_ns
-            raw = tmp_path.read_text(encoding='utf-8')
-        finally:
-            tmp_path.unlink(missing_ok=True)
+    print(f'Opening editor ({editor_name}) — save the file to confirm, close without saving to cancel.')
 
-        # No save — editor didn't touch the file.
-        if mtime_after == mtime_before:
-            return None
-    else:
-        # No editor available — print the draft and read a replacement inline.
-        print('\n--- Review (no $EDITOR set) ---')
-        print(content)
-        print('--- End ---\n')
-        print(
-            'Press Enter to accept as-is, type a replacement message, '
-            'or type "cancel" to abort:'
-        )
-        user_input = input().strip()
-        if user_input.lower() == 'cancel':
-            return None
-        raw = user_input if user_input else content
+    mtime_after = mtime_before  # sentinel: unchanged if editor raises
+    raw = ''
+    try:
+        subprocess.run(cmd + [str(tmp_path)], check=True)
+        mtime_after = tmp_path.stat().st_mtime_ns
+        raw = tmp_path.read_text(encoding='utf-8')
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    stripped = _strip_comments(raw)
-    return stripped if stripped else None
+    # No save — editor didn't touch the file.
+    if mtime_after == mtime_before:
+        return None
 
-
-def _strip_comments(text: str) -> str:
-    """Remove comment lines (``#``-prefixed) and return stripped result."""
-    lines = [line for line in text.splitlines() if not line.startswith('#')]
-    return '\n'.join(lines).strip()
+    return raw

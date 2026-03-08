@@ -11,13 +11,13 @@ from pathlib import Path
 from ._git import (
     require_git_repo,
     get_latest_semver_tag,
+    get_current_branch,
     get_tag_annotation,
     get_sorted_semver_tags,
     get_commits_since,
-    push_tag,
+    push_branch_and_tag,
 )
-from ._github import create_release
-from ._semver import SemVer
+from ._github import create_release, release_exists, get_release_url
 
 
 # ---------------------------------------------------------------------------
@@ -25,38 +25,65 @@ from ._semver import SemVer
 # ---------------------------------------------------------------------------
 
 def _build_draft_notes(tag: str, commits: list[str], *, initial: bool = False) -> str:
-    """Build a Markdown draft changelog from a list of commit subjects.
+    """Build a plain-text release body from a list of commit subjects.
+
+    Mirrors ``blgit``'s ``generateReleaseNotes``: a bulleted commit list,
+    or a plain sentence when there are no meaningful changes.
 
     Args:
         tag: The release tag string (e.g. ``'v1.2.3'``).
         commits: One-line commit subject strings, most recent first.
-        initial: When ``True``, uses the initial release default message
-            instead of the generic no-changes fallback.
+        initial: When ``True``, uses the initial release message instead
+            of the generic no-changes fallback.
 
     Returns:
-        A Markdown string suitable for a GitHub release body.
+        A plain-text string suitable for a GitHub release body.
 
     """
-    lines = [
-        f'## {tag}',
-        '',
-        '### Changes',
-        '',
-    ]
     if commits:
-        for msg in commits:
-            lines.append(f'- {msg}')
-    elif initial:
-        lines.append('- This is the initial release.')
-    else:
-        lines.append('- No changes recorded since last tag.')
-    lines.append('')
-    return '\n'.join(lines)
+        return '\n'.join(f'- {msg}' for msg in commits)
+    if initial:
+        return 'This is the initial release.'
+    return 'This is a no-change release.'
 
 
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
+def _parse_annotation(annotation: str) -> tuple[str, str]:
+    """Split a tag annotation into a release title and body.
+
+    Mirrors ``blgit``'s ``releaseCommand`` parsing:
+
+    * Strip ``#``-prefixed comment lines (defensive, in case an old tag has
+      them from a pre-fix engit version).
+    * First non-empty line → release title.
+    * Everything after the first blank separator → release body.
+
+    Returns:
+        ``(title, body)`` tuple.
+
+    """
+    # Defensive: strip comment lines from legacy annotations
+    clean_lines = [
+        line for line in annotation.splitlines()
+        if not line.lstrip().startswith('#')
+    ]
+    # Drop leading blank lines
+    while clean_lines and not clean_lines[0].strip():
+        clean_lines.pop(0)
+
+    if not clean_lines:
+        return ('', '')
+
+    title = clean_lines[0].strip()
+    body_lines = clean_lines[1:]
+    # Strip leading blank separator between title and body
+    while body_lines and not body_lines[0].strip():
+        body_lines.pop(0)
+    return title, '\n'.join(body_lines).strip()
+
 
 def run_release(
     *,
@@ -64,6 +91,7 @@ def run_release(
     title: str | None = None,
     draft: bool = False,
     remote: str = 'origin',
+    print_only: bool = False,
     dry_run: bool = False,
     cwd: Path | None = None,
 ) -> None:
@@ -73,16 +101,18 @@ def run_release(
 
     1. Resolve the target tag (latest local semver or explicit *tag*).
     2. Read the curated notes from the tag annotation (set by ``engit tag``).
-    3. Push the local tag to *remote*.
+    3. Push the current branch and tag to *remote*.
     4. Create the release via ``gh release create``.
 
     Args:
         tag: Tag to release (e.g. ``'v1.2.3'``). Defaults to the most recent
             local semver tag — typically the one just created by ``engit tag``.
-        title: Release title. Defaults to the tag string.
+        title: Release title override. Defaults to the first line of the tag
+            annotation.
         draft: Create the release as a draft (not yet published).
         remote: Remote name to push the tag to. Defaults to ``'origin'``.
-        dry_run: Print the planned release without pushing or creating it.
+        print_only: Print the resolved release notes and exit without publishing.
+        dry_run: Print a full plan without pushing or creating the release.
         cwd: Git working directory. Defaults to the current directory.
 
     Raises:
@@ -107,42 +137,71 @@ def run_release(
             )
         tag = latest.to_tag()
 
-    release_title = title or tag
+    # ---- Resolve release notes ----
+    annotation = get_tag_annotation(tag, cwd=cwd)
 
-    # ---- Resolve notes from curated tag annotation ----
-    draft_notes = get_tag_annotation(tag, cwd=cwd)
-
-    # Fallback for legacy/lightweight tags with no annotation.
-    if not draft_notes:
+    # Fallback: legacy / lightweight tags with no annotation.
+    # Mirrors blgit: synthesise title + body in the same format that
+    # ``engit tag`` now stores (first line = title, blank, body bullets).
+    if not annotation:
         semver_tags = get_sorted_semver_tags(cwd=cwd)
         try:
             tag_index = semver_tags.index(tag)
             prev_tag = semver_tags[tag_index + 1] if tag_index + 1 < len(semver_tags) else None
         except ValueError:
             prev_tag = None
-
         commits = get_commits_since(prev_tag, cwd=cwd) if prev_tag else []
-        draft_notes = _build_draft_notes(tag, commits, initial=not prev_tag)
+        body = _build_draft_notes(tag, commits, initial=not prev_tag)
+        annotation = f'Release {tag}\n\n{body}'
 
-    notes = draft_notes
+    # ---- Parse title and body from annotation ----
+    parsed_title, notes = _parse_annotation(annotation)
+    release_title = title or parsed_title or tag
+
+    # ---- Detect prerelease from semver tag ----
+    # engit's SemVer only supports plain MAJOR.MINOR.PATCH; prerelease
+    # metadata (e.g. -alpha.1) is not currently produced by engit tag.
+    # Reserved for future use when prerelease suffixes are supported.
+    is_prerelease = False
+
+    # ---- Print-only mode ----
+    if print_only:
+        print(f'Tag:   {tag}')
+        print(f'Title: {release_title}')
+        print()
+        print(notes)
+        return
 
     # ---- Dry run ----
     if dry_run:
         print('\n[dry-run] Would create GitHub release:')
-        print(f'  Tag:    {tag}')
-        print(f'  Title:  {release_title}')
-        print(f'  Remote: {remote}')
-        print(f'  Draft:  {draft}')
+        print(f'  Tag:        {tag}')
+        print(f'  Title:      {release_title}')
+        print(f'  Remote:     {remote}')
+        print(f'  Draft:      {draft}')
+        print(f'  Prerelease: {is_prerelease}')
         print()
         print('--- Notes ---')
         print(notes)
         print('--- End ---')
         return
 
-    # ---- Push the local tag ----
-    push_tag(tag, remote=remote, cwd=cwd)
-    print(f'Pushed {tag} to {remote}')
+    # ---- Check for existing release ----
+    if release_exists(tag):
+        existing_url = get_release_url(tag)
+        print(f'A release for {tag} already exists: {existing_url}')
+        return
+
+    # ---- Push branch + tag ----
+    branch = get_current_branch(cwd=cwd)
+    if branch:
+        push_branch_and_tag(tag, branch, remote=remote, cwd=cwd)
+        print(f'Pushed {branch} and {tag} to {remote}')
+    else:
+        from ._git import push_tag
+        push_tag(tag, remote=remote, cwd=cwd)
+        print(f'Pushed {tag} to {remote} (detached HEAD — branch not pushed)')
 
     # ---- Create the GitHub release ----
-    url = create_release(tag, release_title, notes, draft=draft)
+    url = create_release(tag, release_title, notes, draft=draft, prerelease=is_prerelease)
     print(f'Release created: {url}')

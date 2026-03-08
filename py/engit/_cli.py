@@ -79,6 +79,12 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     tag_p.add_argument(
+        '--print', '-p',
+        dest='print_only',
+        action='store_true',
+        help='Print the computed next version without creating a tag.',
+    )
+    tag_p.add_argument(
         '--dry-run',
         action='store_true',
         help='Print the planned tag without creating it.',
@@ -122,9 +128,96 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Remote name to push to (default: origin).',
     )
     rel_p.add_argument(
+        '--print', '-p',
+        dest='print_only',
+        action='store_true',
+        help='Print the resolved release notes without pushing or publishing.',
+    )
+    rel_p.add_argument(
         '--dry-run',
         action='store_true',
         help='Print the planned release without creating it.',
+    )
+
+    # ------------------------------------------------------------------
+    # engit status
+    # ------------------------------------------------------------------
+    status_p = sub.add_parser(
+        'status',
+        help='Show repository status.',
+        description=(
+            'Display the current branch, ahead/behind the remote, '
+            'last semver tag, and most recent commit.'
+        ),
+    )
+    status_p.add_argument(
+        '--remote',
+        default='origin',
+        metavar='REMOTE',
+        help='Remote name for ahead/behind comparison (default: origin).',
+    )
+
+    # ------------------------------------------------------------------
+    # engit changelog
+    # ------------------------------------------------------------------
+    changelog_p = sub.add_parser(
+        'changelog',
+        help='Generate a changelog from GitHub releases.',
+        description=(
+            'Fetch published GitHub releases, sort by semantic version, '
+            'and print a formatted changelog.'
+        ),
+    )
+    changelog_p.add_argument(
+        '--tag',
+        metavar='TAG',
+        help='Show only the release for this tag.',
+    )
+
+    # ------------------------------------------------------------------
+    # engit cleanup
+    # ------------------------------------------------------------------
+    cleanup_p = sub.add_parser(
+        'cleanup',
+        help='Clean up merged and stale local branches.',
+        description=(
+            'Prunes stale remote-tracking refs, deletes merged branches, '
+            'and deletes branches whose remote has been deleted.'
+        ),
+    )
+    cleanup_p.add_argument(
+        '--remote',
+        default='origin',
+        metavar='REMOTE',
+        help='Remote name to prune (default: origin).',
+    )
+    cleanup_p.add_argument(
+        '--noop',
+        action='store_true',
+        help="Print what would be deleted without actually deleting anything.",
+    )
+
+    # ------------------------------------------------------------------
+    # engit web
+    # ------------------------------------------------------------------
+    web_p = sub.add_parser(
+        'web',
+        help='Open the repository on GitHub in a browser.',
+        description=(
+            'Resolves the remote URL and opens the repository '
+            '(or a specific branch/tag) in the default web browser.'
+        ),
+    )
+    web_p.add_argument(
+        '--branch', '-b',
+        metavar='BRANCH',
+        help='Branch or tag to view. Defaults to the current branch.',
+    )
+    web_p.add_argument(
+        '--remote',
+        default='origin',
+        metavar='REMOTE',
+        help='Remote whose URL is opened (default: origin).',
     )
 
     # ------------------------------------------------------------------
@@ -186,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
                 bump=args.bump,
                 version=args.explicit_version,
                 message=args.message,
+                print_only=args.print_only,
                 dry_run=args.dry_run,
             )
 
@@ -196,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
                 title=args.title,
                 draft=args.draft,
                 remote=args.remote,
+                print_only=args.print_only,
                 dry_run=args.dry_run,
             )
 
@@ -206,6 +301,22 @@ def main(argv: list[str] | None = None) -> int:
                 orgs=args.orgs,
                 limit=args.limit,
             )
+
+        elif args.command == 'status':
+            from ._status import run_status
+            run_status(remote=args.remote)
+
+        elif args.command == 'changelog':
+            from ._changelog import run_changelog
+            run_changelog(tag=args.tag)
+
+        elif args.command == 'cleanup':
+            from ._cleanup import run_cleanup
+            run_cleanup(remote=args.remote, noop=args.noop)
+
+        elif args.command == 'web':
+            from ._web import run_web
+            run_web(branch=args.branch, remote=args.remote)
 
     except EngitError as exc:
         print(f'Error: {exc}', file=sys.stderr)

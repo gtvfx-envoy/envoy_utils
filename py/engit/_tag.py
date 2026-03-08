@@ -18,6 +18,7 @@ from ._git import (
     get_sorted_semver_tags,
     get_commits_since,
     create_tag,
+    tag_exists,
 )
 from ._semver import SemVer
 
@@ -78,6 +79,34 @@ def resolve_next_version(
     raise ValueError(f"Unknown bump component '{bump}'. Use 'major', 'minor', or 'patch'.")
 
 
+def _strip_comments(text: str) -> str:
+    """Strip ``#``-prefixed comment lines and trim blank edges.
+
+    Mirrors the comment-stripping that ``git tag -a`` performs when the
+    editor is invoked interactively.  Any line whose first non-space
+    character is ``#`` is removed; the remainder is stripped of leading
+    and trailing blank lines.
+
+    Args:
+        text: Raw editor buffer contents.
+
+    Returns:
+        Cleaned annotation text, or an empty string if nothing remains.
+
+    """
+    kept = [
+        line for line in text.splitlines()
+        if not line.lstrip().startswith('#')
+    ]
+    # Drop trailing blank lines
+    while kept and not kept[-1].strip():
+        kept.pop()
+    # Drop leading blank lines
+    while kept and not kept[0].strip():
+        kept.pop(0)
+    return '\n'.join(kept)
+
+
 def _build_tag_draft(
     tag: str,
     default_annotation: str,
@@ -86,53 +115,58 @@ def _build_tag_draft(
 ) -> str:
     """Build the editor draft for tag confirmation.
 
-    The non-comment lines form the tag annotation and are stored directly in
-    the annotated tag. Comment lines (``#``-prefixed) provide context and are
-    stripped before the annotation is used.
+    Mirrors blgit's ``tag-template``: editable content comes first, with a
+    compact ``#``-comment block at the bottom — the same convention as
+    ``git commit``.  Lines starting with ``#`` are stripped before the
+    annotation is stored.
+
+    The stored annotation will be::
+
+        Release v1.2.3
+
+        - Commit summary one
+        - Commit summary two
+
+    The first line becomes the GitHub release title; subsequent lines
+    become the release body.
 
     Args:
         tag: The proposed tag string (e.g. ``'v1.2.3'``).
-        default_annotation: Default first line of the annotation.
+        default_annotation: Default first line (release title).
         commits: Commit subject lines since the previous tag.
         prev_tag: The previous semver tag string, or ``None`` if first tag.
 
     Returns:
-        Markdown-ish draft string ready to open in an editor.
+        Draft string ready to open in an editor.
 
     """
+    if commits:
+        body_lines = [f'- {msg}' for msg in commits]
+    elif prev_tag is None:
+        body_lines = ['This is the initial release.']
+    else:
+        body_lines = ['This is a no-change release.']
+
+    # Content first — mirrors blgit's tag-template structure so the cursor
+    # lands immediately on the editable text, not a wall of instructions.
     lines: list[str] = [
-        f'## {tag}',
-        '',
         default_annotation,
         '',
-        '### Changes',
+    ] + body_lines + [
         '',
-    ]
-
-    if commits:
-        for msg in commits:
-            lines.append(f'- {msg}')
-    elif prev_tag is None:
-        lines.append('- This is the initial release.')
-    else:
-        lines.append('- No changes recorded since last tag.')
-
-    lines += [
-        '',
-        f'# Proposed tag : {tag}',
+        '#',
+        f'# Write a message for tag: {tag}',
     ]
 
     if prev_tag:
-        lines.append(f'# Previous tag : {prev_tag}')
-        lines.append(f'# Commits since {prev_tag} pre-populated above as bullets.')
+        lines.append(f'# Previous tag: {prev_tag}')
+        lines.append(f'# Commits above pre-populated from git log since {prev_tag}.')
     else:
         lines.append('# First tag in this repository.')
-        lines.append('# Edit the bullet above or add more lines to describe this release.')
 
     lines += [
-        '#',
-        "# Lines beginning with '#' are ignored.",
-        '# An empty message after removing comments will abort the tag.',
+        "# Lines starting with '#' will be ignored.",
+        '# Save the file to confirm. Close without saving to cancel.',
     ]
 
     return '\n'.join(lines) + '\n'
@@ -143,6 +177,7 @@ def run_tag(
     bump: str | None = None,
     version: str | None = None,
     message: str | None = None,
+    print_only: bool = False,
     dry_run: bool = False,
     cwd: Path | None = None,
 ) -> SemVer | None:
@@ -157,6 +192,7 @@ def run_tag(
             or ``'patch'``.
         version: Explicit full version string (overrides *bump*).
         message: Override the default release title line. Skips the editor.
+        print_only: Print the computed next version and exit without tagging.
         dry_run: When ``True``, print the planned tag without creating it.
         cwd: Git working directory. Defaults to the current directory.
 
@@ -177,9 +213,21 @@ def run_tag(
     tag_name = next_ver.to_tag()
     default_annotation = message or f'Release {tag_name}'
 
+    if print_only:
+        print(tag_name)
+        return next_ver
+
     if dry_run:
         print(f'[dry-run] Would create tag: {tag_name}')
         return next_ver
+
+    # ---- Guard: refuse to overwrite an existing tag ----
+    if tag_exists(tag_name, cwd=cwd):
+        from ._exceptions import GitError
+        raise GitError(
+            f"Tag '{tag_name}' already exists. "
+            "Use --version to supply a different version."
+        )
 
     # ---- Build commit context for the editor draft ----
     semver_tags = get_sorted_semver_tags(cwd=cwd)
@@ -193,13 +241,18 @@ def run_tag(
 
     # ---- If a message was supplied explicitly, skip the editor ----
     if message is not None:
-        annotation = message
+        annotation = _strip_comments(message)
     else:
         draft = _build_tag_draft(tag_name, default_annotation, commits, prev_tag)
-        annotation = open_in_editor(draft)
-        if annotation is None:
+        raw = open_in_editor(draft, filename=f'tag_{tag_name}.txt')
+        if raw is None:
             print('Tag aborted.')
             return None
+        annotation = _strip_comments(raw)
+
+    if not annotation:
+        print('Tag aborted: empty annotation after removing comments.')
+        return None
 
     create_tag(tag_name, annotation, cwd=cwd)
     print(f'Created tag: {tag_name}')

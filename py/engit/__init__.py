@@ -19,14 +19,26 @@ CLI usage::
     engit search pythoncore
     engit search maya --org gtvfx-contrib --org gtvfx
 
+    engit status
+    engit changelog
+    engit changelog --tag v1.0.0
+    engit cleanup
+    engit cleanup --noop
+    engit web
+    engit web --branch develop
+
 Submodules:
-    _semver    -- SemVer dataclass and parsing
-    _git       -- git subprocess wrappers
-    _github    -- gh CLI wrappers
-    _tag       -- tag command logic
-    _release   -- release command logic
-    _search    -- search command logic
-    _cli       -- argument parser and entry point
+    _semver     -- SemVer dataclass and parsing
+    _git        -- git subprocess wrappers
+    _github     -- gh CLI wrappers
+    _tag        -- tag command logic
+    _release    -- release command logic
+    _search     -- search command logic
+    _status     -- status command logic
+    _changelog  -- changelog command logic
+    _cleanup    -- cleanup command logic
+    _web        -- web command logic
+    _cli        -- argument parser and entry point
     _exceptions -- all engit exception classes
 """
 
