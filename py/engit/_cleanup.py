@@ -1,6 +1,6 @@
 """engit cleanup command — tidy up merged and stale local branches.
 
-Mirrors the key parts of ``blgit cleanup``:
+Performs the following cleanup steps:
 
 * Runs ``git remote prune <remote>`` to remove stale remote-tracking refs.
 * Deletes local branches that have been merged into the current branch.

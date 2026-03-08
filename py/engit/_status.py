@@ -1,7 +1,7 @@
 """engit status command — repository status summary.
 
 Displays branch, ahead/behind the remote, last semver tag, and most recent
-commit in a compact, human-readable format. Mirrors ``blgit status``.
+commit in a compact, human-readable format.
 """
 
 from __future__ import annotations

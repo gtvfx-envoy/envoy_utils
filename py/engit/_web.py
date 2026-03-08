@@ -1,7 +1,6 @@
 """engit web command — open the current repository on GitHub.
 
 Resolves the remote URL and opens it in the default web browser.
-Mirrors ``blgit web``.
 """
 
 from __future__ import annotations

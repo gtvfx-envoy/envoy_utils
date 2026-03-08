@@ -1,7 +1,7 @@
 """engit changelog command — generate a changelog from GitHub releases.
 
 Fetches all GitHub releases (via ``gh``), sorts by semantic version, and
-renders the release titles and notes to stdout. Mirrors ``blgit changelog``.
+renders the release titles and notes to stdout.
 """
 
 from __future__ import annotations

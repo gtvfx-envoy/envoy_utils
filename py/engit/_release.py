@@ -27,8 +27,8 @@ from ._github import create_release, release_exists, get_release_url
 def _build_draft_notes(tag: str, commits: list[str], *, initial: bool = False) -> str:
     """Build a plain-text release body from a list of commit subjects.
 
-    Mirrors ``blgit``'s ``generateReleaseNotes``: a bulleted commit list,
-    or a plain sentence when there are no meaningful changes.
+    Builds a bulleted commit list, or a plain sentence when there are no
+    meaningful changes.
 
     Args:
         tag: The release tag string (e.g. ``'v1.2.3'``).
@@ -54,7 +54,7 @@ def _build_draft_notes(tag: str, commits: list[str], *, initial: bool = False) -
 def _parse_annotation(annotation: str) -> tuple[str, str]:
     """Split a tag annotation into a release title and body.
 
-    Mirrors ``blgit``'s ``releaseCommand`` parsing:
+    Parsing rules:
 
     * Strip ``#``-prefixed comment lines (defensive, in case an old tag has
       them from a pre-fix engit version).
@@ -141,8 +141,8 @@ def run_release(
     annotation = get_tag_annotation(tag, cwd=cwd)
 
     # Fallback: legacy / lightweight tags with no annotation.
-    # Mirrors blgit: synthesise title + body in the same format that
-    # ``engit tag`` now stores (first line = title, blank, body bullets).
+    # Synthesise title + body in the same format engit tag stores
+    # (first line = title, blank line, body bullets).
     if not annotation:
         semver_tags = get_sorted_semver_tags(cwd=cwd)
         try:

@@ -115,9 +115,8 @@ def _build_tag_draft(
 ) -> str:
     """Build the editor draft for tag confirmation.
 
-    Mirrors blgit's ``tag-template``: editable content comes first, with a
-    compact ``#``-comment block at the bottom — the same convention as
-    ``git commit``.  Lines starting with ``#`` are stripped before the
+    Editable content comes first, with a compact ``#``-comment block at the
+    bottom — the same convention as ``git commit``.  Lines starting with ``#`` are stripped before the
     annotation is stored.
 
     The stored annotation will be::
@@ -147,8 +146,8 @@ def _build_tag_draft(
     else:
         body_lines = ['This is a no-change release.']
 
-    # Content first — mirrors blgit's tag-template structure so the cursor
-    # lands immediately on the editable text, not a wall of instructions.
+    # Content first — cursor lands immediately on the editable text, not a
+    # wall of instructions.
     lines: list[str] = [
         default_annotation,
         '',
