@@ -100,7 +100,7 @@ def create_release(
 def search_repos(
     query: str,
     *,
-    orgs: list[str] | None = None,
+    orgs: list[str | None] | None = None,
     limit: int = 20,
 ) -> list[dict]:
     """Search GitHub repositories matching *query*.
@@ -110,7 +110,9 @@ def search_repos(
 
     Args:
         query: Search query string.
-        orgs: List of GitHub organisation names to scope the search.
+        orgs: List of GitHub organisation names to scope the search. 
+            If None, the search is global across all of GitHub.
+            Each org is searched sequentially and results are combined.
         limit: Maximum number of results per org (or global). Defaults to 20.
 
     Returns:

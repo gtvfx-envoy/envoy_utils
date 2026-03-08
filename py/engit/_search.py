@@ -62,10 +62,10 @@ def run_search(
         if env_orgs_raw:
             effective_orgs = _parse_orgs(env_orgs_raw)
 
-    results = search_repos(query, orgs=effective_orgs, limit=limit)
+    results = search_repos(query, orgs=[*effective_orgs] if effective_orgs else None, limit=limit)
 
     if not results:
-        scope = ', '.join(effective_orgs) if effective_orgs else 'GitHub (global)'
+        scope = ', '.join(o for o in effective_orgs if o) if effective_orgs else 'GitHub (global)'
         print(f"No repositories found matching '{query}' in: {scope}")
         return
 

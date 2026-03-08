@@ -153,6 +153,41 @@ def get_latest_semver_tag(cwd: Path | None = None) -> SemVer | None:
     return None
 
 
+def get_sorted_semver_tags(cwd: Path | None = None) -> list[str]:
+    """Return all semver tags sorted newest-first as raw tag strings.
+
+    Only tags that parse as valid :class:`~._semver.SemVer` are included.
+    Non-semver tags (e.g. feature branches, date-based tags) are silently
+    discarded.
+
+    Args:
+        cwd: Working directory. Defaults to the current directory.
+
+    Returns:
+        A list of tag strings such as ``['v1.2.0', 'v1.1.0', 'v0.9.0']``.
+
+    """
+    from ._semver import SemVerError
+
+    try:
+        raw = _run('tag', '--list', '--sort=-version:refname', cwd=cwd)
+    except GitError:
+        return []
+
+    tags = []
+    for line in raw.splitlines():
+        tag = line.strip()
+        if not tag:
+            continue
+        try:
+            SemVer.parse(tag)
+            tags.append(tag)
+        except SemVerError:
+            continue
+
+    return tags
+
+
 def create_tag(tag: str, message: str, cwd: Path | None = None) -> None:
     """Create an annotated git tag at HEAD.
 

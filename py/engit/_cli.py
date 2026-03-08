@@ -70,18 +70,10 @@ def _build_parser() -> argparse.ArgumentParser:
     tag_p.add_argument(
         '--message', '-m',
         metavar='MESSAGE',
-        help='Custom tag annotation. Defaults to "Release vMAJOR.MINOR.PATCH".',
-    )
-    tag_p.add_argument(
-        '--push',
-        action='store_true',
-        help='Push the tag to the remote after creation.',
-    )
-    tag_p.add_argument(
-        '--remote',
-        default='origin',
-        metavar='REMOTE',
-        help='Remote name to push to (default: origin).',
+        help=(
+            'Supply the tag annotation directly, skipping the editor. '
+            'Defaults to "Release vMAJOR.MINOR.PATCH".'
+        ),
     )
     tag_p.add_argument(
         '--dry-run',
@@ -119,11 +111,6 @@ def _build_parser() -> argparse.ArgumentParser:
         '--draft',
         action='store_true',
         help='Create the release as a draft (not yet published).',
-    )
-    rel_p.add_argument(
-        '--push',
-        action='store_true',
-        help='Push the tag to the remote before creating the release.',
     )
     rel_p.add_argument(
         '--remote',
@@ -201,8 +188,6 @@ def main(argv: list[str] | None = None) -> int:
                 bump=args.bump,
                 version=args.explicit_version,
                 message=args.message,
-                push=args.push,
-                remote=args.remote,
                 dry_run=args.dry_run,
             )
 
@@ -212,7 +197,6 @@ def main(argv: list[str] | None = None) -> int:
                 tag=args.tag,
                 title=args.title,
                 draft=args.draft,
-                push=args.push,
                 remote=args.remote,
                 yes=args.yes,
                 dry_run=args.dry_run,
