@@ -203,6 +203,36 @@ def create_tag(tag: str, message: str, cwd: Path | None = None) -> None:
     _run('tag', '-a', tag, '-m', message, cwd=cwd)
 
 
+def get_tag_annotation(tag: str, cwd: Path | None = None) -> str | None:
+    """Return the annotation message for an annotated tag.
+
+    Args:
+        tag: Tag name to inspect (e.g. ``'v1.2.3'``).
+        cwd: Working directory. Defaults to the current directory.
+
+    Returns:
+        The tag annotation body, or ``None`` when the tag does not exist,
+        is lightweight (non-annotated), or has no message body.
+
+    """
+    try:
+        object_type = _run('cat-file', '-t', tag, cwd=cwd)
+    except GitError:
+        return None
+
+    if object_type != 'tag':
+        # Lightweight tags resolve to commit objects and have no annotation.
+        return None
+
+    try:
+        body = _run('for-each-ref', f'refs/tags/{tag}', '--format=%(contents)', cwd=cwd)
+    except GitError:
+        return None
+
+    body = body.strip()
+    return body or None
+
+
 def push_tag(tag: str, remote: str = 'origin', cwd: Path | None = None) -> None:
     """Push a single tag to *remote*.
 

@@ -2,7 +2,9 @@
 engit -- git and GitHub tooling for envoy bundle development.
 
 Provides semantic version tagging, GitHub release creation, and repository
-search, all driven from the command line.
+search, all driven from the command line. The ``tag`` flow pre-populates
+commit bullets for changelist curation; ``release`` uses the curated tag
+annotation as the release notes source-of-truth.
 
 CLI usage::
 

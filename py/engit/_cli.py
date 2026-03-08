@@ -33,6 +33,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Create a semantic version git tag.',
         description=(
             'Create an annotated git tag at HEAD using semantic versioning. '
+            'The editor is pre-populated with commit bullets for changelist '
+            'curation; the saved text becomes the tag annotation used by '
+            'engit release. '
             'Provide one of --major / --minor / --patch to increment the current '
             'latest tag, or --version to supply an explicit version.'
         ),
@@ -89,8 +92,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Create a GitHub release from a tag.',
         description=(
             'Create a GitHub release using the gh CLI. '
-            'Automatically aggregates commit messages since the previous tag '
-            'into a draft changelog for review before publishing.'
+            'Uses the selected tag annotation (curated in engit tag) as '
+            'release notes, with a legacy fallback draft for older tags.'
         ),
     )
 
@@ -117,11 +120,6 @@ def _build_parser() -> argparse.ArgumentParser:
         default='origin',
         metavar='REMOTE',
         help='Remote name to push to (default: origin).',
-    )
-    rel_p.add_argument(
-        '--yes', '-y',
-        action='store_true',
-        help='Skip the editor and use the auto-generated release notes unchanged.',
     )
     rel_p.add_argument(
         '--dry-run',
@@ -198,7 +196,6 @@ def main(argv: list[str] | None = None) -> int:
                 title=args.title,
                 draft=args.draft,
                 remote=args.remote,
-                yes=args.yes,
                 dry_run=args.dry_run,
             )
 

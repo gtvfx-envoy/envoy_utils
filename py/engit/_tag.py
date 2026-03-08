@@ -10,14 +10,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ._editor import open_in_editor
+from engit._editor import open_in_editor
 from ._exceptions import NoTagsFoundError
 from ._git import (
     require_git_repo,
     get_latest_semver_tag,
     get_sorted_semver_tags,
     get_commits_since,
-    get_all_commits,
     create_tag,
 )
 from ._semver import SemVer
@@ -87,9 +86,9 @@ def _build_tag_draft(
 ) -> str:
     """Build the editor draft for tag confirmation.
 
-    The non-comment lines form the default tag annotation. Comment lines
-    (``#``-prefixed) provide context — the proposed tag name, previous tag,
-    and the commit list — and are stripped before the annotation is used.
+    The non-comment lines form the tag annotation and are stored directly in
+    the annotated tag. Comment lines (``#``-prefixed) provide context and are
+    stripped before the annotation is used.
 
     Args:
         tag: The proposed tag string (e.g. ``'v1.2.3'``).
@@ -102,23 +101,33 @@ def _build_tag_draft(
 
     """
     lines: list[str] = [
+        f'## {tag}',
+        '',
         default_annotation,
+        '',
+        '### Changes',
+        '',
+    ]
+
+    if commits:
+        for msg in commits:
+            lines.append(f'- {msg}')
+    elif prev_tag is None:
+        lines.append('- This is the initial release.')
+    else:
+        lines.append('- No changes recorded since last tag.')
+
+    lines += [
         '',
         f'# Proposed tag : {tag}',
     ]
 
     if prev_tag:
         lines.append(f'# Previous tag : {prev_tag}')
-        lines.append(f'# Commits since {prev_tag}:')
+        lines.append(f'# Commits since {prev_tag} pre-populated above as bullets.')
     else:
         lines.append('# First tag in this repository.')
-        lines.append('# All commits:')
-
-    if commits:
-        for msg in commits:
-            lines.append(f'#   {msg}')
-    else:
-        lines.append('#   (no commits recorded)')
+        lines.append('# Edit the bullet above or add more lines to describe this release.')
 
     lines += [
         '#',
@@ -139,15 +148,15 @@ def run_tag(
 ) -> SemVer | None:
     """Create a local annotated git tag for the next semantic version.
 
-    Opens the user's editor to review the proposed tag name and commit list
-    before committing. The tag annotation is editable in the editor. Closing
-    with no non-comment content cancels the operation.
+    Opens the user's editor to review and curate release notes before
+    creating the tag. The resulting non-comment text is stored as the
+    annotated tag message. Closing with no non-comment content cancels.
 
     Args:
         bump: Version component to increment — ``'major'``, ``'minor'``,
             or ``'patch'``.
         version: Explicit full version string (overrides *bump*).
-        message: Override the default tag annotation. Skips the editor.
+        message: Override the default release title line. Skips the editor.
         dry_run: When ``True``, print the planned tag without creating it.
         cwd: Git working directory. Defaults to the current directory.
 
@@ -180,7 +189,7 @@ def run_tag(
     if prev_tag:
         commits = get_commits_since(prev_tag, cwd=cwd)
     else:
-        commits = get_all_commits(cwd=cwd)
+        commits = []  # First tag — use default initial release message.
 
     # ---- If a message was supplied explicitly, skip the editor ----
     if message is not None:

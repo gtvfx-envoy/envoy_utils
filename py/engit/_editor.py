@@ -2,7 +2,9 @@
 
 Opens content in the user's ``$EDITOR`` for review. Uses a git-style
 comment convention: lines beginning with ``#`` are stripped before the
-result is returned. An all-empty result signals a canceled operation.
+result is returned. Cancel is detected by checking whether the editor
+wrote to the file (mtime change): closing without saving cancels, while
+saving — even without edits — confirms.
 """
 
 from __future__ import annotations
@@ -17,9 +19,12 @@ def open_in_editor(content: str) -> str | None:
     """Present *content* in the user's ``$EDITOR`` and return the edited result.
 
     Lines beginning with ``#`` are treated as comments and stripped from the
-    returned string, matching git's commit-message convention. If the resulting
-    content is empty (all lines deleted or commented out), ``None`` is returned
-    to signal that the operation was canceled.
+    returned string, matching git's commit-message convention.
+
+    Cancel detection uses the file's modification time: if the editor exits
+    without the file being saved, the mtime is unchanged and ``None`` is
+    returned. Saving the file — even without edits — is treated as confirmation
+    and returns the content with comments stripped.
 
     Falls back to a simple terminal prompt when no ``$EDITOR`` is set.
 
@@ -28,7 +33,7 @@ def open_in_editor(content: str) -> str | None:
 
     Returns:
         The edited text with comment lines removed, or ``None`` if the user
-        canceled by leaving no non-comment content.
+        canceled by closing the editor without saving.
 
     """
     editor = os.environ.get('EDITOR') or os.environ.get('VISUAL')
@@ -36,18 +41,25 @@ def open_in_editor(content: str) -> str | None:
     if editor:
         with tempfile.NamedTemporaryFile(
             mode='w',
-            suffix='.md',
+            suffix='.txt',
             delete=False,
             encoding='utf-8',
         ) as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
 
+        mtime_before = tmp_path.stat().st_mtime_ns
+
         try:
             subprocess.run([editor, str(tmp_path)], check=True)
+            mtime_after = tmp_path.stat().st_mtime_ns
             raw = tmp_path.read_text(encoding='utf-8')
         finally:
             tmp_path.unlink(missing_ok=True)
+
+        # No save — editor didn't touch the file.
+        if mtime_after == mtime_before:
+            return None
     else:
         # No editor available — print the draft and read a replacement inline.
         print('\n--- Review (no $EDITOR set) ---')
