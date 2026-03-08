@@ -244,7 +244,7 @@ def run_tag(
         annotation = _strip_comments(message)
     else:
         draft = _build_tag_draft(tag_name, default_annotation, commits, prev_tag)
-        raw = open_in_editor(draft, filename=f'tag_{tag_name}.txt')
+        raw = open_in_editor(draft, filename='TAG_EDITMSG')
         if raw is None:
             print('Tag aborted.')
             return None
