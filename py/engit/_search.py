@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 
 from ._exceptions import GitHubError
-from ._github import search_repos
+from ._github import search_repos, get_current_org
 
 
 #: Environment variable that holds the default semicolon-separated list of
@@ -42,7 +42,9 @@ def run_search(
 
     1. Explicit *orgs* argument (``--org`` flags on the CLI).
     2. ``ENVOY_GITHUB_ORGS`` environment variable.
-    3. Global search (no org scope) if neither is set.
+    3. The organisation that owns the envoy repository itself (detected via
+       ``gh repo view``).
+    4. Global search (no org scope) if none of the above resolve.
 
     Args:
         query: Search query string.
@@ -61,6 +63,11 @@ def run_search(
         env_orgs_raw = os.environ.get(ORGS_ENV_VAR, '')
         if env_orgs_raw:
             effective_orgs = _parse_orgs(env_orgs_raw)
+
+    if not effective_orgs:
+        org = get_current_org()
+        if org:
+            effective_orgs = [org]
 
     results = search_repos(query, orgs=[*effective_orgs] if effective_orgs else None, limit=limit)
 

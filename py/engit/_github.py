@@ -10,8 +10,14 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+from pathlib import Path
 
 from ._exceptions import GitHubError, GhCliNotFoundError
+
+
+#: Directory of this package — used as ``cwd`` when invoking ``gh`` so that
+#: repo-context commands resolve against the envoy repository.
+_PACKAGE_DIR = Path(__file__).parent
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +49,7 @@ def _run(*args: str) -> str:
     """
     _require_gh()
     cmd = ['gh', *args]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
 
     if result.returncode != 0:
         raise GitHubError(result.stderr.strip() or f"gh {' '.join(args)} failed.")
@@ -142,6 +148,36 @@ def get_release_url(tag: str) -> str | None:
 # Search operations
 # ---------------------------------------------------------------------------
 
+
+def get_current_org() -> str | None:
+    """Return the GitHub organisation that owns the envoy repository.
+
+    Runs ``gh repo view`` with its working directory set to the engit
+    package, so the result always reflects the envoy repo regardless of
+    where the user invokes the command.
+
+    Returns:
+        Organisation login string (e.g. ``'gtvfx-contrib'``), or ``None``
+        if ``gh`` is unavailable or the repo cannot be queried.
+
+    """
+    if shutil.which('gh') is None:
+        return None
+    try:
+        result = subprocess.run(
+            ['gh', 'repo', 'view', '--json', 'owner', '--jq', '.owner.login'],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            cwd=_PACKAGE_DIR,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip() or None
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 def search_repos(
     query: str,
     *,
@@ -176,10 +212,11 @@ def search_repos(
     seen: set[str] = set()
 
     for org in targets:
-        scoped_query = f'org:{org} {query}' if org else query
+        owner_args = ['--owner', org] if org else []
         raw = _run(
             'search', 'repos',
-            scoped_query,
+            query,
+            *owner_args,
             '--limit', str(limit),
             '--json', 'name,fullName,description,url,stargazersCount,updatedAt',
         )
