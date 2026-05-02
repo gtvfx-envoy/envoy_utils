@@ -4,11 +4,13 @@ REM Usage: engit tag --patch
 REM        engit release
 REM        engit search <query>
 
-REM Set PYTHONPATH to find the engit module
+REM Prefer the pre-built standalone executable when available.
+if exist "%~dp0..\dist\engit.exe" (
+    "%~dp0..\dist\engit.exe" %*
+    exit /b %errorlevel%
+)
+
+REM Fall back to running from source (development mode).
 set "PYTHONPATH=%~dp0..\py;%PYTHONPATH%"
-
-REM Execute the engit CLI module
 python -m engit %*
-
-REM Exit with the same code as the Python process
 exit /b %errorlevel%
