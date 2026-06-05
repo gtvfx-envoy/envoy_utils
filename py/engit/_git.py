@@ -417,6 +417,35 @@ def tag_exists(tag: str, cwd: Path | None = None) -> bool:
         return False
 
 
+def pull(
+    remote: str = 'origin',
+    rebase: bool = False,
+    cwd: Path | None = None,
+) -> str:
+    """Run ``git pull`` and return the output message.
+
+    Args:
+        remote: Remote name to pull from. Defaults to ``'origin'``.
+        rebase: Pass ``--rebase`` to rebase local commits on top of the
+            fetched branch instead of merging.
+        cwd: Working directory (git repo root). Defaults to the current
+            directory.
+
+    Returns:
+        Git output string (e.g. ``'Already up to date.'`` or a summary of
+        files changed).
+
+    Raises:
+        ~._exceptions.GitError: If the pull fails.
+
+    """
+    args = ['pull']
+    if rebase:
+        args.append('--rebase')
+    args.append(remote)
+    return _run(*args, cwd=cwd)
+
+
 # ---------------------------------------------------------------------------
 # Branch merging / cleanup helpers
 # ---------------------------------------------------------------------------

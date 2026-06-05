@@ -221,6 +221,44 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     # ------------------------------------------------------------------
+    # engit pull
+    # ------------------------------------------------------------------
+    pull_p = sub.add_parser(
+        'pull',
+        help='Pull one or more envoy bundle checkouts.',
+        description=(
+            'Run git pull on one or more envoy bundle checkouts by bundle ID. '
+            'Bundle paths are resolved from ENVOY_BNDL_ROOTS. '
+            'Use * to pull all discovered bundles.'
+        ),
+    )
+    pull_p.add_argument(
+        'bundles',
+        nargs='+',
+        metavar='BUNDLE',
+        help=(
+            'Bundle ID to pull (e.g. gt:python), or * to pull all bundles '
+            'discovered via ENVOY_BNDL_ROOTS. Multiple IDs may be supplied.'
+        ),
+    )
+    pull_p.add_argument(
+        '--remote',
+        default='origin',
+        metavar='REMOTE',
+        help='Remote to pull from (default: origin).',
+    )
+    pull_p.add_argument(
+        '--rebase',
+        action='store_true',
+        help='Pass --rebase to git pull (rebase local commits onto fetched branch).',
+    )
+    pull_p.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Print what would be pulled without running git.',
+    )
+
+    # ------------------------------------------------------------------
     # engit search
     # ------------------------------------------------------------------
     search_p = sub.add_parser(
@@ -291,6 +329,15 @@ def main(argv: list[str] | None = None) -> int:
                 draft=args.draft,
                 remote=args.remote,
                 print_only=args.print_only,
+                dry_run=args.dry_run,
+            )
+
+        elif args.command == 'pull':
+            from ._pull import run_pull
+            run_pull(
+                args.bundles,
+                remote=args.remote,
+                rebase=args.rebase,
                 dry_run=args.dry_run,
             )
 
