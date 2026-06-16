@@ -286,7 +286,6 @@ def get_commits_since(ref: str, cwd: Path | None = None) -> list[str]:
             'log',
             f'{ref}..HEAD',
             '--pretty=format:%s',
-            '--no-merges',
             cwd=cwd,
         )
     except GitError:
@@ -311,7 +310,6 @@ def get_all_commits(cwd: Path | None = None) -> list[str]:
         raw = _run(
             'log',
             '--pretty=format:%s',
-            '--no-merges',
             cwd=cwd,
         )
     except GitError:

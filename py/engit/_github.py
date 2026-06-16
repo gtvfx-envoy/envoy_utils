@@ -69,6 +69,7 @@ def create_release(
     draft: bool = False,
     prerelease: bool = False,
     latest: bool = True,
+    generate_notes: bool = False,
 ) -> str:
     """Create a GitHub release for an existing tag.
 
@@ -79,6 +80,8 @@ def create_release(
         draft: When ``True``, create the release as a draft.
         prerelease: When ``True``, mark the release as a pre-release.
         latest: When ``True``, mark this as the latest release.
+        generate_notes: When ``True``, append GitHub auto-generated
+            "What's Changed" notes derived from merged PRs.
 
     Returns:
         The URL of the created release.
@@ -99,6 +102,8 @@ def create_release(
         cmd.append('--prerelease')
     if latest and not prerelease:
         cmd.append('--latest')
+    if generate_notes:
+        cmd.append('--generate-notes')
 
     return _run(*cmd)
 

@@ -23,6 +23,39 @@ from ._git import (
 from ._semver import SemVer
 
 
+def _next_prerelease_number(
+    base_ver: SemVer,
+    label: str,
+    cwd: Path | None = None,
+) -> int:
+    """Return the next prerelease number for *base_ver* and *label*.
+
+    Scans existing tags for ``vMAJOR.MINOR.PATCH-LABEL.N``, collects all ``N``
+    values, and returns ``max(N) + 1``.  Returns ``1`` when no matching tags
+    exist.  Gaps in the sequence are skipped — if ``.1`` and ``.3`` both exist
+    the next number is ``.4``.
+
+    Args:
+        base_ver: Base version with no prerelease (e.g. ``SemVer(0, 0, 1)``).
+        label: Prerelease label to scan for (e.g. ``'alpha'``, ``'beta'``).
+        cwd: Git working directory. Defaults to the current directory.
+
+    Returns:
+        The next integer to use as the prerelease sequence number.
+
+    """
+    prefix = f'{base_ver.to_tag()}-{label}.'
+    existing: list[int] = []
+    for tag in get_sorted_semver_tags(cwd=cwd):
+        if tag.startswith(prefix):
+            suffix = tag[len(prefix):]
+            try:
+                existing.append(int(suffix))
+            except ValueError:
+                continue
+    return max(existing) + 1 if existing else 1
+
+
 def resolve_next_version(
     *,
     bump: str | None = None,
@@ -55,7 +88,15 @@ def resolve_next_version(
         raise ValueError("Provide exactly one of 'bump' or 'version'.")
 
     if version is not None:
-        return SemVer.parse(version)
+        parsed = SemVer.parse(version)
+        # Auto-complete prerelease number when label is given without one.
+        # e.g. '0.0.1-alpha' → scans existing tags → '0.0.1-alpha.4'
+        if parsed.prerelease is not None and parsed.prerelease_number is None:
+            label = parsed.prerelease_label
+            base = SemVer(parsed.major, parsed.minor, parsed.patch)
+            next_num = _next_prerelease_number(base, label, cwd=cwd)
+            return SemVer(parsed.major, parsed.minor, parsed.patch, f'{label}.{next_num}')
+        return parsed
 
     # bump mode
     current = get_latest_semver_tag(cwd=cwd)

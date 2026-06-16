@@ -82,16 +82,20 @@ def run_changelog(
             except GitHubError:
                 continue
 
-    # Filter to valid semver tags and sort newest-first
+    # Filter to valid semver tags and sort newest-first.
+    # Releases rank above prereleases of the same version.
     def _sort_key(r: dict) -> tuple:
         try:
             v = SemVer.parse(r.get('tagName', ''))
-            return (v.major, v.minor, v.patch)
+            # (major, minor, patch, is_release, prerelease_str)
+            # is_release=1 for stable, 0 for prerelease → stable sorts higher
+            is_release = 0 if v.prerelease else 1
+            return (v.major, v.minor, v.patch, is_release, v.prerelease or '')
         except SemVerError:
-            return (-1, -1, -1)
+            return (-1, -1, -1, 0, '')
 
     if not tag:
-        releases = [r for r in releases if _sort_key(r) != (-1, -1, -1)]
+        releases = [r for r in releases if _sort_key(r) != (-1, -1, -1, 0, '')]
         releases.sort(key=_sort_key, reverse=True)
 
     if not releases:

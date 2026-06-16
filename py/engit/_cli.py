@@ -67,7 +67,14 @@ def _build_parser() -> argparse.ArgumentParser:
         '--version',
         metavar='VERSION',
         dest='explicit_version',
-        help='Explicit version string, e.g. 1.2.3 or v1.2.3. Must be valid SemVer.',
+        help=(
+            'Explicit version string. Supports stable releases (e.g. 1.2.3, v1.2.3) '
+            'and prerelease suffixes (e.g. 1.2.3-alpha, v0.0.1-beta). '
+            'Omit the sequence number to auto-detect the next one — '
+            '--version 1.2.3-alpha creates v1.2.3-alpha.1, or v1.2.3-alpha.4 '
+            'if v1.2.3-alpha.1 through .3 already exist. '
+            'Supply the number explicitly (e.g. 1.2.3-alpha.2) to use it as-is.'
+        ),
     )
 
     tag_p.add_argument(
@@ -127,6 +134,16 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar='REMOTE',
         help='Remote name to push to (default: origin).',
     )
+    rel_p.add_argument(
+        '--generate-notes',
+        dest='generate_notes',
+        action='store_true',
+        help=(
+            "Append GitHub auto-generated \"What's Changed\" notes from merged "
+            'PRs to the release body.'
+        ),
+    )
+
     rel_p.add_argument(
         '--print', '-p',
         dest='print_only',
@@ -330,6 +347,7 @@ def main(argv: list[str] | None = None) -> int:
                 remote=args.remote,
                 print_only=args.print_only,
                 dry_run=args.dry_run,
+                generate_notes=args.generate_notes,
             )
 
         elif args.command == 'pull':

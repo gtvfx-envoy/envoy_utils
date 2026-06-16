@@ -93,6 +93,7 @@ def run_release(
     remote: str = 'origin',
     print_only: bool = False,
     dry_run: bool = False,
+    generate_notes: bool = False,
     cwd: Path | None = None,
 ) -> None:
     """Push the local tag and create a GitHub release.
@@ -113,6 +114,8 @@ def run_release(
         remote: Remote name to push the tag to. Defaults to ``'origin'``.
         print_only: Print the resolved release notes and exit without publishing.
         dry_run: Print a full plan without pushing or creating the release.
+        generate_notes: When ``True``, append GitHub auto-generated "What's
+            Changed" notes from merged PRs to the release body.
         cwd: Git working directory. Defaults to the current directory.
 
     Raises:
@@ -158,11 +161,13 @@ def run_release(
     parsed_title, notes = _parse_annotation(annotation)
     release_title = title or parsed_title or tag
 
-    # ---- Detect prerelease from semver tag ----
-    # engit's SemVer only supports plain MAJOR.MINOR.PATCH; prerelease
-    # metadata (e.g. -alpha.1) is not currently produced by engit tag.
-    # Reserved for future use when prerelease suffixes are supported.
-    is_prerelease = False
+    # ---- Detect prerelease from tag ----
+    from ._semver import SemVer, SemVerError
+    try:
+        _tag_ver = SemVer.parse(tag)
+        is_prerelease = _tag_ver.prerelease is not None
+    except SemVerError:
+        is_prerelease = False
 
     # ---- Print-only mode ----
     if print_only:
@@ -175,11 +180,12 @@ def run_release(
     # ---- Dry run ----
     if dry_run:
         print('\n[dry-run] Would create GitHub release:')
-        print(f'  Tag:        {tag}')
-        print(f'  Title:      {release_title}')
-        print(f'  Remote:     {remote}')
-        print(f'  Draft:      {draft}')
-        print(f'  Prerelease: {is_prerelease}')
+        print(f'  Tag:             {tag}')
+        print(f'  Title:           {release_title}')
+        print(f'  Remote:          {remote}')
+        print(f'  Draft:           {draft}')
+        print(f'  Prerelease:      {is_prerelease}')
+        print(f'  Generate notes:  {generate_notes}')
         print()
         print('--- Notes ---')
         print(notes)
@@ -203,5 +209,12 @@ def run_release(
         print(f'Pushed {tag} to {remote} (detached HEAD — branch not pushed)')
 
     # ---- Create the GitHub release ----
-    url = create_release(tag, release_title, notes, draft=draft, prerelease=is_prerelease)
+    url = create_release(
+        tag,
+        release_title,
+        notes,
+        draft=draft,
+        prerelease=is_prerelease,
+        generate_notes=generate_notes,
+    )
     print(f'Release created: {url}')
