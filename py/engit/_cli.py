@@ -4,6 +4,7 @@ Subcommands
 -----------
 tag      Create a semantic version git tag.
 release  Create a GitHub release from a tag.
+publish  Create a versioned publish of a bundle (folder or zip).
 search   Search GitHub repositories.
 """
 
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import sys
 import argparse
+from pathlib import Path
 
 from ._exceptions import EngitError
 from ._search import ORGS_ENV_VAR
@@ -311,6 +313,69 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Maximum results per organisation (default: 20).',
     )
 
+    # ------------------------------------------------------------------
+    # engit publish
+    # ------------------------------------------------------------------
+    pub_p = sub.add_parser(
+        'publish',
+        help='Create a versioned publish of a bundle.',
+        description=(
+            'Copy a bundle into a clean versioned output directory or zip archive, '
+            'stripping git and build artefacts. '
+            'Output layout: <output>/<bundle-name>/<version>/  '
+            'or, with --zip: <output>/<bundle-name>-<version>.zip '
+            '(internal paths: <bundle-name>/<version>/...).'
+        ),
+    )
+    pub_p.add_argument(
+        'path',
+        nargs='?',
+        default=None,
+        metavar='PATH',
+        help=(
+            'Bundle root directory or bundle ID (e.g. gt:globals). '
+            'Defaults to the current directory.'
+        ),
+    )
+    pub_p.add_argument(
+        '--output', '-o',
+        type=Path,
+        default=None,
+        metavar='DIR',
+        help='Root directory to write the output into. Defaults to the current directory.',
+    )
+    pub_p.add_argument(
+        '--version',
+        default=None,
+        metavar='VERSION',
+        help=(
+            'Explicit version string (e.g. v1.2.0). '
+            'Defaults to the latest semver git tag. '
+            'Use "dev" to create a test build without requiring a git tag.'
+        ),
+    )
+    pub_p.add_argument(
+        '--exclude',
+        action='append',
+        default=[],
+        metavar='PATTERN',
+        help=(
+            'Additional glob pattern to exclude (e.g. "*.spec"). '
+            'May be specified multiple times. '
+            'Added on top of the default exclusions (.git, .github, build, dist, etc.).'
+        ),
+    )
+    pub_p.add_argument(
+        '--zip',
+        action='store_true',
+        help='Create a zip archive instead of a versioned directory.',
+    )
+    pub_p.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='List the files that would be included without writing any output.',
+    )
+
     return parser
 
 
@@ -382,6 +447,36 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == 'web':
             from ._web import run_web
             run_web(branch=args.branch, remote=args.remote)
+
+        elif args.command == 'publish':
+            from ._publish import bundlePublish, detectVersion, PublishError
+
+            # Resolve bundle path (path argument or cwd).
+            if args.path is None:
+                bundle_path = Path.cwd()
+            else:
+                bundle_path = Path(args.path)
+
+            # Resolve version: explicit arg wins; otherwise detect from git tags.
+            if args.version:
+                version = args.version
+            else:
+                version = detectVersion(bundle_path)
+
+            output_dir = Path(args.output) if args.output else Path.cwd()
+
+            result = bundlePublish(
+                bundle_path=bundle_path,
+                output_dir=output_dir,
+                version=version,
+                zip_mode=args.zip,
+                extra_excludes=args.exclude or [],
+                dry_run=args.dry_run,
+            )
+
+            if not args.dry_run:
+                label = 'zip' if args.zip else 'folder'
+                print(f'Published {label}: {result}')
 
     except EngitError as exc:
         print(f'Error: {exc}', file=sys.stderr)
