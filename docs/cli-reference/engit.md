@@ -19,6 +19,7 @@ mindmap
       search
     Publishing
       publish
+      publish-config
 ```
 
 ## `engit tag`
@@ -188,6 +189,54 @@ engit pull gt:globals
 engit pull gt:globals gt:pythoncore
 engit pull *                    # pull all discovered bundles
 engit pull * --dry-run
+```
+
+## `engit publish-config`
+
+Publish a bundles-config JSON file to a named config slot.  Writes a
+timestamped version under `<cfg-root>/<name>/` and updates the `latest`
+pointer file so that `envoy --set-config bundles_config=<name>` always
+resolves to the newest published version.
+
+```
+engit publish-config NAME SOURCE [OPTIONS]
+```
+
+| Argument/Flag | Description |
+|---|---|
+| `NAME` | Named config slot (e.g. `studio`, `production`, `dev`) |
+| `SOURCE` | Path to the bundles-config JSON file to publish |
+| `--cfg-root DIR`, `-r` | Config root directory. Defaults to the first directory in `ENVOY_CFG_ROOTS` |
+| `--dry-run` | Show what would be written without writing anything |
+
+**Output structure:**
+
+```
+<cfg-root>/
+└── studio/
+    ├── 2026-06-21T10-13-00.json   ← newly published version
+    └── latest                     ← updated to "2026-06-21T10-13-00.json"
+```
+
+**Examples:**
+
+```powershell
+# Publish to the "studio" slot (cfg-root from ENVOY_CFG_ROOTS)
+engit publish-config studio R:/my/studio_bundles.json
+
+# Publish with explicit root
+engit publish-config studio R:/my/studio_bundles.json --cfg-root R:/studio/envoy/configs
+
+# Preview without writing
+engit publish-config studio R:/my/studio_bundles.json --dry-run
+```
+
+After publishing, users can set `bundles_config=studio` and envoy resolves it
+to the latest version automatically:
+
+```powershell
+envoy --set-config bundles_config=studio
+envoy --list-configs   # shows all named configs and their latest version
 ```
 
 ## `engit search`
