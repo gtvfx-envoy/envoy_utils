@@ -2,10 +2,11 @@
 
 Subcommands
 -----------
-tag      Create a semantic version git tag.
-release  Create a GitHub release from a tag.
-publish  Create a versioned publish of a bundle (folder or zip).
-search   Search GitHub repositories.
+tag             Create a semantic version git tag.
+release         Create a GitHub release from a tag.
+publish         Create a versioned publish of a bundle (folder or zip).
+publish-config  Publish a bundles config file to a named config slot.
+search          Search GitHub repositories.
 """
 
 from __future__ import annotations
@@ -376,6 +377,47 @@ def _build_parser() -> argparse.ArgumentParser:
         help='List the files that would be included without writing any output.',
     )
 
+    # ------------------------------------------------------------------
+    # engit publish-config
+    # ------------------------------------------------------------------
+    pcfg_p = sub.add_parser(
+        'publish-config',
+        help='Publish a bundles config file to a named config slot.',
+        description=(
+            'Copy a bundles-config JSON file into a versioned named slot under '
+            'a config root directory, and update the "latest" pointer. '
+            'Published configs can be referenced by name when setting '
+            'the envoy bundles_config preference '
+            '(e.g. envoy --set-config bundles_config=studio).'
+        ),
+    )
+    pcfg_p.add_argument(
+        'name',
+        metavar='NAME',
+        help='Named config slot (e.g. "studio", "dev", "production").',
+    )
+    pcfg_p.add_argument(
+        'source',
+        type=Path,
+        metavar='SOURCE',
+        help='Path to the bundles-config JSON file to publish.',
+    )
+    pcfg_p.add_argument(
+        '--cfg-root', '-r',
+        type=Path,
+        default=None,
+        metavar='DIR',
+        help=(
+            'Root directory to publish into.  '
+            'Defaults to the first directory in ENVOY_CFG_ROOTS.'
+        ),
+    )
+    pcfg_p.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be written without writing anything.',
+    )
+
     return parser
 
 
@@ -477,6 +519,31 @@ def main(argv: list[str] | None = None) -> int:
             if not args.dry_run:
                 label = 'zip' if args.zip else 'folder'
                 print(f'Published {label}: {result}')
+
+        elif args.command == 'publish-config':
+            import os
+            from envoy._config_registry import publishConfig, CFG_ROOTS_VAR, _cfgRoots
+
+            cfg_root = args.cfg_root
+            if cfg_root is None:
+                roots = _cfgRoots()
+                if not roots:
+                    raise EngitError(
+                        f"No --cfg-root specified and {CFG_ROOTS_VAR} is not set."
+                    )
+                cfg_root = roots[0]
+
+            result = publishConfig(
+                cfg_root=cfg_root,
+                name=args.name,
+                source_path=args.source,
+                dry_run=args.dry_run,
+            )
+
+            if not args.dry_run:
+                print(f"Published config: {args.name}")
+                print(f"  Version: {result.stem}")
+                print(f"  Path:    {result}")
 
     except EngitError as exc:
         print(f'Error: {exc}', file=sys.stderr)
