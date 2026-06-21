@@ -273,6 +273,8 @@ def push_branch_and_tag(tag: str, branch: str, remote: str = 'origin', cwd: Path
 def get_commits_since(ref: str, cwd: Path | None = None) -> list[str]:
     """Return commit subject lines between *ref* and HEAD.
 
+    Merge commits (subjects starting with ``Merge ``) are excluded.
+
     Args:
         ref: A tag name, SHA, or any git ref to start from (exclusive).
         cwd: Working directory. Defaults to the current directory.
@@ -286,6 +288,7 @@ def get_commits_since(ref: str, cwd: Path | None = None) -> list[str]:
             'log',
             f'{ref}..HEAD',
             '--pretty=format:%s',
+            '--no-merges',
             cwd=cwd,
         )
     except GitError:
