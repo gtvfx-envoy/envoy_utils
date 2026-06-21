@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 
 from ._exceptions import GitHubError
-from ._github import search_repos, get_current_org
+from ._github import searchRepos, getCurrentOrg
 
 
 #: Environment variable that holds the default semicolon-separated list of
@@ -17,7 +17,7 @@ from ._github import search_repos, get_current_org
 ORGS_ENV_VAR = 'ENVOY_GITHUB_ORGS'
 
 
-def _parse_orgs(raw: str) -> list[str]:
+def _parseOrgs(raw: str) -> list[str]:
     """Split a semicolon-separated org string into a clean list.
 
     Args:
@@ -30,7 +30,7 @@ def _parse_orgs(raw: str) -> list[str]:
     return [o.strip() for o in raw.replace(',', ';').split(';') if o.strip()]
 
 
-def run_search(
+def runSearch(
     query: str,
     *,
     orgs: list[str] | None = None,
@@ -62,28 +62,28 @@ def run_search(
     if not effective_orgs:
         env_orgs_raw = os.environ.get(ORGS_ENV_VAR, '')
         if env_orgs_raw:
-            effective_orgs = _parse_orgs(env_orgs_raw)
+            effective_orgs = _parseOrgs(env_orgs_raw)
 
     if not effective_orgs:
-        org = get_current_org()
+        org = getCurrentOrg()
         if org:
             effective_orgs = [org]
 
-    results = search_repos(query, orgs=[*effective_orgs] if effective_orgs else None, limit=limit)
+    results = searchRepos(query, orgs=[*effective_orgs] if effective_orgs else None, limit=limit)
 
     if not results:
         scope = ', '.join(o for o in effective_orgs if o) if effective_orgs else 'GitHub (global)'
         print(f"No repositories found matching '{query}' in: {scope}")
         return
 
-    _print_results(results, query=query, orgs=effective_orgs)
+    _printResults(results, query=query, orgs=effective_orgs)
 
 
-def _print_results(results: list[dict], *, query: str, orgs: list[str] | None) -> None:
+def _printResults(results: list[dict], *, query: str, orgs: list[str] | None) -> None:
     """Render search results to stdout.
 
     Args:
-        results: List of repo dicts from :func:`~._github.search_repos`.
+        results: List of repo dicts from :func:`~._github.searchRepos`.
         query: The original search query (for the header line).
         orgs: Org scope used (for the header line).
 

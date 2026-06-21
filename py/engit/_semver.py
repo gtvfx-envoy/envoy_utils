@@ -33,13 +33,13 @@ class SemVer:
     Example::
 
         v = SemVer(1, 2, 3)
-        print(v.to_tag())                  # 'v1.2.3'
-        print(v.bump_minor().to_tag())     # 'v1.3.0'
+        print(v.toTag())                  # 'v1.2.3'
+        print(v.bumpMinor().toTag())     # 'v1.3.0'
 
         pre = SemVer(1, 2, 3, 'alpha.2')
-        print(pre.to_tag())                # 'v1.2.3-alpha.2'
-        print(pre.prerelease_label)        # 'alpha'
-        print(pre.prerelease_number)       # 2
+        print(pre.toTag())                # 'v1.2.3-alpha.2'
+        print(pre.prereleaseLabel)        # 'alpha'
+        print(pre.prereleaseNumber)       # 2
 
     """
 
@@ -90,7 +90,7 @@ class SemVer:
     # ------------------------------------------------------------------
 
     @property
-    def prerelease_label(self) -> str | None:
+    def prereleaseLabel(self) -> str | None:
         """Return the label part of the prerelease identifier, or ``None``.
 
         For ``'alpha.3'`` returns ``'alpha'``; for ``'alpha'`` returns
@@ -102,7 +102,7 @@ class SemVer:
         return self.prerelease.split('.')[0]
 
     @property
-    def prerelease_number(self) -> int | None:
+    def prereleaseNumber(self) -> int | None:
         """Return the numeric suffix of the prerelease identifier, or ``None``.
 
         For ``'alpha.3'`` returns ``3``; for ``'alpha'`` (no number) returns
@@ -123,7 +123,7 @@ class SemVer:
     # Increment helpers
     # ------------------------------------------------------------------
 
-    def bump_major(self) -> 'SemVer':
+    def bumpMajor(self) -> 'SemVer':
         """Return a new :class:`SemVer` with *major* incremented.
 
         Resets *minor*, *patch*, and *prerelease* to their zero/None defaults.
@@ -131,7 +131,7 @@ class SemVer:
         """
         return SemVer(self.major + 1, 0, 0)
 
-    def bump_minor(self) -> 'SemVer':
+    def bumpMinor(self) -> 'SemVer':
         """Return a new :class:`SemVer` with *minor* incremented.
 
         Resets *patch* and *prerelease* to their zero/None defaults.
@@ -139,7 +139,7 @@ class SemVer:
         """
         return SemVer(self.major, self.minor + 1, 0)
 
-    def bump_patch(self) -> 'SemVer':
+    def bumpPatch(self) -> 'SemVer':
         """Return a new :class:`SemVer` with *patch* incremented.
 
         Clears *prerelease* — bump flags always produce stable releases.
@@ -151,7 +151,7 @@ class SemVer:
     # Rendering
     # ------------------------------------------------------------------
 
-    def to_tag(self) -> str:
+    def toTag(self) -> str:
         """Return the version formatted as a git tag string.
 
         Stable:    ``'vMAJOR.MINOR.PATCH'``

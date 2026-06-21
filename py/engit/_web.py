@@ -9,10 +9,10 @@ import webbrowser
 from pathlib import Path
 
 from ._exceptions import GitError
-from ._git import require_git_repo, get_remote_url, get_current_branch
+from ._git import requireGitRepo, getRemoteUrl, getCurrentBranch
 
 
-def _to_https_url(remote_url: str) -> str:
+def _toHttpsUrl(remote_url: str) -> str:
     """Normalise an SSH or HTTPS remote URL to an HTTPS browser URL.
 
     Handles:
@@ -35,7 +35,7 @@ def _to_https_url(remote_url: str) -> str:
     return url
 
 
-def run_web(
+def runWeb(
     *,
     branch: str | None = None,
     remote: str = 'origin',
@@ -54,19 +54,19 @@ def run_web(
         ~._exceptions.GitError: If the remote URL cannot be determined.
 
     """
-    require_git_repo(cwd=cwd)
+    requireGitRepo(cwd=cwd)
 
-    raw_url = get_remote_url(remote=remote, cwd=cwd)
+    raw_url = getRemoteUrl(remote=remote, cwd=cwd)
     if not raw_url:
         raise GitError(
             f"Remote '{remote}' has no URL. "
             "Check your git remote configuration."
         )
 
-    base_url = _to_https_url(raw_url)
+    base_url = _toHttpsUrl(raw_url)
 
     # Append the branch/tree path if we have one
-    resolved_branch = branch or get_current_branch(cwd=cwd)
+    resolved_branch = branch or getCurrentBranch(cwd=cwd)
     if resolved_branch:
         url = f'{base_url}/tree/{resolved_branch}'
     else:

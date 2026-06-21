@@ -24,7 +24,7 @@ import tempfile
 from pathlib import Path
 
 
-def _find_editor() -> list[str]:
+def _findEditor() -> list[str]:
     """Return the editor command as a list of tokens.
 
     Searches ``GIT_EDITOR``, ``VISUAL``, and ``EDITOR`` in that order,
@@ -50,7 +50,7 @@ def _find_editor() -> list[str]:
     return ['vim']
 
 
-def open_in_editor(content: str, filename: str = 'engit_edit.txt') -> str | None:
+def openInEditor(content: str, filename: str = 'engit_edit.txt') -> str | None:
     """Present *content* in the user's editor and return the edited result.
 
     Editor resolution (mirrors bfdeditor / git priority):
@@ -74,7 +74,7 @@ def open_in_editor(content: str, filename: str = 'engit_edit.txt') -> str | None
         editor without saving.
 
     """
-    cmd = _find_editor()
+    cmd = _findEditor()
     editor_name = ' '.join(cmd)
 
     tmp_dir = Path(tempfile.mkdtemp(prefix='engit-'))

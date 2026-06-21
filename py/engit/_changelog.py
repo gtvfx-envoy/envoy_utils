@@ -12,10 +12,10 @@ import shutil
 from pathlib import Path
 
 from ._exceptions import GhCliNotFoundError, GitHubError
-from ._git import require_git_repo
+from ._git import requireGitRepo
 
 
-def _require_gh() -> None:
+def _requireGh() -> None:
     if shutil.which('gh') is None:
         raise GhCliNotFoundError(
             "'gh' CLI not found on PATH. "
@@ -24,14 +24,14 @@ def _require_gh() -> None:
 
 
 def _gh(*args: str) -> str:
-    _require_gh()
+    _requireGh()
     result = subprocess.run(['gh', *args], capture_output=True, text=True)
     if result.returncode != 0:
         raise GitHubError(result.stderr.strip() or f"gh {' '.join(args)} failed.")
     return result.stdout.strip()
 
 
-def run_changelog(
+def runChangelog(
     *,
     tag: str | None = None,
     cwd: Path | None = None,
@@ -52,7 +52,7 @@ def run_changelog(
         ~._exceptions.GitHubError: If the GitHub API call fails.
 
     """
-    require_git_repo(cwd=cwd)
+    requireGitRepo(cwd=cwd)
 
     from ._semver import SemVer, SemVerError
 
@@ -84,7 +84,7 @@ def run_changelog(
 
     # Filter to valid semver tags and sort newest-first.
     # Releases rank above prereleases of the same version.
-    def _sort_key(r: dict) -> tuple:
+    def _sortKey(r: dict) -> tuple:
         try:
             v = SemVer.parse(r.get('tagName', ''))
             # (major, minor, patch, is_release, prerelease_str)
@@ -95,8 +95,8 @@ def run_changelog(
             return (-1, -1, -1, 0, '')
 
     if not tag:
-        releases = [r for r in releases if _sort_key(r) != (-1, -1, -1, 0, '')]
-        releases.sort(key=_sort_key, reverse=True)
+        releases = [r for r in releases if _sortKey(r) != (-1, -1, -1, 0, '')]
+        releases.sort(key=_sortKey, reverse=True)
 
     if not releases:
         print('No releases found.')

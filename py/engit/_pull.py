@@ -19,10 +19,10 @@ import sys
 from pathlib import Path
 
 from ._exceptions import EngitError, GitError
-from ._git import pull as git_pull, is_git_repo
+from ._git import pull as git_pull, isGitRepo
 
 
-def _resolve_specs(specs: list[str]) -> list[tuple[str, Path]]:
+def _resolveSpecs(specs: list[str]) -> list[tuple[str, Path]]:
     """Resolve bundle specs to ``(bndlid, path)`` pairs.
 
     Args:
@@ -38,7 +38,7 @@ def _resolve_specs(specs: list[str]) -> list[tuple[str, Path]]:
 
     """
     try:
-        from envoy._discovery import discover_bundles_auto, Bundle
+        from envoy._discovery import discoverBundlesAuto, Bundle
         from envoy._exceptions import WrapperError
     except ImportError as exc:
         raise EngitError(
@@ -47,7 +47,7 @@ def _resolve_specs(specs: list[str]) -> list[tuple[str, Path]]:
         ) from exc
 
     if specs == ['*']:
-        bundles = discover_bundles_auto()
+        bundles = discoverBundlesAuto()
         if not bundles:
             raise EngitError(
                 "No bundles discovered. "
@@ -67,7 +67,7 @@ def _resolve_specs(specs: list[str]) -> list[tuple[str, Path]]:
     return pairs
 
 
-def run_pull(
+def runPull(
     specs: list[str],
     *,
     remote: str = 'origin',
@@ -94,7 +94,7 @@ def run_pull(
             raising immediately.
 
     """
-    bundles = _resolve_specs(specs)
+    bundles = _resolveSpecs(specs)
     multi = len(bundles) > 1
 
     if dry_run:
@@ -115,7 +115,7 @@ def run_pull(
     col = max(len(b) for b, _ in bundles) + 2
 
     for bndlid, path in bundles:
-        if not is_git_repo(path):
+        if not isGitRepo(path):
             msg = 'skipped (not a git repo)'
             if multi:
                 print(f'  {bndlid:<{col}} ⚠  {msg}')

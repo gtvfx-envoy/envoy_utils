@@ -10,20 +10,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from engit._editor import open_in_editor
+from engit._editor import openInEditor
 from ._exceptions import NoTagsFoundError
 from ._git import (
-    require_git_repo,
-    get_latest_semver_tag,
-    get_sorted_semver_tags,
-    get_commits_since,
-    create_tag,
-    tag_exists,
+    requireGitRepo,
+    getLatestSemverTag,
+    getSortedSemverTags,
+    getCommitsSince,
+    createTag,
+    tagExists,
 )
 from ._semver import SemVer
 
 
-def _next_prerelease_number(
+def _nextPrereleaseNumber(
     base_ver: SemVer,
     label: str,
     cwd: Path | None = None,
@@ -44,9 +44,9 @@ def _next_prerelease_number(
         The next integer to use as the prerelease sequence number.
 
     """
-    prefix = f'{base_ver.to_tag()}-{label}.'
+    prefix = f'{base_ver.toTag()}-{label}.'
     existing: list[int] = []
-    for tag in get_sorted_semver_tags(cwd=cwd):
+    for tag in getSortedSemverTags(cwd=cwd):
         if tag.startswith(prefix):
             suffix = tag[len(prefix):]
             try:
@@ -56,7 +56,7 @@ def _next_prerelease_number(
     return max(existing) + 1 if existing else 1
 
 
-def resolve_next_version(
+def resolveNextVersion(
     *,
     bump: str | None = None,
     version: str | None = None,
@@ -91,15 +91,15 @@ def resolve_next_version(
         parsed = SemVer.parse(version)
         # Auto-complete prerelease number when label is given without one.
         # e.g. '0.0.1-alpha' → scans existing tags → '0.0.1-alpha.4'
-        if parsed.prerelease is not None and parsed.prerelease_number is None:
-            label = parsed.prerelease_label
+        if parsed.prerelease is not None and parsed.prereleaseNumber is None:
+            label = parsed.prereleaseLabel
             base = SemVer(parsed.major, parsed.minor, parsed.patch)
-            next_num = _next_prerelease_number(base, label, cwd=cwd)
+            next_num = _nextPrereleaseNumber(base, label, cwd=cwd)
             return SemVer(parsed.major, parsed.minor, parsed.patch, f'{label}.{next_num}')
         return parsed
 
     # bump mode
-    current = get_latest_semver_tag(cwd=cwd)
+    current = getLatestSemverTag(cwd=cwd)
     if current is None:
         raise NoTagsFoundError(
             "No semantic version tags found in this repository. "
@@ -111,16 +111,16 @@ def resolve_next_version(
     
     bump = bump.lower()
     if bump == 'major':
-        return current.bump_major()
+        return current.bumpMajor()
     if bump == 'minor':
-        return current.bump_minor()
+        return current.bumpMinor()
     if bump == 'patch':
-        return current.bump_patch()
+        return current.bumpPatch()
 
     raise ValueError(f"Unknown bump component '{bump}'. Use 'major', 'minor', or 'patch'.")
 
 
-def _strip_comments(text: str) -> str:
+def _stripComments(text: str) -> str:
     """Strip ``#``-prefixed comment lines and trim blank edges.
 
     Mirrors the comment-stripping that ``git tag -a`` performs when the
@@ -148,7 +148,7 @@ def _strip_comments(text: str) -> str:
     return '\n'.join(kept)
 
 
-def _build_tag_draft(
+def _buildTagDraft(
     tag: str,
     default_annotation: str,
     commits: list[str],
@@ -212,7 +212,7 @@ def _build_tag_draft(
     return '\n'.join(lines) + '\n'
 
 
-def run_tag(
+def runTag(
     *,
     bump: str | None = None,
     version: str | None = None,
@@ -247,10 +247,10 @@ def run_tag(
         ~._exceptions.GitError: If tag creation fails.
 
     """
-    require_git_repo(cwd=cwd)
+    requireGitRepo(cwd=cwd)
 
-    next_ver = resolve_next_version(bump=bump, version=version, cwd=cwd)
-    tag_name = next_ver.to_tag()
+    next_ver = resolveNextVersion(bump=bump, version=version, cwd=cwd)
+    tag_name = next_ver.toTag()
     default_annotation = message or f'Release {tag_name}'
 
     if print_only:
@@ -262,7 +262,7 @@ def run_tag(
         return next_ver
 
     # ---- Guard: refuse to overwrite an existing tag ----
-    if tag_exists(tag_name, cwd=cwd):
+    if tagExists(tag_name, cwd=cwd):
         from ._exceptions import GitError
         raise GitError(
             f"Tag '{tag_name}' already exists. "
@@ -270,31 +270,31 @@ def run_tag(
         )
 
     # ---- Build commit context for the editor draft ----
-    semver_tags = get_sorted_semver_tags(cwd=cwd)
+    semver_tags = getSortedSemverTags(cwd=cwd)
     # The proposed tag may not exist yet; find the current latest as prev.
     prev_tag = semver_tags[0] if semver_tags else None
 
     if prev_tag:
-        commits = get_commits_since(prev_tag, cwd=cwd)
+        commits = getCommitsSince(prev_tag, cwd=cwd)
     else:
         commits = []  # First tag — use default initial release message.
 
     # ---- If a message was supplied explicitly, skip the editor ----
     if message is not None:
-        annotation = _strip_comments(message)
+        annotation = _stripComments(message)
     else:
-        draft = _build_tag_draft(tag_name, default_annotation, commits, prev_tag)
-        raw = open_in_editor(draft, filename='TAG_EDITMSG')
+        draft = _buildTagDraft(tag_name, default_annotation, commits, prev_tag)
+        raw = openInEditor(draft, filename='TAG_EDITMSG')
         if raw is None:
             print('Tag aborted.')
             return None
-        annotation = _strip_comments(raw)
+        annotation = _stripComments(raw)
 
     if not annotation:
         print('Tag aborted: empty annotation after removing comments.')
         return None
 
-    create_tag(tag_name, annotation, cwd=cwd)
+    createTag(tag_name, annotation, cwd=cwd)
     print(f'Created tag: {tag_name}')
     print(f'Run \'engit release\' when ready to publish.')
     return next_ver

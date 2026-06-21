@@ -9,15 +9,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from ._git import (
-    require_git_repo,
-    get_current_branch,
-    get_branch_comparison,
-    get_latest_semver_tag,
-    get_last_commit_summary,
+    requireGitRepo,
+    getCurrentBranch,
+    getBranchComparison,
+    getLatestSemverTag,
+    getLastCommitSummary,
 )
 
 
-def run_status(
+def runStatus(
     *,
     remote: str = 'origin',
     cwd: Path | None = None,
@@ -40,13 +40,13 @@ def run_status(
         ~._exceptions.NotAGitRepoError: If not inside a git repo.
 
     """
-    require_git_repo(cwd=cwd)
+    requireGitRepo(cwd=cwd)
 
-    branch = get_current_branch(cwd=cwd) or '(detached HEAD)'
-    comparison = get_branch_comparison(branch, remote=remote, cwd=cwd) if branch != '(detached HEAD)' else ''
-    latest_tag = get_latest_semver_tag(cwd=cwd)
-    tag_str = latest_tag.to_tag() if latest_tag else '(none)'
-    last_commit = get_last_commit_summary(cwd=cwd) or '(no commits)'
+    branch = getCurrentBranch(cwd=cwd) or '(detached HEAD)'
+    comparison = getBranchComparison(branch, remote=remote, cwd=cwd) if branch != '(detached HEAD)' else ''
+    latest_tag = getLatestSemverTag(cwd=cwd)
+    tag_str = latest_tag.toTag() if latest_tag else '(none)'
+    last_commit = getLastCommitSummary(cwd=cwd) or '(no commits)'
 
     branch_line = branch
     if comparison:

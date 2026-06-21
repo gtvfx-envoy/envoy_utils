@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ._exceptions import EngitError, NoTagsFoundError
-from ._git import get_latest_semver_tag, is_git_repo
+from ._git import getLatestSemverTag, isGitRepo
 
 
 #: Version string used for local test builds (no git tag required).
@@ -81,13 +81,13 @@ def detectVersion(bundle_path: Path) -> str:
         PublishError: If the directory is not a git repo or has no semver tags.
 
     """
-    if not is_git_repo(cwd=bundle_path):
+    if not isGitRepo(cwd=bundle_path):
         raise PublishError(
             f"'{bundle_path}' is not inside a git repository. "
             f"Use --version dev for a test build without a git tag."
         )
 
-    tag = get_latest_semver_tag(cwd=bundle_path)
+    tag = getLatestSemverTag(cwd=bundle_path)
     if tag is None:
         raise PublishError(
             f"No semantic version tags found in '{bundle_path}'. "

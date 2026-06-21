@@ -16,12 +16,12 @@ from pathlib import Path
 
 from ._exceptions import GitError
 from ._git import (
-    require_git_repo,
-    get_current_branch,
-    get_merged_branches,
-    get_remote_tracking_branch,
-    delete_local_branch,
-    prune_remote,
+    requireGitRepo,
+    getCurrentBranch,
+    getMergedBranches,
+    getRemoteTrackingBranch,
+    deleteLocalBranch,
+    pruneRemote,
     _run,
 )
 
@@ -29,7 +29,7 @@ from ._git import (
 _PROTECTED = frozenset({'main', 'master', 'develop'})
 
 
-def run_cleanup(
+def runCleanup(
     *,
     remote: str = 'origin',
     noop: bool = False,
@@ -46,16 +46,16 @@ def run_cleanup(
         ~._exceptions.NotAGitRepoError: If not inside a git repo.
 
     """
-    require_git_repo(cwd=cwd)
+    requireGitRepo(cwd=cwd)
 
-    current = get_current_branch(cwd=cwd) or ''
+    current = getCurrentBranch(cwd=cwd) or ''
 
     # ---- Prune stale remote-tracking refs ----
     try:
         if noop:
             _run('remote', 'prune', remote, '--dry-run', cwd=cwd)
         else:
-            prune_remote(remote, cwd=cwd)
+            pruneRemote(remote, cwd=cwd)
             print(f'Pruned stale remote-tracking refs for {remote}.')
     except GitError as exc:
         print(f'Warning: could not prune remote "{remote}": {exc}')
@@ -64,14 +64,14 @@ def run_cleanup(
     skipped: list[str] = []
 
     # ---- Delete merged branches ----
-    for branch in get_merged_branches(cwd=cwd):
+    for branch in getMergedBranches(cwd=cwd):
         if branch == current or branch in _PROTECTED:
             continue
         if noop:
             print(f'  Would delete {branch} [merged]')
             continue
         try:
-            delete_local_branch(branch, force=False, cwd=cwd)
+            deleteLocalBranch(branch, force=False, cwd=cwd)
             deleted.append(branch)
             print(f'  Deleted {branch} [merged]')
         except GitError as exc:
@@ -91,7 +91,7 @@ def run_cleanup(
         if branch in deleted:
             continue
 
-        tracking = get_remote_tracking_branch(branch, cwd=cwd)
+        tracking = getRemoteTrackingBranch(branch, cwd=cwd)
         if tracking is None:
             continue  # No upstream set; leave it alone.
 
@@ -105,7 +105,7 @@ def run_cleanup(
                 print(f'  Would delete {branch} [remote deleted]')
                 continue
             try:
-                delete_local_branch(branch, force=True, cwd=cwd)
+                deleteLocalBranch(branch, force=True, cwd=cwd)
                 deleted.append(branch)
                 print(f'  Deleted {branch} [remote deleted]')
             except GitError as exc:

@@ -52,7 +52,7 @@ def _run(*args: str, cwd: Path | None = None) -> str:
 # Repository inspection
 # ---------------------------------------------------------------------------
 
-def is_git_repo(cwd: Path | None = None) -> bool:
+def isGitRepo(cwd: Path | None = None) -> bool:
     """Return ``True`` if *cwd* (or the current directory) is inside a git repo."""
     try:
         _run('rev-parse', '--git-dir', cwd=cwd)
@@ -61,7 +61,7 @@ def is_git_repo(cwd: Path | None = None) -> bool:
         return False
 
 
-def require_git_repo(cwd: Path | None = None) -> None:
+def requireGitRepo(cwd: Path | None = None) -> None:
     """Raise :class:`~._exceptions.NotAGitRepoError` if not inside a git repo.
 
     Args:
@@ -71,14 +71,14 @@ def require_git_repo(cwd: Path | None = None) -> None:
         ~._exceptions.NotAGitRepoError: If the directory is not a git repo.
 
     """
-    if not is_git_repo(cwd):
+    if not isGitRepo(cwd):
         raise NotAGitRepoError(
             "Not inside a git repository. "
             "Run engit commands from within a git working directory."
         )
 
 
-def get_repo_root(cwd: Path | None = None) -> Path:
+def getRepoRoot(cwd: Path | None = None) -> Path:
     """Return the absolute path to the root of the git repository.
 
     Args:
@@ -88,11 +88,11 @@ def get_repo_root(cwd: Path | None = None) -> Path:
         ~._exceptions.NotAGitRepoError: If the directory is not a git repo.
 
     """
-    require_git_repo(cwd)
+    requireGitRepo(cwd)
     return Path(_run('rev-parse', '--show-toplevel', cwd=cwd))
 
 
-def get_remote_url(remote: str = 'origin', cwd: Path | None = None) -> str | None:
+def getRemoteUrl(remote: str = 'origin', cwd: Path | None = None) -> str | None:
     """Return the URL for *remote*, or ``None`` if the remote does not exist."""
     try:
         return _run('remote', 'get-url', remote, cwd=cwd)
@@ -104,7 +104,7 @@ def get_remote_url(remote: str = 'origin', cwd: Path | None = None) -> str | Non
 # Tag operations
 # ---------------------------------------------------------------------------
 
-def get_latest_tag(cwd: Path | None = None) -> str | None:
+def getLatestTag(cwd: Path | None = None) -> str | None:
     """Return the most recent tag reachable from HEAD, or ``None``.
 
     Uses ``git describe --tags --abbrev=0`` which finds the nearest ancestor tag.
@@ -119,7 +119,7 @@ def get_latest_tag(cwd: Path | None = None) -> str | None:
         return None
 
 
-def get_latest_semver_tag(cwd: Path | None = None) -> SemVer | None:
+def getLatestSemverTag(cwd: Path | None = None) -> SemVer | None:
     """Return the most recent tag that is a valid semver, or ``None``.
 
     Iterates all tags sorted by version (newest first) and returns the first
@@ -153,7 +153,7 @@ def get_latest_semver_tag(cwd: Path | None = None) -> SemVer | None:
     return None
 
 
-def get_sorted_semver_tags(cwd: Path | None = None) -> list[str]:
+def getSortedSemverTags(cwd: Path | None = None) -> list[str]:
     """Return all semver tags sorted newest-first as raw tag strings.
 
     Only tags that parse as valid :class:`~._semver.SemVer` are included.
@@ -188,7 +188,7 @@ def get_sorted_semver_tags(cwd: Path | None = None) -> list[str]:
     return tags
 
 
-def create_tag(tag: str, message: str, cwd: Path | None = None) -> None:
+def createTag(tag: str, message: str, cwd: Path | None = None) -> None:
     """Create an annotated git tag at HEAD.
 
     Args:
@@ -203,7 +203,7 @@ def create_tag(tag: str, message: str, cwd: Path | None = None) -> None:
     _run('tag', '-a', tag, '-m', message, cwd=cwd)
 
 
-def get_tag_annotation(tag: str, cwd: Path | None = None) -> str | None:
+def getTagAnnotation(tag: str, cwd: Path | None = None) -> str | None:
     """Return the annotation message for an annotated tag.
 
     Args:
@@ -233,7 +233,7 @@ def get_tag_annotation(tag: str, cwd: Path | None = None) -> str | None:
     return body or None
 
 
-def push_tag(tag: str, remote: str = 'origin', cwd: Path | None = None) -> None:
+def pushTag(tag: str, remote: str = 'origin', cwd: Path | None = None) -> None:
     """Push a single tag to *remote*.
 
     Args:
@@ -248,7 +248,7 @@ def push_tag(tag: str, remote: str = 'origin', cwd: Path | None = None) -> None:
     _run('push', remote, tag, cwd=cwd)
 
 
-def push_branch_and_tag(tag: str, branch: str, remote: str = 'origin', cwd: Path | None = None) -> None:
+def pushBranchAndTag(tag: str, branch: str, remote: str = 'origin', cwd: Path | None = None) -> None:
     """Push a branch and a tag together in one operation.
 
     Equivalent to ``git push <remote> <branch> <tag>``.
@@ -270,7 +270,7 @@ def push_branch_and_tag(tag: str, branch: str, remote: str = 'origin', cwd: Path
 # Commit history
 # ---------------------------------------------------------------------------
 
-def get_commits_since(ref: str, cwd: Path | None = None) -> list[str]:
+def getCommitsSince(ref: str, cwd: Path | None = None) -> list[str]:
     """Return commit subject lines between *ref* and HEAD.
 
     Merge commits (subjects starting with ``Merge ``) are excluded.
@@ -297,7 +297,7 @@ def get_commits_since(ref: str, cwd: Path | None = None) -> list[str]:
     return [line for line in raw.splitlines() if line.strip()]
 
 
-def get_all_commits(cwd: Path | None = None) -> list[str]:
+def getAllCommits(cwd: Path | None = None) -> list[str]:
     """Return all commit subject lines from the beginning of history.
 
     Used when there are no prior tags to reference.
@@ -325,7 +325,7 @@ def get_all_commits(cwd: Path | None = None) -> list[str]:
 # Branch helpers
 # ---------------------------------------------------------------------------
 
-def get_current_branch(cwd: Path | None = None) -> str | None:
+def getCurrentBranch(cwd: Path | None = None) -> str | None:
     """Return the name of the currently checked-out branch, or ``None`` if detached.
 
     Args:
@@ -339,7 +339,7 @@ def get_current_branch(cwd: Path | None = None) -> str | None:
         return None
 
 
-def get_branch_comparison(
+def getBranchComparison(
     branch: str,
     remote: str = 'origin',
     cwd: Path | None = None,
@@ -383,7 +383,7 @@ def get_branch_comparison(
     return ', '.join(pieces)
 
 
-def get_last_commit_summary(cwd: Path | None = None) -> str:
+def getLastCommitSummary(cwd: Path | None = None) -> str:
     """Return the subject and short SHA of the most recent commit.
 
     Args:
@@ -403,7 +403,7 @@ def get_last_commit_summary(cwd: Path | None = None) -> str:
 # Tag existence
 # ---------------------------------------------------------------------------
 
-def tag_exists(tag: str, cwd: Path | None = None) -> bool:
+def tagExists(tag: str, cwd: Path | None = None) -> bool:
     """Return ``True`` if *tag* exists in the local repository.
 
     Args:
@@ -451,7 +451,7 @@ def pull(
 # Branch merging / cleanup helpers
 # ---------------------------------------------------------------------------
 
-def get_merged_branches(cwd: Path | None = None) -> list[str]:
+def getMergedBranches(cwd: Path | None = None) -> list[str]:
     """Return local branches that have been merged into the current branch.
 
     The current branch itself (prefixed with ``*``) is excluded.
@@ -475,7 +475,7 @@ def get_merged_branches(cwd: Path | None = None) -> list[str]:
     return branches
 
 
-def delete_local_branch(branch: str, force: bool = False, cwd: Path | None = None) -> None:
+def deleteLocalBranch(branch: str, force: bool = False, cwd: Path | None = None) -> None:
     """Delete a local branch.
 
     Args:
@@ -491,7 +491,7 @@ def delete_local_branch(branch: str, force: bool = False, cwd: Path | None = Non
     _run('branch', flag, branch, cwd=cwd)
 
 
-def prune_remote(remote: str = 'origin', cwd: Path | None = None) -> None:
+def pruneRemote(remote: str = 'origin', cwd: Path | None = None) -> None:
     """Run ``git remote prune`` to remove stale remote-tracking refs.
 
     Args:
@@ -505,7 +505,7 @@ def prune_remote(remote: str = 'origin', cwd: Path | None = None) -> None:
     _run('remote', 'prune', remote, cwd=cwd)
 
 
-def get_remote_tracking_branch(branch: str, cwd: Path | None = None) -> str | None:
+def getRemoteTrackingBranch(branch: str, cwd: Path | None = None) -> str | None:
     """Return the remote-tracking ref for *branch*, or ``None`` if unset.
 
     Args:

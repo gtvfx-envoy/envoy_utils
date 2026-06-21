@@ -9,22 +9,22 @@ from __future__ import annotations
 from pathlib import Path
 
 from ._git import (
-    require_git_repo,
-    get_latest_semver_tag,
-    get_current_branch,
-    get_tag_annotation,
-    get_sorted_semver_tags,
-    get_commits_since,
-    push_branch_and_tag,
+    requireGitRepo,
+    getLatestSemverTag,
+    getCurrentBranch,
+    getTagAnnotation,
+    getSortedSemverTags,
+    getCommitsSince,
+    pushBranchAndTag,
 )
-from ._github import create_release, release_exists, get_release_url
+from ._github import createRelease, releaseExists, getReleaseUrl
 
 
 # ---------------------------------------------------------------------------
 # Changelog helpers
 # ---------------------------------------------------------------------------
 
-def _build_draft_notes(tag: str, commits: list[str], *, initial: bool = False) -> str:
+def _buildDraftNotes(tag: str, commits: list[str], *, initial: bool = False) -> str:
     """Build a plain-text release body from a list of commit subjects.
 
     Builds a bulleted commit list, or a plain sentence when there are no
@@ -51,7 +51,7 @@ def _build_draft_notes(tag: str, commits: list[str], *, initial: bool = False) -
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def _parse_annotation(annotation: str) -> tuple[str, str]:
+def _parseAnnotation(annotation: str) -> tuple[str, str]:
     """Split a tag annotation into a release title and body.
 
     Parsing rules:
@@ -85,7 +85,7 @@ def _parse_annotation(annotation: str) -> tuple[str, str]:
     return title, '\n'.join(body_lines).strip()
 
 
-def run_release(
+def runRelease(
     *,
     tag: str | None = None,
     title: str | None = None,
@@ -127,38 +127,38 @@ def run_release(
         ~._exceptions.GitError: If pushing the tag fails.
 
     """
-    require_git_repo(cwd=cwd)
+    requireGitRepo(cwd=cwd)
 
     # ---- Resolve tag ----
     if tag is None:
-        latest = get_latest_semver_tag(cwd=cwd)
+        latest = getLatestSemverTag(cwd=cwd)
         if latest is None:
             from ._exceptions import NoTagsFoundError
             raise NoTagsFoundError(
                 "No semantic version tags found locally. "
                 "Run 'engit tag' first, or supply --tag explicitly."
             )
-        tag = latest.to_tag()
+        tag = latest.toTag()
 
     # ---- Resolve release notes ----
-    annotation = get_tag_annotation(tag, cwd=cwd)
+    annotation = getTagAnnotation(tag, cwd=cwd)
 
     # Fallback: legacy / lightweight tags with no annotation.
     # Synthesise title + body in the same format engit tag stores
     # (first line = title, blank line, body bullets).
     if not annotation:
-        semver_tags = get_sorted_semver_tags(cwd=cwd)
+        semver_tags = getSortedSemverTags(cwd=cwd)
         try:
             tag_index = semver_tags.index(tag)
             prev_tag = semver_tags[tag_index + 1] if tag_index + 1 < len(semver_tags) else None
         except ValueError:
             prev_tag = None
-        commits = get_commits_since(prev_tag, cwd=cwd) if prev_tag else []
-        body = _build_draft_notes(tag, commits, initial=not prev_tag)
+        commits = getCommitsSince(prev_tag, cwd=cwd) if prev_tag else []
+        body = _buildDraftNotes(tag, commits, initial=not prev_tag)
         annotation = f'Release {tag}\n\n{body}'
 
     # ---- Parse title and body from annotation ----
-    parsed_title, notes = _parse_annotation(annotation)
+    parsed_title, notes = _parseAnnotation(annotation)
     release_title = title or parsed_title or tag
 
     # ---- Detect prerelease from tag ----
@@ -193,23 +193,23 @@ def run_release(
         return
 
     # ---- Check for existing release ----
-    if release_exists(tag):
-        existing_url = get_release_url(tag)
+    if releaseExists(tag):
+        existing_url = getReleaseUrl(tag)
         print(f'A release for {tag} already exists: {existing_url}')
         return
 
     # ---- Push branch + tag ----
-    branch = get_current_branch(cwd=cwd)
+    branch = getCurrentBranch(cwd=cwd)
     if branch:
-        push_branch_and_tag(tag, branch, remote=remote, cwd=cwd)
+        pushBranchAndTag(tag, branch, remote=remote, cwd=cwd)
         print(f'Pushed {branch} and {tag} to {remote}')
     else:
-        from ._git import push_tag
-        push_tag(tag, remote=remote, cwd=cwd)
+        from ._git import pushTag
+        pushTag(tag, remote=remote, cwd=cwd)
         print(f'Pushed {tag} to {remote} (detached HEAD — branch not pushed)')
 
     # ---- Create the GitHub release ----
-    url = create_release(
+    url = createRelease(
         tag,
         release_title,
         notes,

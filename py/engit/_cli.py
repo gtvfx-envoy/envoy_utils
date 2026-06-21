@@ -19,7 +19,7 @@ from ._exceptions import EngitError
 from ._search import ORGS_ENV_VAR
 
 
-def _build_parser() -> argparse.ArgumentParser:
+def _buildParser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='engit',
         description='engit: git and GitHub tooling for envoy bundles.',
@@ -431,13 +431,13 @@ def main(argv: list[str] | None = None) -> int:
         Exit code.
 
     """
-    parser = _build_parser()
+    parser = _buildParser()
     args = parser.parse_args(argv)
 
     try:
         if args.command == 'tag':
-            from ._tag import run_tag
-            run_tag(
+            from ._tag import runTag
+            runTag(
                 bump=args.bump,
                 version=args.explicit_version,
                 message=args.message,
@@ -446,8 +446,8 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         elif args.command == 'release':
-            from ._release import run_release
-            run_release(
+            from ._release import runRelease
+            runRelease(
                 tag=args.tag,
                 title=args.title,
                 draft=args.draft,
@@ -458,8 +458,8 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         elif args.command == 'pull':
-            from ._pull import run_pull
-            run_pull(
+            from ._pull import runPull
+            runPull(
                 args.bundles,
                 remote=args.remote,
                 rebase=args.rebase,
@@ -467,28 +467,28 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         elif args.command == 'search':
-            from ._search import run_search
-            run_search(
+            from ._search import runSearch
+            runSearch(
                 args.query,
                 orgs=args.orgs,
                 limit=args.limit,
             )
 
         elif args.command == 'status':
-            from ._status import run_status
-            run_status(remote=args.remote)
+            from ._status import runStatus
+            runStatus(remote=args.remote)
 
         elif args.command == 'changelog':
-            from ._changelog import run_changelog
-            run_changelog(tag=args.tag)
+            from ._changelog import runChangelog
+            runChangelog(tag=args.tag)
 
         elif args.command == 'cleanup':
-            from ._cleanup import run_cleanup
-            run_cleanup(remote=args.remote, noop=args.noop)
+            from ._cleanup import runCleanup
+            runCleanup(remote=args.remote, noop=args.noop)
 
         elif args.command == 'web':
-            from ._web import run_web
-            run_web(branch=args.branch, remote=args.remote)
+            from ._web import runWeb
+            runWeb(branch=args.branch, remote=args.remote)
 
         elif args.command == 'publish':
             from ._publish import bundlePublish, detectVersion, PublishError

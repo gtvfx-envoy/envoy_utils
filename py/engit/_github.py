@@ -24,7 +24,7 @@ _PACKAGE_DIR = Path(__file__).parent
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _require_gh() -> None:
+def _requireGh() -> None:
     """Raise :class:`~._exceptions.GhCliNotFoundError` if ``gh`` is not found."""
     if shutil.which('gh') is None:
         raise GhCliNotFoundError(
@@ -47,7 +47,7 @@ def _run(*args: str) -> str:
         ~._exceptions.GitHubError: If the command exits with a non-zero code.
 
     """
-    _require_gh()
+    _requireGh()
     cmd = ['gh', *args]
     result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
 
@@ -61,7 +61,7 @@ def _run(*args: str) -> str:
 # Release operations
 # ---------------------------------------------------------------------------
 
-def create_release(
+def createRelease(
     tag: str,
     title: str,
     notes: str,
@@ -108,7 +108,7 @@ def create_release(
     return _run(*cmd)
 
 
-def release_exists(tag: str) -> bool:
+def releaseExists(tag: str) -> bool:
     """Return ``True`` if a GitHub release already exists for *tag*.
 
     Args:
@@ -122,7 +122,7 @@ def release_exists(tag: str) -> bool:
         ~._exceptions.GitHubError: On unexpected API errors.
 
     """
-    _require_gh()
+    _requireGh()
     result = subprocess.run(
         ['gh', 'release', 'view', tag, '--json', 'tagName'],
         capture_output=True,
@@ -131,14 +131,14 @@ def release_exists(tag: str) -> bool:
     return result.returncode == 0
 
 
-def get_release_url(tag: str) -> str | None:
+def getReleaseUrl(tag: str) -> str | None:
     """Return the HTML URL of an existing GitHub release, or ``None``.
 
     Args:
         tag: Tag name to look up.
 
     """
-    _require_gh()
+    _requireGh()
     result = subprocess.run(
         ['gh', 'release', 'view', tag, '--json', 'url', '--jq', '.url'],
         capture_output=True,
@@ -154,7 +154,7 @@ def get_release_url(tag: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def get_current_org() -> str | None:
+def getCurrentOrg() -> str | None:
     """Return the GitHub organisation that owns the envoy repository.
 
     Runs ``gh repo view`` with its working directory set to the engit
@@ -183,7 +183,7 @@ def get_current_org() -> str | None:
     return None
 
 
-def search_repos(
+def searchRepos(
     query: str,
     *,
     orgs: list[str | None] | None = None,
@@ -210,7 +210,7 @@ def search_repos(
         ~._exceptions.GitHubError: If the search fails.
 
     """
-    _require_gh()
+    _requireGh()
 
     targets: list[str | None] = orgs if orgs else [None]
     results: list[dict] = []
