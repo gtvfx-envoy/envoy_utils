@@ -38,8 +38,8 @@ class SemVer:
 
         pre = SemVer(1, 2, 3, 'alpha.2')
         print(pre.toTag())                # 'v1.2.3-alpha.2'
-        print(pre.prereleaseLabel)        # 'alpha'
-        print(pre.prereleaseNumber)       # 2
+        print(pre.prerelease_label)        # 'alpha'
+        print(pre.prerelease_number)       # 2
 
     """
 
@@ -90,7 +90,7 @@ class SemVer:
     # ------------------------------------------------------------------
 
     @property
-    def prereleaseLabel(self) -> str | None:
+    def prerelease_label(self) -> str | None:
         """Return the label part of the prerelease identifier, or ``None``.
 
         For ``'alpha.3'`` returns ``'alpha'``; for ``'alpha'`` returns
@@ -102,7 +102,7 @@ class SemVer:
         return self.prerelease.split('.')[0]
 
     @property
-    def prereleaseNumber(self) -> int | None:
+    def prerelease_number(self) -> int | None:
         """Return the numeric suffix of the prerelease identifier, or ``None``.
 
         For ``'alpha.3'`` returns ``3``; for ``'alpha'`` (no number) returns

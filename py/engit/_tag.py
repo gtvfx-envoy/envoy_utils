@@ -91,8 +91,8 @@ def resolveNextVersion(
         parsed = SemVer.parse(version)
         # Auto-complete prerelease number when label is given without one.
         # e.g. '0.0.1-alpha' → scans existing tags → '0.0.1-alpha.4'
-        if parsed.prerelease is not None and parsed.prereleaseNumber is None:
-            label = parsed.prereleaseLabel
+        if parsed.prerelease is not None and parsed.prerelease_number is None:
+            label = parsed.prerelease_label
             base = SemVer(parsed.major, parsed.minor, parsed.patch)
             next_num = _nextPrereleaseNumber(base, label, cwd=cwd)
             return SemVer(parsed.major, parsed.minor, parsed.patch, f'{label}.{next_num}')
