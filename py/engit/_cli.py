@@ -29,7 +29,7 @@ def _buildParser() -> argparse.ArgumentParser:
     sub.required = True
 
     # ------------------------------------------------------------------
-    # engit tag
+    # region: engit tag
     # ------------------------------------------------------------------
     tag_p = sub.add_parser(
         'tag',
@@ -67,9 +67,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Increment the patch version component.',
     )
     bump_group.add_argument(
-        '--version',
+        '--version', '-v',
         metavar='VERSION',
         dest='explicit_version',
+        type=str,
         help=(
             'Explicit version string. Supports stable releases (e.g. 1.2.3, v1.2.3) '
             'and prerelease suffixes (e.g. 1.2.3-alpha, v0.0.1-beta). '
@@ -79,7 +80,6 @@ def _buildParser() -> argparse.ArgumentParser:
             'Supply the number explicitly (e.g. 1.2.3-alpha.2) to use it as-is.'
         ),
     )
-
     tag_p.add_argument(
         '--message', '-m',
         metavar='MESSAGE',
@@ -100,8 +100,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Print the planned tag without creating it.',
     )
 
+    # endregion
+
     # ------------------------------------------------------------------
-    # engit release
+    # region: engit release
     # ------------------------------------------------------------------
     rel_p = sub.add_parser(
         'release',
@@ -159,8 +161,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Print the planned release without creating it.',
     )
 
+    # endregion
+
     # ------------------------------------------------------------------
-    # engit status
+    # region: engit status
     # ------------------------------------------------------------------
     status_p = sub.add_parser(
         'status',
@@ -177,8 +181,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Remote name for ahead/behind comparison (default: origin).',
     )
 
+    # endregion
+
     # ------------------------------------------------------------------
-    # engit changelog
+    # region: engit changelog
     # ------------------------------------------------------------------
     changelog_p = sub.add_parser(
         'changelog',
@@ -194,8 +200,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Show only the release for this tag.',
     )
 
+    # endregion
+
     # ------------------------------------------------------------------
-    # engit cleanup
+    # region: engit cleanup
     # ------------------------------------------------------------------
     cleanup_p = sub.add_parser(
         'cleanup',
@@ -217,8 +225,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help="Print what would be deleted without actually deleting anything.",
     )
 
+    # endregion
+
     # ------------------------------------------------------------------
-    # engit web
+    # region: engit web
     # ------------------------------------------------------------------
     web_p = sub.add_parser(
         'web',
@@ -240,8 +250,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Remote whose URL is opened (default: origin).',
     )
 
+    # endregion
+
     # ------------------------------------------------------------------
-    # engit pull
+    # region: engit pull
     # ------------------------------------------------------------------
     pull_p = sub.add_parser(
         'pull',
@@ -278,8 +290,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Print what would be pulled without running git.',
     )
 
+    # endregion
+
     # ------------------------------------------------------------------
-    # engit search
+    # region: engit search
     # ------------------------------------------------------------------
     search_p = sub.add_parser(
         'search',
@@ -313,9 +327,10 @@ def _buildParser() -> argparse.ArgumentParser:
         metavar='N',
         help='Maximum results per organisation (default: 20).',
     )
+    # endregion
 
     # ------------------------------------------------------------------
-    # engit publish
+    # region: engit publish
     # ------------------------------------------------------------------
     pub_p = sub.add_parser(
         'publish',
@@ -346,7 +361,8 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Root directory to write the output into. Defaults to the current directory.',
     )
     pub_p.add_argument(
-        '--version',
+        '--version', '-v',
+        type=str,
         default=None,
         metavar='VERSION',
         help=(
@@ -377,8 +393,10 @@ def _buildParser() -> argparse.ArgumentParser:
         help='List the files that would be included without writing any output.',
     )
 
+    # endregion
+
     # ------------------------------------------------------------------
-    # engit publish-config
+    # region: engit publish-config
     # ------------------------------------------------------------------
     pcfg_p = sub.add_parser(
         'publish-config',
@@ -417,6 +435,8 @@ def _buildParser() -> argparse.ArgumentParser:
         action='store_true',
         help='Show what would be written without writing anything.',
     )
+
+    # endregion
 
     return parser
 
