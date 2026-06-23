@@ -511,11 +511,22 @@ def main(argv: list[str] | None = None) -> int:
             runWeb(branch=args.branch, remote=args.remote)
 
         elif args.command == 'publish':
-            from ._publish import bundlePublish, detectVersion, PublishError
+            from ._publish import (
+                bundlePublish,
+                detectVersion,
+                PublishError,
+                _isBndlid,
+                _resolveBndlidToPath,
+            )
 
-            # Resolve bundle path (path argument or cwd).
+            # Resolve bundle path: cwd, bundle ID, or explicit filesystem path.
             if args.path is None:
                 bundle_path = Path.cwd()
+            elif _isBndlid(args.path):
+                try:
+                    bundle_path = _resolveBndlidToPath(args.path)
+                except PublishError as exc:
+                    raise EngitError(str(exc)) from exc
             else:
                 bundle_path = Path(args.path)
 

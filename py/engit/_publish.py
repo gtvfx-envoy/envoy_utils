@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ._exceptions import EngitError, NoTagsFoundError
-from ._git import getLatestSemverTag, isGitRepo
+from ._git import getLatestSemverTag, getRemoteUrl, isGitRepo
 
 
 #: Version string used for local test builds (no git tag required).
@@ -134,6 +134,108 @@ def _publishPath(bundle_name: str) -> Path:
 
     """
     return Path(*bundle_name.split('-'))
+
+
+def _isBndlid(spec: str) -> bool:
+    """Return ``True`` if *spec* looks like a bundle ID rather than a path.
+
+    A bundle ID contains a colon (``:``) and is distinguished from Windows
+    drive letters (e.g. ``C:``, ``R:``) by requiring the colon to appear after
+    more than one character.  Path-like strings starting with ``/``, ``\\``,
+    ``.``, or ``~`` are always rejected.
+
+    Args:
+        spec: The string to test.
+
+    Returns:
+        ``True`` when *spec* matches the bundle ID pattern.
+
+    Examples::
+
+        _isBndlid('gt:pythoncore')   # True
+        _isBndlid('gt:ext:python')   # True
+        _isBndlid('C:\\path')        # False  (Windows drive letter)
+        _isBndlid('./some/path')     # False  (relative path)
+
+    """
+    if not spec or spec[0] in ('/', '\\', '.', '~'):
+        return False
+    colon_idx = spec.find(':')
+    if colon_idx < 2:
+        return False
+    return True
+
+
+def _resolveBndlidToPath(bndlid: str) -> Path:
+    """Resolve a bundle ID to a filesystem path via ``ENVOY_BNDL_ROOTS``.
+
+    Splits *bndlid* on colons to produce directory segments, then searches
+    each root in ``ENVOY_BNDL_ROOTS`` for a matching subdirectory.
+
+    For example, ``gt:ext:python`` becomes the relative path
+    ``gt/ext/python`` and is looked up under each configured root.
+
+    Args:
+        bndlid: Colon-separated bundle identifier (e.g. ``'gt:ext:python'``).
+
+    Returns:
+        Resolved absolute :class:`~pathlib.Path` to the bundle directory.
+
+    Raises:
+        PublishError: If ``ENVOY_BNDL_ROOTS`` is not set or the bundle is not
+            found in any configured root.
+
+    """
+    separator = ';' if os.name == 'nt' else ':'
+    roots_str = os.environ.get('ENVOY_BNDL_ROOTS', '')
+    if not roots_str:
+        raise PublishError(
+            f"Cannot resolve bundle ID {bndlid!r}: ENVOY_BNDL_ROOTS is not set."
+        )
+    roots = [Path(r.strip()) for r in roots_str.split(separator) if r.strip()]
+    segments = bndlid.split(':')
+
+    for root in roots:
+        candidate = root.joinpath(*segments)
+        if candidate.is_dir():
+            return candidate.resolve()
+
+    searched = ', '.join(str(r) for r in roots)
+    raise PublishError(
+        f"Bundle {bndlid!r} not found in ENVOY_BNDL_ROOTS ({searched})."
+    )
+
+
+def _repoNameFrom(bundle_path: Path) -> str:
+    """Derive the bundle (repo) name for a bundle directory.
+
+    Tries to retrieve the git remote URL and extract the repository name from
+    it so that the full hyphenated name (e.g. ``gt-ext-python``) is used
+    rather than just the bare directory name (e.g. ``python``).
+
+    Resolution order:
+
+    1. ``origin`` remote URL — strips the ``.git`` suffix and takes the last
+       ``/``- or ``:`‌``-separated component.
+    2. Directory name of *bundle_path* as a fallback.
+
+    Args:
+        bundle_path: Absolute path to the bundle root directory.
+
+    Returns:
+        Bundle name string suitable for passing to :func:`_bndlidFromName`.
+
+    """
+    url = getRemoteUrl(cwd=bundle_path)
+    if url:
+        name = url.rstrip('/')
+        if name.endswith('.git'):
+            name = name[:-4]
+        # Works for both HTTPS (.../owner/repo) and SSH (git@host:owner/repo)
+        name = name.rsplit('/', 1)[-1].rsplit(':', 1)[-1]
+        if name:
+            return name
+    return bundle_path.name
 
 
 # ---------------------------------------------------------------------------
@@ -425,9 +527,10 @@ def bundlePublish(
     if not bundle_path.is_dir():
         raise PublishError(f"Bundle path does not exist: '{bundle_path}'")
 
-    bundle_name  = bundle_path.name
+    bundle_name  = _repoNameFrom(bundle_path)
     bndlid       = _bndlidFromName(bundle_name)
-    bndl_name    = bndlid.split(':', 1)[1]
+    parts        = bndlid.split(':', 1)
+    bndl_name    = parts[1] if len(parts) > 1 else parts[0]
     pub_path     = _publishPath(bundle_name)
     excludes     = DEFAULT_EXCLUDES | frozenset(extra_excludes or [])
 
