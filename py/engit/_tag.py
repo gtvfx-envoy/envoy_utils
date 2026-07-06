@@ -11,13 +11,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from engit._editor import openInEditor
+
 from ._exceptions import NoTagsFoundError
 from ._git import (
-    requireGitRepo,
+    createTag,
+    getCommitsSince,
     getLatestSemverTag,
     getSortedSemverTags,
-    getCommitsSince,
-    createTag,
+    requireGitRepo,
     tagExists,
 )
 from ._semver import SemVer
@@ -48,7 +49,7 @@ def _nextPrereleaseNumber(
     existing: list[int] = []
     for tag in getSortedSemverTags(cwd=cwd):
         if tag.startswith(prefix):
-            suffix = tag[len(prefix):]
+            suffix = tag[len(prefix) :]
             try:
                 existing.append(int(suffix))
             except ValueError:
@@ -108,7 +109,7 @@ def resolveNextVersion(
 
     if bump is None:
         raise ValueError("Expected a bump component but received None. This is a bug.")
-    
+
     bump = bump.lower()
     if bump == 'major':
         return current.bumpMajor()
@@ -135,10 +136,7 @@ def _stripComments(text: str) -> str:
         Cleaned annotation text, or an empty string if nothing remains.
 
     """
-    kept = [
-        line for line in text.splitlines()
-        if not line.lstrip().startswith('#')
-    ]
+    kept = [line for line in text.splitlines() if not line.lstrip().startswith('#')]
     # Drop trailing blank lines
     while kept and not kept[-1].strip():
         kept.pop()
@@ -157,8 +155,8 @@ def _buildTagDraft(
     """Build the editor draft for tag confirmation.
 
     Editable content comes first, with a compact ``#``-comment block at the
-    bottom — the same convention as ``git commit``.  Lines starting with ``#`` are stripped before the
-    annotation is stored.
+    bottom — the same convention as ``git commit``.  Lines starting with
+    ``#`` are stripped before the annotation is stored.
 
     The stored annotation will be::
 
@@ -189,14 +187,18 @@ def _buildTagDraft(
 
     # Content first — cursor lands immediately on the editable text, not a
     # wall of instructions.
-    lines: list[str] = [
-        default_annotation,
-        '',
-    ] + body_lines + [
-        '',
-        '#',
-        f'# Write a message for tag: {tag}',
-    ]
+    lines: list[str] = (
+        [
+            default_annotation,
+            '',
+        ]
+        + body_lines
+        + [
+            '',
+            '#',
+            f'# Write a message for tag: {tag}',
+        ]
+    )
 
     if prev_tag:
         lines.append(f'# Previous tag: {prev_tag}')
@@ -264,9 +266,9 @@ def runTag(
     # ---- Guard: refuse to overwrite an existing tag ----
     if tagExists(tag_name, cwd=cwd):
         from ._exceptions import GitError
+
         raise GitError(
-            f"Tag '{tag_name}' already exists. "
-            "Use --version to supply a different version."
+            f"Tag '{tag_name}' already exists. Use --version to supply a different version."
         )
 
     # ---- Build commit context for the editor draft ----
@@ -296,5 +298,5 @@ def runTag(
 
     createTag(tag_name, annotation, cwd=cwd)
     print(f'Created tag: {tag_name}')
-    print(f'Run \'engit release\' when ready to publish.')
+    print('Run \'engit release\' when ready to publish.')
     return next_ver

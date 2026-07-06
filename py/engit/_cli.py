@@ -11,8 +11,8 @@ search          Search GitHub repositories.
 
 from __future__ import annotations
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 from ._exceptions import EngitError
@@ -67,7 +67,8 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Increment the patch version component.',
     )
     bump_group.add_argument(
-        '--version', '-v',
+        '--version',
+        '-v',
         metavar='VERSION',
         dest='explicit_version',
         type=str,
@@ -81,7 +82,8 @@ def _buildParser() -> argparse.ArgumentParser:
         ),
     )
     tag_p.add_argument(
-        '--message', '-m',
+        '--message',
+        '-m',
         metavar='MESSAGE',
         help=(
             'Supply the tag annotation directly, skipping the editor. '
@@ -89,7 +91,8 @@ def _buildParser() -> argparse.ArgumentParser:
         ),
     )
     tag_p.add_argument(
-        '--print', '-p',
+        '--print',
+        '-p',
         dest='print_only',
         action='store_true',
         help='Print the computed next version without creating a tag.',
@@ -118,10 +121,7 @@ def _buildParser() -> argparse.ArgumentParser:
     rel_p.add_argument(
         '--tag',
         metavar='TAG',
-        help=(
-            'Tag to release (e.g. v1.2.3). '
-            'Defaults to the most recent semantic version tag.'
-        ),
+        help=('Tag to release (e.g. v1.2.3). Defaults to the most recent semantic version tag.'),
     )
     rel_p.add_argument(
         '--title',
@@ -150,7 +150,8 @@ def _buildParser() -> argparse.ArgumentParser:
     )
 
     rel_p.add_argument(
-        '--print', '-p',
+        '--print',
+        '-p',
         dest='print_only',
         action='store_true',
         help='Print the resolved release notes without pushing or publishing.',
@@ -239,7 +240,8 @@ def _buildParser() -> argparse.ArgumentParser:
         ),
     )
     web_p.add_argument(
-        '--branch', '-b',
+        '--branch',
+        '-b',
         metavar='BRANCH',
         help='Branch or tag to view. Defaults to the current branch.',
     )
@@ -354,14 +356,16 @@ def _buildParser() -> argparse.ArgumentParser:
         ),
     )
     pub_p.add_argument(
-        '--output', '-o',
+        '--output',
+        '-o',
         type=Path,
         default=None,
         metavar='DIR',
         help='Root directory to write the output into. Defaults to the current directory.',
     )
     pub_p.add_argument(
-        '--version', '-v',
+        '--version',
+        '-v',
         type=str,
         default=None,
         metavar='VERSION',
@@ -421,13 +425,13 @@ def _buildParser() -> argparse.ArgumentParser:
         help='Path to the bundles-config JSON file to publish.',
     )
     pcfg_p.add_argument(
-        '--cfg-root', '-r',
+        '--cfg-root',
+        '-r',
         type=Path,
         default=None,
         metavar='DIR',
         help=(
-            'Root directory to publish into.  '
-            'Defaults to the first directory in ENVOY_CFG_ROOTS.'
+            'Root directory to publish into.  Defaults to the first directory in ENVOY_CFG_ROOTS.'
         ),
     )
     pcfg_p.add_argument(
@@ -457,6 +461,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == 'tag':
             from ._tag import runTag
+
             runTag(
                 bump=args.bump,
                 version=args.explicit_version,
@@ -467,6 +472,7 @@ def main(argv: list[str] | None = None) -> int:
 
         elif args.command == 'release':
             from ._release import runRelease
+
             runRelease(
                 tag=args.tag,
                 title=args.title,
@@ -479,6 +485,7 @@ def main(argv: list[str] | None = None) -> int:
 
         elif args.command == 'pull':
             from ._pull import runPull
+
             runPull(
                 args.bundles,
                 remote=args.remote,
@@ -488,6 +495,7 @@ def main(argv: list[str] | None = None) -> int:
 
         elif args.command == 'search':
             from ._search import runSearch
+
             runSearch(
                 args.query,
                 orgs=args.orgs,
@@ -496,27 +504,31 @@ def main(argv: list[str] | None = None) -> int:
 
         elif args.command == 'status':
             from ._status import runStatus
+
             runStatus(remote=args.remote)
 
         elif args.command == 'changelog':
             from ._changelog import runChangelog
+
             runChangelog(tag=args.tag)
 
         elif args.command == 'cleanup':
             from ._cleanup import runCleanup
+
             runCleanup(remote=args.remote, noop=args.noop)
 
         elif args.command == 'web':
             from ._web import runWeb
+
             runWeb(branch=args.branch, remote=args.remote)
 
         elif args.command == 'publish':
             from ._publish import (
-                bundlePublish,
-                detectVersion,
                 PublishError,
                 _isBndlid,
                 _resolveBndlidToPath,
+                bundlePublish,
+                detectVersion,
             )
 
             # Resolve bundle path: cwd, bundle ID, or explicit filesystem path.
@@ -552,16 +564,13 @@ def main(argv: list[str] | None = None) -> int:
                 print(f'Published {label}: {result}')
 
         elif args.command == 'publish-config':
-            import os
-            from envoy._config_registry import publishConfig, CFG_ROOTS_VAR, _cfgRoots
+            from envoy._config_registry import CFG_ROOTS_VAR, _cfgRoots, publishConfig
 
             cfg_root = args.cfg_root
             if cfg_root is None:
                 roots = _cfgRoots()
                 if not roots:
-                    raise EngitError(
-                        f"No --cfg-root specified and {CFG_ROOTS_VAR} is not set."
-                    )
+                    raise EngitError(f"No --cfg-root specified and {CFG_ROOTS_VAR} is not set.")
                 cfg_root = roots[0]
 
             result = publishConfig(

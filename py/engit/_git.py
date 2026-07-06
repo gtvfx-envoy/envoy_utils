@@ -9,13 +9,13 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ._exceptions import GitError, NotAGitRepoError, NoTagsFoundError
+from ._exceptions import GitError, NotAGitRepoError
 from ._semver import SemVer
-
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _run(*args: str, cwd: Path | None = None) -> str:
     """Run a git command and return stripped stdout.
@@ -52,6 +52,7 @@ def _run(*args: str, cwd: Path | None = None) -> str:
 # Repository inspection
 # ---------------------------------------------------------------------------
 
+
 def isGitRepo(cwd: Path | None = None) -> bool:
     """Return ``True`` if *cwd* (or the current directory) is inside a git repo."""
     try:
@@ -73,8 +74,7 @@ def requireGitRepo(cwd: Path | None = None) -> None:
     """
     if not isGitRepo(cwd):
         raise NotAGitRepoError(
-            "Not inside a git repository. "
-            "Run engit commands from within a git working directory."
+            "Not inside a git repository. Run engit commands from within a git working directory."
         )
 
 
@@ -103,6 +103,7 @@ def getRemoteUrl(remote: str = 'origin', cwd: Path | None = None) -> str | None:
 # ---------------------------------------------------------------------------
 # Tag operations
 # ---------------------------------------------------------------------------
+
 
 def getLatestTag(cwd: Path | None = None) -> str | None:
     """Return the most recent tag reachable from HEAD, or ``None``.
@@ -248,7 +249,9 @@ def pushTag(tag: str, remote: str = 'origin', cwd: Path | None = None) -> None:
     _run('push', remote, tag, cwd=cwd)
 
 
-def pushBranchAndTag(tag: str, branch: str, remote: str = 'origin', cwd: Path | None = None) -> None:
+def pushBranchAndTag(
+    tag: str, branch: str, remote: str = 'origin', cwd: Path | None = None
+) -> None:
     """Push a branch and a tag together in one operation.
 
     Equivalent to ``git push <remote> <branch> <tag>``.
@@ -269,6 +272,7 @@ def pushBranchAndTag(tag: str, branch: str, remote: str = 'origin', cwd: Path | 
 # ---------------------------------------------------------------------------
 # Commit history
 # ---------------------------------------------------------------------------
+
 
 def getCommitsSince(ref: str, cwd: Path | None = None) -> list[str]:
     """Return commit subject lines between *ref* and HEAD.
@@ -324,6 +328,7 @@ def getAllCommits(cwd: Path | None = None) -> list[str]:
 # ---------------------------------------------------------------------------
 # Branch helpers
 # ---------------------------------------------------------------------------
+
 
 def getCurrentBranch(cwd: Path | None = None) -> str | None:
     """Return the name of the currently checked-out branch, or ``None`` if detached.
@@ -403,6 +408,7 @@ def getLastCommitSummary(cwd: Path | None = None) -> str:
 # Tag existence
 # ---------------------------------------------------------------------------
 
+
 def tagExists(tag: str, cwd: Path | None = None) -> bool:
     """Return ``True`` if *tag* exists in the local repository.
 
@@ -450,6 +456,7 @@ def pull(
 # ---------------------------------------------------------------------------
 # Branch merging / cleanup helpers
 # ---------------------------------------------------------------------------
+
 
 def getMergedBranches(cwd: Path | None = None) -> list[str]:
     """Return local branches that have been merged into the current branch.
@@ -519,5 +526,5 @@ def getRemoteTrackingBranch(branch: str, cwd: Path | None = None) -> str | None:
     except GitError:
         return None
     if merge.startswith('refs/heads/'):
-        merge = merge[len('refs/heads/'):]
+        merge = merge[len('refs/heads/') :]
     return f'{remote}/{merge}'

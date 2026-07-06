@@ -1,6 +1,7 @@
 """Entry point for ``python -m engit``."""
 
 import sys
+
 from ._cli import main
 
 if __name__ == '__main__':

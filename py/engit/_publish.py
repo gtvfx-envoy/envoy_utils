@@ -29,9 +29,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ._exceptions import EngitError, NoTagsFoundError
+from ._exceptions import EngitError
 from ._git import getLatestSemverTag, getRemoteUrl, isGitRepo
-
 
 #: Version string used for local test builds (no git tag required).
 DEV_VERSION: str = 'dev'
@@ -50,17 +49,19 @@ BUNDLE_ENV_DIR: str = '.envoy'
 #: Patterns excluded from every publish regardless of bundle type.
 #: Matched against each path component (directory names) and file names
 #: using ``fnmatch`` glob rules.
-DEFAULT_EXCLUDES: frozenset[str] = frozenset({
-    '.git',
-    '.gitignore',
-    '.github',
-    'build',
-    'dist',
-    '.pytest_cache',
-    '__pycache__',
-    '*.pyc',
-    '*.pyo',
-})
+DEFAULT_EXCLUDES: frozenset[str] = frozenset(
+    {
+        '.git',
+        '.gitignore',
+        '.github',
+        'build',
+        'dist',
+        '.pytest_cache',
+        '__pycache__',
+        '*.pyc',
+        '*.pyo',
+    }
+)
 
 
 class PublishError(EngitError):
@@ -70,6 +71,7 @@ class PublishError(EngitError):
 # ---------------------------------------------------------------------------
 # Version detection
 # ---------------------------------------------------------------------------
+
 
 def detectVersion(bundle_path: Path) -> str:
     """Return the latest semver tag for the bundle's git repository.
@@ -104,6 +106,7 @@ def detectVersion(bundle_path: Path) -> str:
 # Bundle id helpers
 # ---------------------------------------------------------------------------
 
+
 def _bndlidFromName(bundle_name: str) -> str:
     """Convert a bundle directory name to a ``bndlid``.
 
@@ -137,7 +140,7 @@ def _publishPath(bundle_name: str) -> Path:
 
 
 def _isBndlid(spec: str) -> bool:
-    """Return ``True`` if *spec* looks like a bundle ID rather than a path.
+    r"""Return ``True`` if *spec* looks like a bundle ID rather than a path.
 
     A bundle ID contains a colon (``:``) and is distinguished from Windows
     drive letters (e.g. ``C:``, ``R:``) by requiring the colon to appear after
@@ -189,9 +192,7 @@ def _resolveBndlidToPath(bndlid: str) -> Path:
     separator = ';' if os.name == 'nt' else ':'
     roots_str = os.environ.get('ENVOY_BNDL_ROOTS', '')
     if not roots_str:
-        raise PublishError(
-            f"Cannot resolve bundle ID {bndlid!r}: ENVOY_BNDL_ROOTS is not set."
-        )
+        raise PublishError(f"Cannot resolve bundle ID {bndlid!r}: ENVOY_BNDL_ROOTS is not set.")
     roots = [Path(r.strip()) for r in roots_str.split(separator) if r.strip()]
     segments = bndlid.split(':')
 
@@ -201,9 +202,7 @@ def _resolveBndlidToPath(bndlid: str) -> Path:
             return candidate.resolve()
 
     searched = ', '.join(str(r) for r in roots)
-    raise PublishError(
-        f"Bundle {bndlid!r} not found in ENVOY_BNDL_ROOTS ({searched})."
-    )
+    raise PublishError(f"Bundle {bndlid!r} not found in ENVOY_BNDL_ROOTS ({searched}).")
 
 
 def _repoNameFrom(bundle_path: Path) -> str:
@@ -242,6 +241,7 @@ def _repoNameFrom(bundle_path: Path) -> str:
 # Bundle marker
 # ---------------------------------------------------------------------------
 
+
 def _bundleMarkerData(bndlid: str, bndl_name: str, version: str) -> dict:
     """Return the dict written to the ``.bundle`` marker file.
 
@@ -266,6 +266,7 @@ def _bundleMarkerData(bndlid: str, bndl_name: str, version: str) -> dict:
 # ---------------------------------------------------------------------------
 # Asset source helpers
 # ---------------------------------------------------------------------------
+
 
 def _baseVersion(version: str) -> str:
     """Strip the ``-envoy.<int>`` iteration suffix from a version string.
@@ -400,6 +401,7 @@ def _collectArtifactFiles(
 # Exclusion helpers
 # ---------------------------------------------------------------------------
 
+
 def _isExcluded(name: str, excludes: frozenset[str]) -> bool:
     """Return True if *name* matches any pattern in *excludes*.
 
@@ -450,6 +452,7 @@ def _collectFiles(
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def listPublishFiles(
     bundle_path: Path,
     version: str = DEV_VERSION,
@@ -474,8 +477,7 @@ def listPublishFiles(
     excludes = DEFAULT_EXCLUDES | frozenset(extra_excludes or [])
 
     files: list[tuple[Path, Path]] = [
-        (f, f.relative_to(bundle_path))
-        for f in _collectFiles(bundle_path, excludes)
+        (f, f.relative_to(bundle_path)) for f in _collectFiles(bundle_path, excludes)
     ]
 
     for artifact in _loadBundleArtifacts(bundle_path, version):
@@ -527,16 +529,15 @@ def bundlePublish(
     if not bundle_path.is_dir():
         raise PublishError(f"Bundle path does not exist: '{bundle_path}'")
 
-    bundle_name  = _repoNameFrom(bundle_path)
-    bndlid       = _bndlidFromName(bundle_name)
-    parts        = bndlid.split(':', 1)
-    bndl_name    = parts[1] if len(parts) > 1 else parts[0]
-    pub_path     = _publishPath(bundle_name)
-    excludes     = DEFAULT_EXCLUDES | frozenset(extra_excludes or [])
+    bundle_name = _repoNameFrom(bundle_path)
+    bndlid = _bndlidFromName(bundle_name)
+    parts = bndlid.split(':', 1)
+    bndl_name = parts[1] if len(parts) > 1 else parts[0]
+    pub_path = _publishPath(bundle_name)
+    excludes = DEFAULT_EXCLUDES | frozenset(extra_excludes or [])
 
     files: list[tuple[Path, Path]] = [
-        (f, f.relative_to(bundle_path))
-        for f in _collectFiles(bundle_path, excludes)
+        (f, f.relative_to(bundle_path)) for f in _collectFiles(bundle_path, excludes)
     ]
 
     for artifact in _loadBundleArtifacts(bundle_path, version):
@@ -560,12 +561,8 @@ def bundlePublish(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if zip_mode:
-        return _buildPublishZip(
-            bundle_name, bndlid, bndl_name, version, files, output_dir
-        )
-    return _buildPublishDir(
-        bundle_name, bndlid, bndl_name, version, files, output_dir
-    )
+        return _buildPublishZip(bundle_name, bndlid, bndl_name, version, files, output_dir)
+    return _buildPublishDir(bundle_name, bndlid, bndl_name, version, files, output_dir)
 
 
 def _buildPublishDir(
@@ -602,9 +599,7 @@ def _buildPublishDir(
         shutil.copy2(src, dest)
 
     marker_data = _bundleMarkerData(bndlid, bndl_name, version)
-    (dest_root / BUNDLE_MARKER_FILE).write_text(
-        json.dumps(marker_data, indent=2), encoding='utf-8'
-    )
+    (dest_root / BUNDLE_MARKER_FILE).write_text(json.dumps(marker_data, indent=2), encoding='utf-8')
 
     return dest_root
 

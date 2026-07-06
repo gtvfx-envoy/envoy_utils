@@ -1,5 +1,4 @@
-"""
-engit -- git and GitHub tooling for envoy bundle development.
+"""engit -- git and GitHub tooling for envoy bundle development.
 
 Provides semantic version tagging, GitHub release creation, and repository
 search, all driven from the command line. The ``tag`` flow pre-populates
@@ -53,22 +52,20 @@ __all__ = [
     'SemVerError',
     'GitHubError',
     'GhCliNotFoundError',
-
     # ---- Core types ----
     'SemVer',
-
     # ---- Entry point ----
     'main',
 ]
 
+from ._cli import main
 from ._exceptions import (
     EngitError,
+    GhCliNotFoundError,
     GitError,
+    GitHubError,
     NotAGitRepoError,
     NoTagsFoundError,
     SemVerError,
-    GitHubError,
-    GhCliNotFoundError,
 )
 from ._semver import SemVer
-from ._cli import main

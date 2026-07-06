@@ -39,7 +39,7 @@ def _findEditor() -> list[str]:
             parts = shlex.split(value, posix=posix)
             # posix=False leaves surrounding quotes intact; strip them.
             if not posix:
-                parts = [p.strip('"\"') for p in parts]
+                parts = [p.strip('""') for p in parts]
             return parts
     # Platform default — Classic Notepad on Windows (full path so it works even
     # when System32 is not on PATH), vim elsewhere.
@@ -83,7 +83,10 @@ def openInEditor(content: str, filename: str = 'engit_edit.txt') -> str | None:
 
     mtime_before = tmp_path.stat().st_mtime_ns
 
-    print(f'Opening editor ({editor_name}) — save the file to confirm, close without saving to cancel.')
+    print(
+        f'Opening editor ({editor_name}) — save the file to confirm, '
+        'close without saving to cancel.'
+    )
 
     mtime_after = mtime_before  # sentinel: unchanged if editor raises
     raw = ''

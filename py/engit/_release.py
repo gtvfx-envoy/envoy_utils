@@ -2,27 +2,28 @@
 
 Uses the selected tag's annotation as the release notes source-of-truth
 (curated during ``engit tag``) and delegates to :mod:`._github` to create
-the release via ``gh``."""
+the release via ``gh``.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from ._git import (
-    requireGitRepo,
-    getLatestSemverTag,
-    getCurrentBranch,
-    getTagAnnotation,
-    getSortedSemverTags,
     getCommitsSince,
+    getCurrentBranch,
+    getLatestSemverTag,
+    getSortedSemverTags,
+    getTagAnnotation,
     pushBranchAndTag,
+    requireGitRepo,
 )
-from ._github import createRelease, releaseExists, getReleaseUrl
-
+from ._github import createRelease, getReleaseUrl, releaseExists
 
 # ---------------------------------------------------------------------------
 # Changelog helpers
 # ---------------------------------------------------------------------------
+
 
 def _buildDraftNotes(tag: str, commits: list[str], *, initial: bool = False) -> str:
     """Build a plain-text release body from a list of commit subjects.
@@ -51,6 +52,7 @@ def _buildDraftNotes(tag: str, commits: list[str], *, initial: bool = False) -> 
 # Public entry point
 # ---------------------------------------------------------------------------
 
+
 def _parseAnnotation(annotation: str) -> tuple[str, str]:
     """Split a tag annotation into a release title and body.
 
@@ -66,10 +68,7 @@ def _parseAnnotation(annotation: str) -> tuple[str, str]:
 
     """
     # Defensive: strip comment lines from legacy annotations
-    clean_lines = [
-        line for line in annotation.splitlines()
-        if not line.lstrip().startswith('#')
-    ]
+    clean_lines = [line for line in annotation.splitlines() if not line.lstrip().startswith('#')]
     # Drop leading blank lines
     while clean_lines and not clean_lines[0].strip():
         clean_lines.pop(0)
@@ -134,6 +133,7 @@ def runRelease(
         latest = getLatestSemverTag(cwd=cwd)
         if latest is None:
             from ._exceptions import NoTagsFoundError
+
             raise NoTagsFoundError(
                 "No semantic version tags found locally. "
                 "Run 'engit tag' first, or supply --tag explicitly."
@@ -163,6 +163,7 @@ def runRelease(
 
     # ---- Detect prerelease from tag ----
     from ._semver import SemVer, SemVerError
+
     try:
         _tag_ver = SemVer.parse(tag)
         is_prerelease = _tag_ver.prerelease is not None
@@ -205,6 +206,7 @@ def runRelease(
         print(f'Pushed {branch} and {tag} to {remote}')
     else:
         from ._git import pushTag
+
         pushTag(tag, remote=remote, cwd=cwd)
         print(f'Pushed {tag} to {remote} (detached HEAD — branch not pushed)')
 

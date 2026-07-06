@@ -9,7 +9,7 @@ import webbrowser
 from pathlib import Path
 
 from ._exceptions import GitError
-from ._git import requireGitRepo, getRemoteUrl, getCurrentBranch
+from ._git import getCurrentBranch, getRemoteUrl, requireGitRepo
 
 
 def _toHttpsUrl(remote_url: str) -> str:
@@ -25,7 +25,7 @@ def _toHttpsUrl(remote_url: str) -> str:
 
     # SSH format: git@host:owner/repo.git
     if url.startswith('git@') and ':' in url:
-        host, path = url[len('git@'):].split(':', 1)
+        host, path = url[len('git@') :].split(':', 1)
         url = f'https://{host}/{path}'
 
     # Strip trailing .git
@@ -58,10 +58,7 @@ def runWeb(
 
     raw_url = getRemoteUrl(remote=remote, cwd=cwd)
     if not raw_url:
-        raise GitError(
-            f"Remote '{remote}' has no URL. "
-            "Check your git remote configuration."
-        )
+        raise GitError(f"Remote '{remote}' has no URL. Check your git remote configuration.")
 
     base_url = _toHttpsUrl(raw_url)
 

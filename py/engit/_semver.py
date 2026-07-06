@@ -6,10 +6,9 @@ Handles the ``vMAJOR.MINOR.PATCH[-PRERELEASE]`` tag format used by engit.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ._exceptions import SemVerError
-
 
 # Matches optional leading 'v' followed by MAJOR.MINOR.PATCH and an optional
 # prerelease suffix of the form -LABEL or -LABEL.N (e.g. -alpha, -alpha.3).
@@ -53,7 +52,7 @@ class SemVer:
     # ------------------------------------------------------------------
 
     @classmethod
-    def parse(cls, value: str) -> 'SemVer':
+    def parse(cls, value: str) -> SemVer:
         """Parse a version string, with or without a leading ``v``.
 
         Supports plain ``MAJOR.MINOR.PATCH`` and prerelease suffixes of the
@@ -123,7 +122,7 @@ class SemVer:
     # Increment helpers
     # ------------------------------------------------------------------
 
-    def bumpMajor(self) -> 'SemVer':
+    def bumpMajor(self) -> SemVer:
         """Return a new :class:`SemVer` with *major* incremented.
 
         Resets *minor*, *patch*, and *prerelease* to their zero/None defaults.
@@ -131,7 +130,7 @@ class SemVer:
         """
         return SemVer(self.major + 1, 0, 0)
 
-    def bumpMinor(self) -> 'SemVer':
+    def bumpMinor(self) -> SemVer:
         """Return a new :class:`SemVer` with *minor* incremented.
 
         Resets *patch* and *prerelease* to their zero/None defaults.
@@ -139,7 +138,7 @@ class SemVer:
         """
         return SemVer(self.major, self.minor + 1, 0)
 
-    def bumpPatch(self) -> 'SemVer':
+    def bumpPatch(self) -> SemVer:
         """Return a new :class:`SemVer` with *patch* incremented.
 
         Clears *prerelease* — bump flags always produce stable releases.

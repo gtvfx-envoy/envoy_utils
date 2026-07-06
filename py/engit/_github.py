@@ -12,8 +12,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from ._exceptions import GitHubError, GhCliNotFoundError
-
+from ._exceptions import GhCliNotFoundError, GitHubError
 
 #: Directory of this package — used as ``cwd`` when invoking ``gh`` so that
 #: repo-context commands resolve against the envoy repository.
@@ -23,6 +22,7 @@ _PACKAGE_DIR = Path(__file__).parent
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _requireGh() -> None:
     """Raise :class:`~._exceptions.GhCliNotFoundError` if ``gh`` is not found."""
@@ -61,6 +61,7 @@ def _run(*args: str) -> str:
 # Release operations
 # ---------------------------------------------------------------------------
 
+
 def createRelease(
     tag: str,
     title: str,
@@ -92,9 +93,13 @@ def createRelease(
 
     """
     cmd: list[str] = [
-        'release', 'create', tag,
-        '--title', title,
-        '--notes', notes,
+        'release',
+        'create',
+        tag,
+        '--title',
+        title,
+        '--notes',
+        notes,
     ]
     if draft:
         cmd.append('--draft')
@@ -196,7 +201,7 @@ def searchRepos(
 
     Args:
         query: Search query string.
-        orgs: List of GitHub organisation names to scope the search. 
+        orgs: List of GitHub organisation names to scope the search.
             If None, the search is global across all of GitHub.
             Each org is searched sequentially and results are combined.
         limit: Maximum number of results per org (or global). Defaults to 20.
@@ -219,11 +224,14 @@ def searchRepos(
     for org in targets:
         owner_args = ['--owner', org] if org else []
         raw = _run(
-            'search', 'repos',
+            'search',
+            'repos',
             query,
             *owner_args,
-            '--limit', str(limit),
-            '--json', 'name,fullName,description,url,stargazersCount,updatedAt',
+            '--limit',
+            str(limit),
+            '--json',
+            'name,fullName,description,url,stargazersCount,updatedAt',
         )
         if not raw:
             continue
@@ -237,13 +245,15 @@ def searchRepos(
             if full_name in seen:
                 continue
             seen.add(full_name)
-            results.append({
-                'name': item.get('name', ''),
-                'full_name': full_name,
-                'description': item.get('description') or '',
-                'url': item.get('url', ''),
-                'stars': item.get('stargazersCount', 0),
-                'updated_at': item.get('updatedAt', ''),
-            })
+            results.append(
+                {
+                    'name': item.get('name', ''),
+                    'full_name': full_name,
+                    'description': item.get('description') or '',
+                    'url': item.get('url', ''),
+                    'stars': item.get('stargazersCount', 0),
+                    'updated_at': item.get('updatedAt', ''),
+                }
+            )
 
     return results

@@ -16,13 +16,13 @@ from pathlib import Path
 
 from ._exceptions import GitError
 from ._git import (
-    requireGitRepo,
+    _run,
+    deleteLocalBranch,
     getCurrentBranch,
     getMergedBranches,
     getRemoteTrackingBranch,
-    deleteLocalBranch,
     pruneRemote,
-    _run,
+    requireGitRepo,
 )
 
 # Branch names that should never be force-deleted by cleanup.

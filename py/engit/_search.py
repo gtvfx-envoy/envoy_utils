@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import os
 
-from ._exceptions import GitHubError
-from ._github import searchRepos, getCurrentOrg
-
+from ._github import getCurrentOrg, searchRepos
 
 #: Environment variable that holds the default semicolon-separated list of
 #: GitHub organisation names to scope repository searches.

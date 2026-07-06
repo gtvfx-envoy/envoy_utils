@@ -19,7 +19,8 @@ import sys
 from pathlib import Path
 
 from ._exceptions import EngitError, GitError
-from ._git import pull as git_pull, isGitRepo
+from ._git import isGitRepo
+from ._git import pull as git_pull
 
 
 def _resolveSpecs(specs: list[str]) -> list[tuple[str, Path]]:
@@ -38,20 +39,18 @@ def _resolveSpecs(specs: list[str]) -> list[tuple[str, Path]]:
 
     """
     try:
-        from envoy._discovery import discoverBundlesAuto, Bundle
+        from envoy._discovery import Bundle, discoverBundlesAuto
         from envoy._exceptions import WrapperError
     except ImportError as exc:
         raise EngitError(
-            f"Cannot import envoy bundle discovery: {exc}\n"
-            "Ensure the envoy package is on sys.path."
+            f"Cannot import envoy bundle discovery: {exc}\nEnsure the envoy package is on sys.path."
         ) from exc
 
     if specs == ['*']:
         bundles = discoverBundlesAuto()
         if not bundles:
             raise EngitError(
-                "No bundles discovered. "
-                "Is ENVOY_BNDL_ROOTS set and pointing to bundle checkouts?"
+                "No bundles discovered. Is ENVOY_BNDL_ROOTS set and pointing to bundle checkouts?"
             )
         return [(b.bndlid, b.root) for b in bundles]
 

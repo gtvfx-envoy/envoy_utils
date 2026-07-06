@@ -7,8 +7,8 @@ renders the release titles and notes to stdout.
 from __future__ import annotations
 
 import json
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
 
 from ._exceptions import GhCliNotFoundError, GitHubError
@@ -64,9 +64,12 @@ def runChangelog(
             releases = [releases]
     else:
         raw = _gh(
-            'release', 'list',
-            '--limit', '100',
-            '--json', 'tagName,name,isPrerelease',
+            'release',
+            'list',
+            '--limit',
+            '100',
+            '--json',
+            'tagName,name,isPrerelease',
         )
         release_list = json.loads(raw) if raw else []
 
@@ -75,8 +78,11 @@ def runChangelog(
         for item in release_list:
             try:
                 detail = _gh(
-                    'release', 'view', item['tagName'],
-                    '--json', 'tagName,name,body',
+                    'release',
+                    'view',
+                    item['tagName'],
+                    '--json',
+                    'tagName,name,body',
                 )
                 releases.append(json.loads(detail))
             except GitHubError:
