@@ -11,6 +11,12 @@ name = "engit_core"
 
 [dependencies]
 envoy-core = { path = "../envoy-core" }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+regex = "1"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+tempfile = "3"

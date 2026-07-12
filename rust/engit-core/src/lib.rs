@@ -1,8 +1,25 @@
-//! `engit-core` -- pure Rust port of engit's git/GitHub tooling logic.
+//! `engit-core` -- pure Rust port of engit's non-CLI logic.
 //!
-//! Placeholder for the Phase 5 port of `py/engit/*.py`. Depends on
-//! `envoy-core` for bundle discovery / named-config resolution, matching
-//! today's `from envoy._discovery import ...` / `from envoy._config_registry
-//! import ...` usage in `py/engit/_pull.py` and `py/engit/_cli.py`.
+//! This crate ports `py/engit/_*.py` module-for-module while remaining
+//! framework-agnostic and free of any Python runtime dependency. The
+//! companion `engit-cli` crate will later provide the native command-line
+//! interface.
+
+pub mod changelog;
+pub mod cleanup;
+pub mod editor;
+pub mod error;
+pub mod git;
+pub mod github;
+pub mod publish;
+pub mod pull;
+pub mod release;
+pub mod search;
+pub mod semver;
+pub mod status;
+pub mod tag;
+pub mod web;
 
 pub use envoy_core::EnvoyError;
+pub use error::{EngitError, Result};
+pub use semver::SemVer;
