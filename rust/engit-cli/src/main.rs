@@ -29,6 +29,7 @@ use envoy_core::config_registry::{publish_config, CFG_ROOTS_VAR};
 #[command(
     name = "engit",
     about = "engit: git and GitHub tooling for envoy bundles.",
+    version = env!("ENGIT_VERSION"),
     subcommand_required = true
 )]
 struct Cli {
