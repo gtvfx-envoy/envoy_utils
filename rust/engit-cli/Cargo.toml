@@ -1,0 +1,15 @@
+[package]
+name = "engit-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native engit CLI (git/GitHub tooling for envoy bundles). No Python API."
+
+[[bin]]
+name = "engit"
+path = "src/main.rs"
+
+[dependencies]
+engit-core = { path = "../engit-core" }
+clap.workspace = true
