@@ -12,4 +12,8 @@ path = "src/main.rs"
 
 [dependencies]
 engit-core = { path = "../engit-core" }
+envoy-core = { path = "../envoy-core" }
 clap.workspace = true
+
+[dev-dependencies]
+assert_cmd = "2"
