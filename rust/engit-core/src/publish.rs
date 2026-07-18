@@ -186,35 +186,47 @@ pub fn resolve_asset_tokens(value: &str, version: &str) -> String {
         .into_owned()
 }
 
-fn load_bundle_artifacts(bundle_path: &Path, version: &str) -> Vec<BundleArtifact> {
+fn load_bundle_artifacts(
+    bundle_path: &Path,
+    version: &str,
+) -> (Vec<BundleArtifact>, Vec<String>) {
     let artifacts_file = bundle_path.join(BUNDLE_ENV_DIR).join(BUNDLE_ARTIFACTS_FILE);
     if !artifacts_file.is_file() {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
 
     let Ok(contents) = fs::read_to_string(&artifacts_file) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
     let Ok(data) = serde_json::from_str::<Value>(&contents) else {
-        return Vec::new();
-    };
-    let Some(artifacts) = data.get("artifacts").and_then(Value::as_array) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
 
     let mut resolved = Vec::new();
-    for artifact in artifacts {
-        let Some(source) = artifact.get("source").and_then(Value::as_str) else {
-            return Vec::new();
-        };
-        let dest = artifact.get("dest").and_then(Value::as_str).unwrap_or(".");
-        resolved.push(BundleArtifact {
-            source: PathBuf::from(resolve_asset_tokens(source, version)),
-            dest: PathBuf::from(dest),
-        });
+    if let Some(artifacts) = data.get("artifacts").and_then(Value::as_array) {
+        for artifact in artifacts {
+            let Some(source) = artifact.get("source").and_then(Value::as_str) else {
+                return (Vec::new(), Vec::new());
+            };
+            let dest = artifact.get("dest").and_then(Value::as_str).unwrap_or(".");
+            resolved.push(BundleArtifact {
+                source: PathBuf::from(resolve_asset_tokens(source, version)),
+                dest: PathBuf::from(dest),
+            });
+        }
     }
 
-    resolved
+    let excludes: Vec<String> = data
+        .get("exclude")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    (resolved, excludes)
 }
 
 fn glob_matches(name: &str, pattern: &str) -> bool {
@@ -311,13 +323,21 @@ pub fn list_publish_files(
     let bundle_path = bundle_path
         .canonicalize()
         .unwrap_or_else(|_| bundle_path.to_path_buf());
-    let excludes = combined_excludes(extra_excludes);
+
+    // Merge excludes from bundle-artifacts.json with CLI-provided ones.
+    let (artifacts, file_excludes) = load_bundle_artifacts(&bundle_path, version);
+    let mut merged_excludes: Vec<String> = file_excludes;
+    if let Some(cli_excludes) = extra_excludes {
+        merged_excludes.extend(cli_excludes.iter().cloned());
+    }
+    let excludes = combined_excludes(Some(merged_excludes.as_slice()));
+
     let mut files: Vec<(PathBuf, PathBuf)> = collect_files(&bundle_path, &excludes)
         .into_iter()
         .map(|relative| (bundle_path.join(&relative), relative))
         .collect();
 
-    for artifact in load_bundle_artifacts(&bundle_path, version) {
+    for artifact in artifacts {
         if !artifact.source.is_dir() {
             continue;
         }
@@ -612,6 +632,72 @@ mod tests {
         assert!(rels.contains(&String::from(".envoy/bundle-artifacts.json")));
         assert!(rels.contains(&String::from("external/asset.txt")));
         assert!(!rels.contains(&String::from(".gitignore")));
+    }
+
+    #[test]
+    fn excludes_from_bundle_artifacts_json() {
+        let temp = tempdir().expect("failed to create temp dir");
+        let bundle = temp.path().join("gt-ext-python");
+        fs::create_dir_all(bundle.join(BUNDLE_ENV_DIR)).expect("failed to create .envoy dir");
+        fs::write(bundle.join("keep.txt"), "keep").expect("failed to write file");
+        fs::write(bundle.join("skip-me.txt"), "skip").expect("failed to write file");
+        fs::create_dir_all(bundle.join("excluded-dir")).expect("failed to create excluded dir");
+        fs::write(
+            bundle.join("excluded-dir/inner.txt"),
+            "inside",
+        )
+        .expect("failed to write inner file");
+        fs::write(
+            bundle.join(BUNDLE_ENV_DIR).join(BUNDLE_ARTIFACTS_FILE),
+            serde_json::json!({
+                "exclude": ["skip-me.txt", "excluded-dir"]
+            })
+            .to_string(),
+        )
+        .expect("failed to write artifact config");
+
+        let files = list_publish_files(&bundle, "dev", None);
+        let rels: Vec<String> = files
+            .into_iter()
+            .map(|(_, rel)| rel.to_string_lossy().replace('\\', "/"))
+            .collect();
+
+        assert!(rels.contains(&String::from("keep.txt")));
+        assert!(!rels.contains(&String::from("skip-me.txt")));
+        assert!(!rels.contains(&String::from("excluded-dir/inner.txt")));
+    }
+
+    #[test]
+    fn excludes_from_bundle_artifacts_json_merged_with_cli() {
+        let temp = tempdir().expect("failed to create temp dir");
+        let bundle = temp.path().join("gt-ext-python");
+        fs::create_dir_all(bundle.join(BUNDLE_ENV_DIR)).expect("failed to create .envoy dir");
+        fs::write(bundle.join("keep.txt"), "keep").expect("failed to write file");
+        fs::write(bundle.join("from-json.txt"), "json-exclude").expect("failed to write file");
+        fs::write(
+            bundle.join("from-cli.txt"),
+            "cli-exclude",
+        )
+        .expect("failed to write file");
+        fs::write(
+            bundle.join(BUNDLE_ENV_DIR).join(BUNDLE_ARTIFACTS_FILE),
+            serde_json::json!({
+                "exclude": ["from-json.txt"]
+            })
+            .to_string(),
+        )
+        .expect("failed to write artifact config");
+
+        let cli_excludes = vec![String::from("from-cli.txt")];
+        let files = list_publish_files(&bundle, "dev", Some(cli_excludes.as_slice()));
+        let rels: Vec<String> = files
+            .into_iter()
+            .map(|(_, rel)| rel.to_string_lossy().replace('\\', "/"))
+            .collect();
+
+        assert!(rels.contains(&String::from("keep.txt")));
+        assert!(!rels.contains(&String::from("from-json.txt")));
+        assert!(!rels.contains(&String::from("from-cli.txt")));
     }
 
     #[test]
