@@ -216,17 +216,40 @@ fn load_bundle_artifacts(
         }
     }
 
+    let bundle_path = bundle_path
+        .canonicalize()
+        .unwrap_or_else(|_| bundle_path.to_path_buf());
     let excludes: Vec<String> = data
         .get("exclude")
         .and_then(Value::as_array)
         .map(|arr| {
             arr.iter()
                 .filter_map(|v| v.as_str().map(String::from))
-                .collect()
+                .collect::<Vec<_>>()
         })
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .into_iter()
+        .map(|pattern| resolve_bundle_token(&bundle_path, &pattern))
+        .collect();
 
     (resolved, excludes)
+}
+
+/// Resolve `${__BUNDLE__}` in an exclude pattern to the bundle path, then strip that prefix
+/// so the remaining relative path can be matched against basenames during file collection.
+fn resolve_bundle_token(_bundle_path: &Path, pattern: &str) -> String {
+    if !pattern.contains("${__BUNDLE__}") {
+        return pattern.to_string();
+    }
+    // Patterns are expected to be `${__BUNDLE__}/<relative-path>`.
+    // Strip the token prefix to get the relative portion for basename matching.
+    let marker = "${__BUNDLE__}/";
+    if pattern.starts_with(marker) {
+        pattern[marker.len()..].to_string()
+    } else {
+        // Fallback: treat the whole pattern as-is (may match basenames directly).
+        pattern.to_string()
+    }
 }
 
 fn glob_matches(name: &str, pattern: &str) -> bool {
@@ -698,6 +721,37 @@ mod tests {
         assert!(rels.contains(&String::from("keep.txt")));
         assert!(!rels.contains(&String::from("from-json.txt")));
         assert!(!rels.contains(&String::from("from-cli.txt")));
+    }
+
+    #[test]
+    fn excludes_with_bundle_token() {
+        let temp = tempdir().expect("failed to create temp dir");
+        let bundle = temp.path().join("gt-ext-python");
+        fs::create_dir_all(bundle.join(BUNDLE_ENV_DIR)).expect("failed to create .envoy dir");
+        fs::write(bundle.join("keep.txt"), "keep").expect("failed to write file");
+        fs::create_dir_all(bundle.join("src")).expect("failed to create src dir");
+        fs::write(
+            bundle.join("src/Qt.py-2.0.5.zip"),
+            "archive",
+        )
+        .expect("failed to write inner file");
+        fs::write(
+            bundle.join(BUNDLE_ENV_DIR).join(BUNDLE_ARTIFACTS_FILE),
+            serde_json::json!({
+                "exclude": ["${__BUNDLE__}/src"]
+            })
+            .to_string(),
+        )
+        .expect("failed to write artifact config");
+
+        let files = list_publish_files(&bundle, "dev", None);
+        let rels: Vec<String> = files
+            .into_iter()
+            .map(|(_, rel)| rel.to_string_lossy().replace('\\', "/"))
+            .collect();
+
+        assert!(rels.contains(&String::from("keep.txt")));
+        assert!(!rels.contains(&String::from("src/Qt.py-2.0.5.zip")));
     }
 
     #[test]
