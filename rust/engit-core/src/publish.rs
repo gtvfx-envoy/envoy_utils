@@ -186,10 +186,7 @@ pub fn resolve_asset_tokens(value: &str, version: &str) -> String {
         .into_owned()
 }
 
-fn load_bundle_artifacts(
-    bundle_path: &Path,
-    version: &str,
-) -> (Vec<BundleArtifact>, Vec<String>) {
+fn load_bundle_artifacts(bundle_path: &Path, version: &str) -> (Vec<BundleArtifact>, Vec<String>) {
     let artifacts_file = bundle_path.join(BUNDLE_ENV_DIR).join(BUNDLE_ARTIFACTS_FILE);
     if !artifacts_file.is_file() {
         return (Vec::new(), Vec::new());
@@ -244,8 +241,8 @@ fn resolve_bundle_token(_bundle_path: &Path, pattern: &str) -> String {
     // Patterns are expected to be `${__BUNDLE__}/<relative-path>`.
     // Strip the token prefix to get the relative portion for basename matching.
     let marker = "${__BUNDLE__}/";
-    if pattern.starts_with(marker) {
-        pattern[marker.len()..].to_string()
+    if let Some(relative) = pattern.strip_prefix(marker) {
+        relative.to_string()
     } else {
         // Fallback: treat the whole pattern as-is (may match basenames directly).
         pattern.to_string()
@@ -665,11 +662,8 @@ mod tests {
         fs::write(bundle.join("keep.txt"), "keep").expect("failed to write file");
         fs::write(bundle.join("skip-me.txt"), "skip").expect("failed to write file");
         fs::create_dir_all(bundle.join("excluded-dir")).expect("failed to create excluded dir");
-        fs::write(
-            bundle.join("excluded-dir/inner.txt"),
-            "inside",
-        )
-        .expect("failed to write inner file");
+        fs::write(bundle.join("excluded-dir/inner.txt"), "inside")
+            .expect("failed to write inner file");
         fs::write(
             bundle.join(BUNDLE_ENV_DIR).join(BUNDLE_ARTIFACTS_FILE),
             serde_json::json!({
@@ -697,11 +691,7 @@ mod tests {
         fs::create_dir_all(bundle.join(BUNDLE_ENV_DIR)).expect("failed to create .envoy dir");
         fs::write(bundle.join("keep.txt"), "keep").expect("failed to write file");
         fs::write(bundle.join("from-json.txt"), "json-exclude").expect("failed to write file");
-        fs::write(
-            bundle.join("from-cli.txt"),
-            "cli-exclude",
-        )
-        .expect("failed to write file");
+        fs::write(bundle.join("from-cli.txt"), "cli-exclude").expect("failed to write file");
         fs::write(
             bundle.join(BUNDLE_ENV_DIR).join(BUNDLE_ARTIFACTS_FILE),
             serde_json::json!({
@@ -730,11 +720,8 @@ mod tests {
         fs::create_dir_all(bundle.join(BUNDLE_ENV_DIR)).expect("failed to create .envoy dir");
         fs::write(bundle.join("keep.txt"), "keep").expect("failed to write file");
         fs::create_dir_all(bundle.join("src")).expect("failed to create src dir");
-        fs::write(
-            bundle.join("src/Qt.py-2.0.5.zip"),
-            "archive",
-        )
-        .expect("failed to write inner file");
+        fs::write(bundle.join("src/Qt.py-2.0.5.zip"), "archive")
+            .expect("failed to write inner file");
         fs::write(
             bundle.join(BUNDLE_ENV_DIR).join(BUNDLE_ARTIFACTS_FILE),
             serde_json::json!({
