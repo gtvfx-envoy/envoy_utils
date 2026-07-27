@@ -5,7 +5,7 @@
 //! tag             Create a semantic version git tag.
 //! release         Create a GitHub release from a tag.
 //! publish         Create a versioned publish of a bundle (folder or zip).
-//! publish-config  Publish a bundles config file to a named config slot.
+//! publish-stack  Publish a stack file to a named stack slot.
 //! search          Search GitHub repositories.
 
 use std::env;
@@ -23,7 +23,7 @@ use engit_core::search::run_search;
 use engit_core::status::run_status;
 use engit_core::tag::run_tag;
 use engit_core::web::run_web;
-use envoy_core::config_registry::{publish_config, CFG_ROOTS_VAR};
+use envoy_core::stack_registry::{publish_stack, STACK_ROOTS_VAR};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -110,12 +110,12 @@ archive, stripping git and build artefacts. Output layout: \
     Publish(PublishArgs),
 
     #[command(
-        name = "publish-config",
-        about = "Publish a bundles config file to a named config slot.",
-        long_about = "Copy a bundles-config JSON file into a versioned named slot \
-under a config root directory, and update the \"latest\" pointer."
+        name = "publish-stack",
+        about = "Publish a stack file to a named stack slot.",
+        long_about = "Copy a stack YAML file into a versioned named slot \
+under a stack root directory, and update the \"latest\" pointer."
     )]
-    PublishConfig(PublishConfigArgs),
+    PublishStack(PublishStackArgs),
 }
 
 #[derive(Debug, Args)]
@@ -366,27 +366,27 @@ specified multiple times."
 }
 
 #[derive(Debug, Args)]
-struct PublishConfigArgs {
+struct PublishStackArgs {
     #[arg(
         value_name = "NAME",
-        help = "Named config slot (e.g. studio, dev, production)."
+        help = "Named stack slot (e.g. studio, dev, production)."
     )]
     name: String,
 
     #[arg(
         value_name = "SOURCE",
-        help = "Path to the bundles-config JSON file to publish."
+        help = "Path to the stack YAML file to publish."
     )]
     source: PathBuf,
 
     #[arg(
-        long = "cfg-root",
+        long = "stack-root",
         short = 'r',
         value_name = "DIR",
         help = "Root directory to publish into. Defaults to the first directory \
-in ENVOY_CFG_ROOTS."
+in ENVOY_STACK_ROOTS."
     )]
-    cfg_root: Option<PathBuf>,
+    stack_root: Option<PathBuf>,
 
     #[arg(long, help = "Show what would be written without writing anything.")]
     dry_run: bool,
@@ -410,14 +410,14 @@ fn selected_bump(tag_args: &TagArgs) -> Option<&'static str> {
     }
 }
 
-fn default_cfg_root_from_env() -> Result<PathBuf> {
-    // `envoy_core::config_registry::cfg_roots()` is intentionally private, so
+fn default_stack_root_from_env() -> Result<PathBuf> {
+    // `envoy_core::stack_registry::stack_roots()` is intentionally private, so
     // the CLI mirrors only the tiny bit of Python parity logic it needs here:
-    // read ENVOY_CFG_ROOTS, split by the platform separator, trim entries, and
-    // use the first non-empty root when --cfg-root is omitted.
+    // read ENVOY_STACK_ROOTS, split by the platform separator, trim entries, and
+    // use the first non-empty root when --stack-root is omitted.
     let separator = if cfg!(windows) { ';' } else { ':' };
 
-    env::var(CFG_ROOTS_VAR)
+    env::var(STACK_ROOTS_VAR)
         .ok()
         .and_then(|raw| {
             raw.split(separator)
@@ -427,7 +427,7 @@ fn default_cfg_root_from_env() -> Result<PathBuf> {
         })
         .ok_or_else(|| {
             EngitError::Engit(format!(
-                "No --cfg-root specified and {CFG_ROOTS_VAR} is not set."
+                "No --stack-root specified and {STACK_ROOTS_VAR} is not set."
             ))
         })
 }
@@ -442,7 +442,7 @@ fn resolve_publish_bundle_path(spec: Option<&str>) -> Result<PathBuf> {
     }
 }
 
-fn print_published_config(name: &str, path: &Path) {
+fn print_published_stack(name: &str, path: &Path) {
     let version = path
         .file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())
@@ -526,15 +526,15 @@ fn run() -> Result<()> {
                 println!("Published {label}: {}", result.display());
             }
         }
-        Commands::PublishConfig(args) => {
-            let cfg_root = match args.cfg_root {
+        Commands::PublishStack(args) => {
+            let stack_root = match args.stack_root {
                 Some(path) => path,
-                None => default_cfg_root_from_env()?,
+                None => default_stack_root_from_env()?,
             };
-            let result = publish_config(&cfg_root, &args.name, &args.source, args.dry_run)?;
+            let result = publish_stack(&stack_root, &args.name, &args.source, args.dry_run)?;
 
             if !args.dry_run {
-                print_published_config(&args.name, &result);
+                print_published_stack(&args.name, &result);
             }
         }
     }

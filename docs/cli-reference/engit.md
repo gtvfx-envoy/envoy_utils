@@ -19,7 +19,7 @@ mindmap
       search
     Publishing
       publish
-      publish-config
+      publish-stack
 ```
 
 ## `engit tag`
@@ -191,52 +191,52 @@ engit pull *                    # pull all discovered bundles
 engit pull * --dry-run
 ```
 
-## `engit publish-config`
+## `engit publish-stack`
 
-Publish a bundles-config JSON file to a named config slot.  Writes a
-timestamped version under `<cfg-root>/<name>/` and updates the `latest`
-pointer file so that `envoy --set-config bundles_config=<name>` always
+Publish a stack YAML file to a named stack slot.  Writes a
+timestamped version under `<stack-root>/<name>/` and updates the `latest`
+pointer file so that `envoy --set-config stack=<name>` always
 resolves to the newest published version.
 
 ```
-engit publish-config NAME SOURCE [OPTIONS]
+engit publish-stack NAME SOURCE [OPTIONS]
 ```
 
 | Argument/Flag | Description |
 |---|---|
-| `NAME` | Named config slot (e.g. `studio`, `production`, `dev`) |
-| `SOURCE` | Path to the bundles-config JSON file to publish |
-| `--cfg-root DIR`, `-r` | Config root directory. Defaults to the first directory in `ENVOY_CFG_ROOTS` |
+| `NAME` | Named stack slot (e.g. `studio`, `production`, `dev`) |
+| `SOURCE` | Path to the strict YAML `.estack` file to publish |
+| `--stack-root DIR`, `-r` | Stack root directory. Defaults to the first directory in `ENVOY_STACK_ROOTS` |
 | `--dry-run` | Show what would be written without writing anything |
 
 **Output structure:**
 
 ```
-<cfg-root>/
+<stack-root>/
 └── studio/
-    ├── 2026-06-21T10-13-00.json   ← newly published version
-    └── latest                     ← updated to "2026-06-21T10-13-00.json"
+    ├── 2026-06-21T10-13-00.estack   ← newly published version
+    └── latest                       ← updated to "2026-06-21T10-13-00.estack"
 ```
 
 **Examples:**
 
 ```powershell
-# Publish to the "studio" slot (cfg-root from ENVOY_CFG_ROOTS)
-engit publish-config studio R:/my/studio_bundles.json
+# Publish to the "studio" slot (stack root from ENVOY_STACK_ROOTS)
+engit publish-stack studio R:/my/studio.estack
 
 # Publish with explicit root
-engit publish-config studio R:/my/studio_bundles.json --cfg-root R:/studio/envoy/configs
+engit publish-stack studio R:/my/studio.estack --stack-root R:/studio/envoy/stacks
 
 # Preview without writing
-engit publish-config studio R:/my/studio_bundles.json --dry-run
+engit publish-stack studio R:/my/studio.estack --dry-run
 ```
 
-After publishing, users can set `bundles_config=studio` and envoy resolves it
+After publishing, users can set `stack=studio` and envoy resolves it
 to the latest version automatically:
 
 ```powershell
-envoy --set-config bundles_config=studio
-envoy --list-configs   # shows all named configs and their latest version
+envoy --set-config stack=studio
+envoy --list-configs   # shows all named Stacks and their latest version
 ```
 
 ## `engit search`
