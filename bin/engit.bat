@@ -4,12 +4,6 @@ REM Usage: engit tag --patch
 REM        engit release
 REM        engit search <query>
 
-REM Prefer the pre-built standalone executable when available (production /
-REM published bundle layout -- see .github/workflows/build-release.yml).
-if exist "%~dp0..\dist\engit.exe" (
-    "%~dp0..\dist\engit.exe" %*
-    exit /b %errorlevel%
-)
 
 REM Local dev build: native Rust binary built via `cargo build --release`
 REM (or the debug profile) from rust/engit-cli, before a dist/ copy exists.
