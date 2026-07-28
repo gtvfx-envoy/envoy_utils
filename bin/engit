@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+# Development entry point for engit on Linux and macOS.
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
+
+for executable in \
+    "$repo_root/rust/target/release/engit" \
+    "$repo_root/rust/target/debug/engit" \
+    "$repo_root/dist/engit"
+do
+    if [ -x "$executable" ]; then
+        exec "$executable" "$@"
+    fi
+done
+
+echo "engit executable not found." >&2
+echo "Build with: python3 scripts/build_native.py --skip-wheel" >&2
+exit 1
