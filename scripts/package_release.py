@@ -1,4 +1,40 @@
-"""Create one platform-specific Envoy Utils release archive."""
+"""Create one platform-specific Envoy Utils release archive.
+
+This is a release-packaging helper, primarily called by CI after the Rust engit 
+binary has been built. It does not compile, publish, or install anything itself.
+
+For example:
+
+python scripts/package_release.py --version v0.1.0 --target-name windows-x86_64 --binary-dir rust/target/release --windows
+
+This produces:
+
+dist/envoy_utils-v0.1.0-windows-x86_64.zip
+
+The archive contains an installable Envoy bundle:
+
+gt/envoy_utils/v0.1.0/
+├── .bundle
+├── .envoy/
+├── LICENSE
+├── README.md
+└── bin/
+    └── engit.exe
+
+Without --windows, it expects an engit executable and creates a .tar.gz, setting Unix permissions and normalized
+archive ownership.
+
+Its intended lifecycle is:
+
+1. CI builds engit for a platform.
+2. scripts/package_release.py:1 wraps it in the gt:envoy_utils bundle structure.
+3. The release workflow uploads that archive and later publishes it to GitHub.
+
+The concrete calls are in .github/workflows/build-release.yml:50, covering Windows, Linux musl, and macOS. It can also
+be run manually to validate packaging, but it is an internal release/bootstrap utility rather than an end-user
+command.
+
+"""
 
 from __future__ import annotations
 
