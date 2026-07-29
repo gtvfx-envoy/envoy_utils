@@ -540,6 +540,7 @@ mod tests {
         list_publish_files, publish_path, resolve_asset_tokens, resolve_bndlid_to_path,
         BUNDLE_ARTIFACTS_FILE, BUNDLE_ENV_DIR, BUNDLE_MARKER_FILE,
     };
+    use crate::BUNDLE_ROOTS_ENV_MUTEX;
 
     static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
@@ -771,7 +772,9 @@ mod tests {
 
     #[test]
     fn resolves_bundle_id_paths_from_env() {
-        let _lock = ENV_MUTEX.lock().expect("env mutex poisoned");
+        let _lock = BUNDLE_ROOTS_ENV_MUTEX
+            .lock()
+            .expect("bundle roots env mutex poisoned");
         let temp = tempdir().expect("failed to create temp dir");
         let root = temp.path().join("root");
         let bundle = root.join("gt").join("pythoncore");

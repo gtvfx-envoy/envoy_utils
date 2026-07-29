@@ -23,3 +23,6 @@ pub mod web;
 pub use envoy_core::EnvoyError;
 pub use error::{EngitError, Result};
 pub use semver::SemVer;
+
+#[cfg(test)]
+pub(crate) static BUNDLE_ROOTS_ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());

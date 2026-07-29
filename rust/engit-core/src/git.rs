@@ -336,9 +336,14 @@ mod tests {
         let non_repo = tempdir().expect("failed to create non-repo temp dir");
 
         assert!(is_git_repo(Some(temp.path())));
+        let repo_root = get_repo_root(Some(temp.path())).expect("repo root should resolve");
         assert_eq!(
-            get_repo_root(Some(temp.path())).expect("repo root should resolve"),
+            repo_root
+                .canonicalize()
+                .expect("repo root should canonicalize"),
             temp.path()
+                .canonicalize()
+                .expect("temp path should canonicalize")
         );
         assert!(matches!(
             require_git_repo(Some(non_repo.path())),

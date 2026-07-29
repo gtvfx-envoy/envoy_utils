@@ -131,13 +131,11 @@ pub fn run_pull(specs: &[String], remote: &str, rebase: bool, dry_run: bool) -> 
 mod tests {
     use std::ffi::{OsStr, OsString};
     use std::fs;
-    use std::sync::Mutex;
 
     use tempfile::tempdir;
 
     use super::resolve_specs;
-
-    static ENV_MUTEX: Mutex<()> = Mutex::new(());
+    use crate::BUNDLE_ROOTS_ENV_MUTEX;
 
     struct EnvVarGuard {
         previous: Option<OsString>,
@@ -165,7 +163,9 @@ mod tests {
 
     #[test]
     fn resolves_explicit_and_wildcard_bundle_specs() {
-        let _lock = ENV_MUTEX.lock().expect("env mutex poisoned");
+        let _lock = BUNDLE_ROOTS_ENV_MUTEX
+            .lock()
+            .expect("bundle roots env mutex poisoned");
         let temp = tempdir().expect("failed to create temp dir");
         let bundle_root = temp.path().join("bundles");
         let bundle = bundle_root.join("gt").join("pythoncore");
@@ -180,7 +180,15 @@ mod tests {
         let wildcard = resolve_specs(&[String::from("*")]).expect("wildcard should resolve");
 
         assert_eq!(explicit[0].0, "gt:pythoncore");
-        assert_eq!(explicit[0].1, bundle);
+        assert_eq!(
+            explicit[0]
+                .1
+                .canonicalize()
+                .expect("explicit bundle path should canonicalize"),
+            bundle
+                .canonicalize()
+                .expect("expected bundle path should canonicalize")
+        );
         assert_eq!(wildcard[0].0, "gt:pythoncore");
     }
 }
