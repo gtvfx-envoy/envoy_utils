@@ -1,12 +1,10 @@
 //! Error hierarchy for `engit-core`, ported from `py/engit/_exceptions.py`.
 //!
 //! Python models these as exception subclasses. Rust represents them as a
-//! single enum plus a convenience `Result<T>` alias, mirroring the pattern
-//! used by `envoy-core`.
+//! single enum plus a convenience `Result<T>` alias.
 
 use std::path::PathBuf;
 
-use envoy_core::EnvoyError;
 use thiserror::Error;
 
 /// Convenience alias used throughout `engit-core`.
@@ -57,10 +55,9 @@ https://cli.github.com/ to use this command."
     #[error("{0}")]
     Validation(String),
 
-    /// Direct propagation of `envoy-core` failures for bundle discovery and
-    /// named-config resolution.
-    #[error(transparent)]
-    Envoy(#[from] EnvoyError),
+    /// Failure reported by the Envoy framework contract.
+    #[error("{0}")]
+    Framework(String),
 
     /// I/O error with path context.
     #[error("I/O error at {path}: {source}")]

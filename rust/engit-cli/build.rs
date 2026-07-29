@@ -7,14 +7,26 @@
 //! `ENGIT_VERSION` environment variable, consumed in `src/main.rs` via
 //! `#[command(version = env!("ENGIT_VERSION"))]`.
 
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn main() {
     let version = git_describe().unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
     println!("cargo:rustc-env=ENGIT_VERSION={version}");
 
-    println!("cargo:rerun-if-changed=../.git/HEAD");
-    println!("cargo:rerun-if-changed=../.git/refs");
+    let repo_root = repo_root();
+    println!(
+        "cargo:rerun-if-changed={}",
+        repo_root.join(".git").join("HEAD").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        repo_root.join(".git").join("refs").display()
+    );
+}
+
+fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 /// Run `git describe --tags --always --dirty` from the repo root and return
@@ -24,7 +36,7 @@ fn main() {
 fn git_describe() -> Option<String> {
     let output = Command::new("git")
         .args(["describe", "--tags", "--always", "--dirty"])
-        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .current_dir(repo_root())
         .output()
         .ok()?;
 

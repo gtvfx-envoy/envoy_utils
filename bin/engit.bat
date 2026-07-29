@@ -15,6 +15,10 @@ if exist "%~dp0..\rust\target\debug\engit.exe" (
     "%~dp0..\rust\target\debug\engit.exe" %*
     exit /b %errorlevel%
 )
+if exist "%~dp0..\dist\engit.exe" (
+    "%~dp0..\dist\engit.exe" %*
+    exit /b %errorlevel%
+)
 
 REM No Python fallback: engit is a native-only Rust binary (rust/engit-cli)
 REM with no Python package -- unlike envoy, it never had a `pip install`able

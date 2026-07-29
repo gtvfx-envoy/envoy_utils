@@ -9,7 +9,8 @@ use crate::git::{is_git_repo, pull as git_pull};
 
 pub(crate) fn resolve_specs(specs: &[String]) -> Result<Vec<(String, PathBuf)>> {
     if specs.len() == 1 && specs[0] == "*" {
-        let bundles = discover_bundles_auto()?;
+        let bundles =
+            discover_bundles_auto().map_err(|error| EngitError::Framework(error.to_string()))?;
         if bundles.is_empty() {
             return Err(EngitError::Engit(String::from(
                 "No bundles discovered. Is ENVOY_BNDL_ROOTS set and pointing \
@@ -25,7 +26,8 @@ to bundle checkouts?",
 
     let mut pairs = Vec::new();
     for spec in specs {
-        let bundle = Bundle::new(Path::new(spec), None)?;
+        let bundle = Bundle::new(Path::new(spec), None)
+            .map_err(|error| EngitError::Framework(error.to_string()))?;
         pairs.push((bundle.bndlid(), bundle.path().to_path_buf()));
     }
 
@@ -135,7 +137,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::resolve_specs;
-    use crate::BUNDLE_ROOTS_ENV_MUTEX;
+    use crate::ENVOY_ENV_MUTEX;
 
     struct EnvVarGuard {
         previous: Option<OsString>,
@@ -163,7 +165,7 @@ mod tests {
 
     #[test]
     fn resolves_explicit_and_wildcard_bundle_specs() {
-        let _lock = BUNDLE_ROOTS_ENV_MUTEX
+        let _lock = ENVOY_ENV_MUTEX
             .lock()
             .expect("bundle roots env mutex poisoned");
         let temp = tempdir().expect("failed to create temp dir");

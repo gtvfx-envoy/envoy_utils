@@ -16,6 +16,7 @@ use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand};
 use engit_core::changelog::run_changelog;
 use engit_core::cleanup::run_cleanup;
 use engit_core::error::{EngitError, Result};
+use engit_core::framework::run_publish_stack;
 use engit_core::publish::{bundle_publish, detect_version, is_bndlid, resolve_bndlid_to_path};
 use engit_core::pull::run_pull;
 use engit_core::release::run_release;
@@ -23,7 +24,6 @@ use engit_core::search::run_search;
 use engit_core::status::run_status;
 use engit_core::tag::run_tag;
 use engit_core::web::run_web;
-use envoy_core::stack_registry::{publish_stack, STACK_ROOTS_VAR};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -410,28 +410,6 @@ fn selected_bump(tag_args: &TagArgs) -> Option<&'static str> {
     }
 }
 
-fn default_stack_root_from_env() -> Result<PathBuf> {
-    // `envoy_core::stack_registry::stack_roots()` is intentionally private, so
-    // the CLI mirrors only the tiny bit of Python parity logic it needs here:
-    // read ENVOY_STACK_ROOTS, split by the platform separator, trim entries, and
-    // use the first non-empty root when --stack-root is omitted.
-    let separator = if cfg!(windows) { ';' } else { ':' };
-
-    env::var(STACK_ROOTS_VAR)
-        .ok()
-        .and_then(|raw| {
-            raw.split(separator)
-                .map(str::trim)
-                .find(|entry| !entry.is_empty())
-                .map(PathBuf::from)
-        })
-        .ok_or_else(|| {
-            EngitError::Engit(format!(
-                "No --stack-root specified and {STACK_ROOTS_VAR} is not set."
-            ))
-        })
-}
-
 fn resolve_publish_bundle_path(spec: Option<&str>) -> Result<PathBuf> {
     match spec {
         None => current_dir_path(),
@@ -527,11 +505,12 @@ fn run() -> Result<()> {
             }
         }
         Commands::PublishStack(args) => {
-            let stack_root = match args.stack_root {
-                Some(path) => path,
-                None => default_stack_root_from_env()?,
-            };
-            let result = publish_stack(&stack_root, &args.name, &args.source, args.dry_run)?;
+            let result = run_publish_stack(
+                args.stack_root.as_deref(),
+                &args.name,
+                &args.source,
+                args.dry_run,
+            )?;
 
             if !args.dry_run {
                 print_published_stack(&args.name, &result);

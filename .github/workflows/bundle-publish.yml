@@ -1,0 +1,189 @@
+name: Publish Envoy Bundle
+
+on:
+  workflow_call:
+    inputs:
+      engit_version:
+        description: Tagged Envoy Utils release providing Engit
+        type: string
+        required: false
+        default: v0.1.0
+      extra_excludes:
+        description: Space-separated additional exclude patterns
+        type: string
+        required: false
+        default: ""
+      prerelease:
+        description: Prerelease policy (auto, true, or false)
+        type: string
+        required: false
+        default: auto
+      runner:
+        description: JSON array of runner labels
+        type: string
+        required: false
+        default: '["self-hosted", "X64", "Windows", "synology"]'
+    secrets:
+      ARTIFACTS_NAS_USER:
+        description: Optional username for a Windows UNC artifact root
+        required: false
+      ARTIFACTS_NAS_PASS:
+        description: Optional password for a Windows UNC artifact root
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Create and upload publish archive
+    runs-on: ${{ fromJson(inputs.runner) }}
+
+    steps:
+      - name: Checkout bundle
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          path: bundle
+
+      - name: Install versioned Engit on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENGIT_VERSION: ${{ inputs.engit_version }}
+        run: |
+          $asset = "envoy_utils-$env:ENGIT_VERSION-windows-x86_64.zip"
+          $releaseDirectory = Join-Path $env:RUNNER_TEMP "engit-$env:ENGIT_VERSION"
+          New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
+          gh release download $env:ENGIT_VERSION `
+              --repo gtvfx-contrib/gt-envoy_utils `
+              --pattern $asset --pattern SHA256SUMS `
+              --dir $releaseDirectory --clobber
+          $manifest = Get-Content (Join-Path $releaseDirectory 'SHA256SUMS')
+          $entry = $manifest | Where-Object { $_ -match "\s$([regex]::Escape($asset))$" }
+          if (-not $entry) { throw "No checksum found for $asset" }
+          $expected = ($entry -split '\s+')[0]
+          $archive = Join-Path $releaseDirectory $asset
+          $actual = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          if ($actual -ne $expected.ToLowerInvariant()) { throw "Checksum mismatch for $asset" }
+          Expand-Archive $archive -DestinationPath (Join-Path $releaseDirectory 'bundle')
+          $engit = Get-ChildItem (Join-Path $releaseDirectory 'bundle') `
+              -Recurse -Filter engit.exe | Select-Object -First 1
+          if (-not $engit) { throw 'engit.exe was not found in the release archive' }
+          Add-Content -Path $env:GITHUB_PATH -Value $engit.DirectoryName
+
+      - name: Install versioned Engit on Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENGIT_VERSION: ${{ inputs.engit_version }}
+        run: |
+          case "$RUNNER_OS:$RUNNER_ARCH" in
+            Linux:X64) target="linux-x86_64-musl" ;;
+            macOS:X64) target="macos-x86_64" ;;
+            macOS:ARM64) target="macos-aarch64" ;;
+            *) echo "Unsupported runner: $RUNNER_OS/$RUNNER_ARCH" >&2; exit 1 ;;
+          esac
+          asset="envoy_utils-$ENGIT_VERSION-$target.tar.gz"
+          release_directory="$RUNNER_TEMP/engit-$ENGIT_VERSION"
+          mkdir -p "$release_directory"
+          gh release download "$ENGIT_VERSION" \
+            --repo gtvfx-contrib/gt-envoy_utils \
+            --pattern "$asset" --pattern SHA256SUMS \
+            --dir "$release_directory" --clobber
+          expected="$(awk -v asset="$asset" '$2 == asset {print $1}' "$release_directory/SHA256SUMS")"
+          [[ -n "$expected" ]] || { echo "No checksum found for $asset" >&2; exit 1; }
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            actual="$(shasum -a 256 "$release_directory/$asset" | awk '{print $1}')"
+          else
+            actual="$(sha256sum "$release_directory/$asset" | awk '{print $1}')"
+          fi
+          [[ "$actual" == "$expected" ]] || { echo "Checksum mismatch for $asset" >&2; exit 1; }
+          mkdir -p "$release_directory/bundle"
+          tar -xzf "$release_directory/$asset" -C "$release_directory/bundle"
+          engit="$(find "$release_directory/bundle" -type f -name engit -print -quit)"
+          [[ -n "$engit" ]] || { echo "engit was not found in the release archive" >&2; exit 1; }
+          echo "$(dirname "$engit")" >> "$GITHUB_PATH"
+
+      - name: Verify Engit
+        run: engit --version
+
+      - name: Authenticate Windows UNC artifact root
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          NAS_USER: ${{ secrets.ARTIFACTS_NAS_USER }}
+          NAS_PASS: ${{ secrets.ARTIFACTS_NAS_PASS }}
+        run: |
+          $root = $env:ENVOY_STUDIO_ARTIFACTS
+          if ($root -and $root -match '^\\\\([^\\]+)' -and $env:NAS_USER) {
+            $server = $Matches[1]
+            net use "\\$server" /user:"$env:NAS_USER" "$env:NAS_PASS" /persistent:no
+            if ($LASTEXITCODE -ne 0) { throw "net use failed mounting \\$server" }
+          }
+
+      - name: Validate Unix artifact root
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [[ -n "${ENVOY_STUDIO_ARTIFACTS:-}" && ! -d "$ENVOY_STUDIO_ARTIFACTS" ]]; then
+            echo "ENVOY_STUDIO_ARTIFACTS must be mounted before this workflow runs." >&2
+            exit 1
+          fi
+
+      - name: Publish bundle on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $arguments = @(
+              'publish', (Join-Path $env:GITHUB_WORKSPACE 'bundle'),
+              '--output', (Join-Path $env:GITHUB_WORKSPACE 'dist'),
+              '--version', '${{ github.ref_name }}', '--zip'
+          )
+          foreach ($exclude in ('${{ inputs.extra_excludes }}' -split '\s+' | Where-Object { $_ })) {
+              $arguments += @('--exclude', $exclude)
+          }
+          engit @arguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish bundle on Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          arguments=(
+            publish "$GITHUB_WORKSPACE/bundle"
+            --output "$GITHUB_WORKSPACE/dist"
+            --version "${{ github.ref_name }}" --zip
+          )
+          read -r -a excludes <<< "${{ inputs.extra_excludes }}"
+          for exclude in "${excludes[@]}"; do
+            [[ -n "$exclude" ]] && arguments+=(--exclude "$exclude")
+          done
+          engit "${arguments[@]}"
+
+      - name: Resolve release type
+        id: release_type
+        shell: bash
+        run: |
+          tag="${{ github.ref_name }}"
+          policy="${{ inputs.prerelease }}"
+          if [[ "$policy" == "auto" ]]; then
+            if [[ "$tag" =~ -(alpha|beta|rc|preview|dev)(\.[0-9]+)*$ ]]; then
+              is_prerelease=true
+            else
+              is_prerelease=false
+            fi
+          else
+            is_prerelease="$policy"
+          fi
+          echo "is_prerelease=$is_prerelease" >> "$GITHUB_OUTPUT"
+
+      - name: Upload GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          fail_on_unmatched_files: true
+          prerelease: ${{ steps.release_type.outputs.is_prerelease }}
+          make_latest: ${{ steps.release_type.outputs.is_prerelease == 'false' }}

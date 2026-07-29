@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Native engit CLI (git/GitHub tooling for envoy bundles). No Python API."
+publish = false
 
 [[bin]]
 name = "engit"
@@ -12,7 +13,6 @@ path = "src/main.rs"
 
 [dependencies]
 engit-core = { path = "../engit-core" }
-envoy-core = { path = "../envoy-core" }
 clap.workspace = true
 
 [dev-dependencies]
