@@ -138,7 +138,7 @@ jobs:
         shell: pwsh
         run: |
           $arguments = @(
-              'publish', (Join-Path $env:GITHUB_WORKSPACE 'bundle'),
+              'publish', 'bundle', (Join-Path $env:GITHUB_WORKSPACE 'bundle'),
               '--output', (Join-Path $env:GITHUB_WORKSPACE 'dist'),
               '--version', '${{ github.ref_name }}', '--zip'
           )
@@ -153,7 +153,7 @@ jobs:
         shell: bash
         run: |
           arguments=(
-            publish "$GITHUB_WORKSPACE/bundle"
+            publish bundle "$GITHUB_WORKSPACE/bundle"
             --output "$GITHUB_WORKSPACE/dist"
             --version "${{ github.ref_name }}" --zip
           )

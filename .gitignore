@@ -71,6 +71,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# ProperDocs output
+site/
+
 # PyBuilder
 .pybuilder/
 target/

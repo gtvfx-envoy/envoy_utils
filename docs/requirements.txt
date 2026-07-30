@@ -1,0 +1,2 @@
+properdocs
+mkdocs-material

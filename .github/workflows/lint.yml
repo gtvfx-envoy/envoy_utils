@@ -11,6 +11,25 @@ permissions:
   contents: read
 
 jobs:
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.11.9
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11.9"
+
+      - name: Install documentation tooling
+        run: python -m pip install -r docs/requirements.txt
+
+      - name: Build ProperDocs site
+        run: python -m properdocs build --clean --strict
+
   rust:
     name: Rust (${{ matrix.os }})
     strategy:

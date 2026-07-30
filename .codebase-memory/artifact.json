@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "2aa2044078d1f23a87c1e7bff60024370d079d7e",
+    "indexed_at": "2026-07-30T13:46:18Z",
+    "project": "V-repo-gtvfx-contrib-gt-envoy_utils",
+    "nodes": 573,
+    "edges": 1568,
+    "original_size": 3866624,
+    "compressed_size": 539203,
+    "compression_level": 3
+}

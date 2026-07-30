@@ -4,8 +4,8 @@
 //! -----------
 //! tag             Create a semantic version git tag.
 //! release         Create a GitHub release from a tag.
-//! publish         Create a versioned publish of a bundle (folder or zip).
-//! publish-stack  Publish a stack file to a named stack slot.
+//! publish bundle  Publish a versioned runtime bundle.
+//! publish stack   Publish a stack file to a named stack slot.
 //! search          Search GitHub repositories.
 
 use std::env;
@@ -17,7 +17,10 @@ use engit_core::changelog::run_changelog;
 use engit_core::cleanup::run_cleanup;
 use engit_core::error::{EngitError, Result};
 use engit_core::framework::run_publish_stack;
-use engit_core::publish::{bundle_publish, detect_version, is_bndlid, resolve_bndlid_to_path};
+use engit_core::publish::{
+    bundle_publish, default_bundle_publish_root, detect_version, is_bndlid, resolve_bndlid_to_path,
+    BundlePublishOptions,
+};
 use engit_core::pull::run_pull;
 use engit_core::release::run_release;
 use engit_core::search::run_search;
@@ -101,21 +104,11 @@ Default organisations are read from the ENVOY_GITHUB_ORGS environment variable \
     Search(SearchArgs),
 
     #[command(
-        about = "Create a versioned publish of a bundle.",
-        long_about = "Copy a bundle into a clean versioned output directory or zip \
-archive, stripping git and build artefacts. Output layout: \
-<output>/<bundle-name>/<version>/ or, with --zip: \
-<output>/<bundle-name>-<version>.zip"
+        about = "Publish bundle or stack runtime artifacts.",
+        long_about = "Publish runtime-minimal bundle data or a named Envoy stack \
+to its canonical studio location."
     )]
     Publish(PublishArgs),
-
-    #[command(
-        name = "publish-stack",
-        about = "Publish a stack file to a named stack slot.",
-        long_about = "Copy a stack YAML file into a versioned named slot \
-under a stack root directory, and update the \"latest\" pointer."
-    )]
-    PublishStack(PublishStackArgs),
 }
 
 #[derive(Debug, Args)]
@@ -321,6 +314,30 @@ Overrides ENVOY_GITHUB_ORGS."
 
 #[derive(Debug, Args)]
 struct PublishArgs {
+    #[command(subcommand)]
+    command: PublishCommands,
+}
+
+#[derive(Debug, Subcommand)]
+enum PublishCommands {
+    #[command(
+        about = "Publish a versioned runtime bundle.",
+        long_about = "Select runtime artifacts from a bundle and its external \
+sources, then publish an immutable versioned directory. --zip adds an archive \
+containing the same runtime dataset."
+    )]
+    Bundle(PublishBundleArgs),
+
+    #[command(
+        about = "Publish a stack file to a named stack slot.",
+        long_about = "Copy a stack YAML file into a timestamped named slot \
+under a stack publish root, and update the \"latest\" pointer."
+    )]
+    Stack(PublishStackArgs),
+}
+
+#[derive(Debug, Args)]
+struct PublishBundleArgs {
     #[arg(
         value_name = "PATH",
         help = "Bundle root directory or bundle ID (e.g. gt:globals). Defaults to \
@@ -332,8 +349,8 @@ the current directory."
         long,
         short = 'o',
         value_name = "DIR",
-        help = "Root directory to write the output into. Defaults to the current \
-directory."
+        help = "Root directory to publish into. Defaults to \
+ENVOY_BUNDLE_PUBLISH_ROOT."
     )]
     output: Option<PathBuf>,
 
@@ -347,20 +364,39 @@ semver git tag. Use \"dev\" to create a test build without requiring a git tag."
     version: Option<String>,
 
     #[arg(
+        long = "include",
+        action = ArgAction::Append,
+        value_name = "GLOB",
+        help = "Additional root-relative runtime glob to include. May be \
+specified multiple times and applies to every publish source."
+    )]
+    include: Vec<String>,
+
+    #[arg(
         long = "exclude",
         action = ArgAction::Append,
-        value_name = "PATTERN",
-        help = "Additional glob pattern to exclude (e.g. \"*.spec\"). May be \
-specified multiple times."
+        value_name = "GLOB",
+        help = "Additional root-relative glob to exclude. May be specified \
+multiple times and applies to every publish source."
     )]
     exclude: Vec<String>,
 
-    #[arg(long, help = "Create a zip archive instead of a versioned directory.")]
+    #[arg(
+        long,
+        help = "Also create a zip archive of the published runtime directory."
+    )]
     zip: bool,
 
     #[arg(
         long,
-        help = "List the files that would be included without writing any output."
+        help = "Replace an existing development publish. Only valid with \
+--version dev."
+    )]
+    force: bool,
+
+    #[arg(
+        long,
+        help = "Validate and list files and destinations without writing output."
     )]
     dry_run: bool,
 }
@@ -380,13 +416,13 @@ struct PublishStackArgs {
     source: PathBuf,
 
     #[arg(
-        long = "stack-root",
-        short = 'r',
+        long = "output",
+        short = 'o',
         value_name = "DIR",
-        help = "Root directory to publish into. Defaults to the first directory \
-in ENVOY_STACK_ROOTS."
+        help = "Root directory to publish into. Defaults to \
+ENVOY_STACK_PUBLISH_ROOT."
     )]
-    stack_root: Option<PathBuf>,
+    output: Option<PathBuf>,
 
     #[arg(long, help = "Show what would be written without writing anything.")]
     dry_run: bool,
@@ -480,42 +516,48 @@ fn run() -> Result<()> {
         Commands::Web(args) => {
             run_web(args.branch.as_deref(), &args.remote, None)?;
         }
-        Commands::Publish(args) => {
-            let bundle_path = resolve_publish_bundle_path(args.path.as_deref())?;
-            let version = match args.version {
-                Some(version) => version,
-                None => detect_version(&bundle_path)?,
-            };
-            let output_dir = match args.output {
-                Some(path) => path,
-                None => current_dir_path()?,
-            };
-            let result = bundle_publish(
-                &bundle_path,
-                &output_dir,
-                &version,
-                args.zip,
-                Some(args.exclude.as_slice()),
-                args.dry_run,
-            )?;
+        Commands::Publish(args) => match args.command {
+            PublishCommands::Bundle(args) => {
+                let bundle_path = resolve_publish_bundle_path(args.path.as_deref())?;
+                let version = match args.version {
+                    Some(version) => version,
+                    None => detect_version(&bundle_path)?,
+                };
+                let output_dir = match args.output {
+                    Some(path) => path,
+                    None => default_bundle_publish_root()?,
+                };
+                let options = BundlePublishOptions {
+                    output_dir: &output_dir,
+                    version: &version,
+                    create_zip: args.zip,
+                    extra_includes: &args.include,
+                    extra_excludes: &args.exclude,
+                    force: args.force,
+                    dry_run: args.dry_run,
+                };
+                let result = bundle_publish(&bundle_path, &options)?;
 
-            if !args.dry_run {
-                let label = if args.zip { "zip" } else { "folder" };
-                println!("Published {label}: {}", result.display());
+                if !args.dry_run {
+                    println!("Published folder: {}", result.directory.display());
+                    if let Some(archive) = result.archive {
+                        println!("Published zip: {}", archive.display());
+                    }
+                }
             }
-        }
-        Commands::PublishStack(args) => {
-            let result = run_publish_stack(
-                args.stack_root.as_deref(),
-                &args.name,
-                &args.source,
-                args.dry_run,
-            )?;
+            PublishCommands::Stack(args) => {
+                let result = run_publish_stack(
+                    args.output.as_deref(),
+                    &args.name,
+                    &args.source,
+                    args.dry_run,
+                )?;
 
-            if !args.dry_run {
-                print_published_stack(&args.name, &result);
+                if !args.dry_run {
+                    print_published_stack(&args.name, &result);
+                }
             }
-        }
+        },
     }
 
     Ok(())

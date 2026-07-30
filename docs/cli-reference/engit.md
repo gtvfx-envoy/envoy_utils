@@ -19,7 +19,8 @@ mindmap
       search
     Publishing
       publish
-      publish-stack
+        bundle
+        stack
 ```
 
 ## `engit tag`
@@ -82,48 +83,109 @@ engit release --generate-notes         # append GitHub PR summary
 
 ## `engit publish`
 
-Create a clean versioned publish of a bundle — strips git and build artifacts and produces a folder or zip ready for deployment.
+Publish runtime artifacts to their canonical studio locations.
 
-```
-engit publish [PATH] [OPTIONS]
+### `engit publish bundle`
+
+Create an immutable, versioned runtime bundle.
+
+```text
+engit publish bundle [PATH] [OPTIONS]
 ```
 
 | Flag | Description |
 |---|---|
-| `PATH` | Bundle root directory. Defaults to the current directory |
-| `--output`, `-o DIR` | Directory to write output into. Defaults to cwd |
-| `--version VERSION` | Explicit version string. Defaults to latest semver git tag. Use `dev` for test builds |
-| `--exclude PATTERN` | Additional glob pattern to exclude. May be specified multiple times |
-| `--zip` | Create a zip archive instead of a versioned directory |
-| `--dry-run` | List the files that would be included without writing output |
+| `PATH` | Bundle root or bundle ID. Defaults to the current directory |
+| `--output`, `-o DIR` | Publish root. Defaults to `ENVOY_BUNDLE_PUBLISH_ROOT` |
+| `--version VERSION` | Version. Defaults to the latest semver tag; use `dev` for development |
+| `--include GLOB` | Add a root-relative runtime include; repeatable |
+| `--exclude GLOB` | Add a root-relative exclusion; repeatable and takes precedence |
+| `--zip` | Also create a zip containing the same runtime dataset |
+| `--force` | Replace an existing `dev` publish; invalid for released versions |
+| `--dry-run` | Validate and list files and destinations without writing |
 
-**Output layout:**
+Without `--output`, Engit uses `ENVOY_BUNDLE_PUBLISH_ROOT`. During the
+environment-variable transition it falls back to `ENVOY_BNDLE_PROD` with a warning.
 
-```mermaid
-flowchart LR
-    A[Bundle root] -- "engit publish" --> B["output/\nbundle-name/\nv1.2.3/\n  ...files..."]
-    A -- "engit publish --zip" --> C["output/\nbundle-name-v1.2.3.zip\n  bundle-name/v1.2.3/..."]
+The default runtime allowlist is:
+
+- Directories: `.envoy`, `py`, `bin`, `prebuilt`, `resources`, `resource`, and `docs`
+- Legal files: `LICENSE*`, `NOTICE*`, and `THIRD_PARTY_LICENSES*`
+
+VCS metadata, build output, Cargo targets, tool caches, `__pycache__`, `*.pyc`,
+and `*.pyo` are always excluded. Runtime extensions such as `.pyd`, `.dll`, and `.so`
+remain eligible.
+
+Released versions are immutable. Replacing an existing development publish requires
+`--version dev --force`.
+
+#### Publish manifest
+
+Optional bundle policy lives at `.envoy/publish-manifest.yaml`:
+
+```yaml
+include:
+  - custom-runtime/**
+
+exclude:
+  - docs/internal/**
+
+artifacts:
+  - source: ${ENVOY_STUDIO_ARTIFACTS}/ext/python/${BASE_VERSION}
+    destination: .
+    include:
+      - custom/**
+    exclude:
+      - temporary/**
 ```
 
-**Default exclusions:** `.git`, `.gitignore`, `.github`, `build`, `dist`, `.pytest_cache`, `__pycache__`, `*.pyc`, `*.pyo`, `*.pyd`
+The manifest is strict: unknown keys, invalid globs, unresolved variables, missing
+artifact sources, unsafe destinations, and destination collisions are errors. Defaults
+apply to the bundle and each external source. Manifest rules customize their source,
+CLI rules apply globally, and exclusions always win. `${VERSION}`,
+`${BASE_VERSION}`, and environment variables are supported in artifact sources.
 
-**Examples:**
+The retired `.envoy/bundle-artifacts.json` file is rejected with a migration error.
+
+#### Examples
 
 ```powershell
-# Versioned folder in cwd (version auto-detected from git tag)
-engit publish
+# Publish to ENVOY_BUNDLE_PUBLISH_ROOT using the latest semver tag
+engit publish bundle
 
-# Zip into dist/, explicit version
-engit publish --zip --output dist --version v1.2.0
+# Publish a development build locally and also create a zip
+engit publish bundle --output dist --version dev --zip
 
-# Test build without a git tag
-engit publish --version dev --zip --output dist
+# Replace a prior development publish
+engit publish bundle --output dist --version dev --force
 
-# Dry run — preview file list
-engit publish --dry-run
+# Preview an additional runtime path
+engit publish bundle --include config/** --dry-run
+```
 
-# Extra exclusions
-engit publish --exclude scripts --exclude pyproject.toml --zip
+### `engit publish stack`
+
+Publish a validated `.estack` file to a timestamped named slot and update its
+`latest` pointer.
+
+```text
+engit publish stack NAME SOURCE [OPTIONS]
+```
+
+| Argument/Flag | Description |
+|---|---|
+| `NAME` | Named stack slot |
+| `SOURCE` | Strict YAML `.estack` file |
+| `--output`, `-o DIR` | Stack publish root. Defaults to `ENVOY_STACK_PUBLISH_ROOT` |
+| `--dry-run` | Validate and show planned writes without publishing |
+
+During the environment-variable transition, Engit falls back to the first
+`ENVOY_STACK_ROOTS` entry with a warning.
+
+```powershell
+engit publish stack studio R:/my/studio.estack
+engit publish stack studio R:/my/studio.estack --output R:/studio/envoy/stacks
+engit publish stack studio R:/my/studio.estack --dry-run
 ```
 
 ## `engit status`
@@ -189,54 +251,6 @@ engit pull gt:globals
 engit pull gt:globals gt:pythoncore
 engit pull *                    # pull all discovered bundles
 engit pull * --dry-run
-```
-
-## `engit publish-stack`
-
-Publish a stack YAML file to a named stack slot.  Writes a
-timestamped version under `<stack-root>/<name>/` and updates the `latest`
-pointer file so that `envoy --set-config stack=<name>` always
-resolves to the newest published version.
-
-```
-engit publish-stack NAME SOURCE [OPTIONS]
-```
-
-| Argument/Flag | Description |
-|---|---|
-| `NAME` | Named stack slot (e.g. `studio`, `production`, `dev`) |
-| `SOURCE` | Path to the strict YAML `.estack` file to publish |
-| `--stack-root DIR`, `-r` | Stack root directory. Defaults to the first directory in `ENVOY_STACK_ROOTS` |
-| `--dry-run` | Show what would be written without writing anything |
-
-**Output structure:**
-
-```
-<stack-root>/
-└── studio/
-    ├── 2026-06-21T10-13-00.estack   ← newly published version
-    └── latest                       ← updated to "2026-06-21T10-13-00.estack"
-```
-
-**Examples:**
-
-```powershell
-# Publish to the "studio" slot (stack root from ENVOY_STACK_ROOTS)
-engit publish-stack studio R:/my/studio.estack
-
-# Publish with explicit root
-engit publish-stack studio R:/my/studio.estack --stack-root R:/studio/envoy/stacks
-
-# Preview without writing
-engit publish-stack studio R:/my/studio.estack --dry-run
-```
-
-After publishing, users can set `stack=studio` and envoy resolves it
-to the latest version automatically:
-
-```powershell
-envoy --set-config stack=studio
-envoy --list-configs   # shows all named Stacks and their latest version
 ```
 
 ## `engit search`

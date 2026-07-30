@@ -13,6 +13,10 @@ See the [Engit CLI reference](docs/cli-reference/engit.md) for commands and
 examples. Common failures are covered in the
 [troubleshooting guide](docs/troubleshooting.md).
 
+The documentation site is built automatically with ProperDocs and published to
+[GitHub Pages](https://gtvfx-contrib.github.io/gt-envoy_utils/). Generated Rust
+API documentation is available from the site navigation.
+
 ## Compatibility
 
 | Envoy Utils | Envoy Core |
