@@ -1,0 +1,192 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label for a validation build
+        required: true
+        default: dev
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+
+jobs:
+  windows-x86_64:
+    name: Windows x64 release
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Test workspace
+        working-directory: rust
+        run: cargo test --workspace
+
+      - name: Build Engit
+        working-directory: rust
+        run: cargo build --workspace --release
+
+      - name: Verify Engit
+        run: .\rust\target\release\engit.exe --version
+
+      - name: Package bundle
+        run: >-
+          python scripts/package_release.py
+          --version $env:RELEASE_VERSION
+          --target-name windows-x86_64
+          --binary-dir rust/target/release
+          --windows
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-x86_64
+          path: dist/envoy_utils-*-windows-x86_64.zip
+          if-no-files-found: error
+
+  linux-x86_64:
+    name: Linux x64 release
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust with musl target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Install cross
+        run: cargo install cross --version 0.2.5 --locked
+
+      - name: Test and build static Engit
+        working-directory: rust
+        run: |
+          cross test --workspace --target x86_64-unknown-linux-musl
+          cross build --workspace --release --target x86_64-unknown-linux-musl
+
+      - name: Verify static Engit
+        run: |
+          rust/target/x86_64-unknown-linux-musl/release/engit --version
+          file rust/target/x86_64-unknown-linux-musl/release/engit | grep -Eq 'statically linked|static-pie linked'
+
+      - name: Package bundle
+        run: >-
+          python3 scripts/package_release.py
+          --version "$RELEASE_VERSION"
+          --target-name linux-x86_64-musl
+          --binary-dir rust/target/x86_64-unknown-linux-musl/release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x86_64
+          path: dist/envoy_utils-*-linux-x86_64-musl.tar.gz
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.target_name }} release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            target_name: macos-x86_64
+          - runner: macos-15
+            target_name: macos-aarch64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Test workspace
+        working-directory: rust
+        run: cargo test --workspace
+
+      - name: Build Engit
+        working-directory: rust
+        run: cargo build --workspace --release
+
+      - name: Verify Engit
+        run: rust/target/release/engit --version
+
+      - name: Package bundle
+        run: >-
+          python3 scripts/package_release.py
+          --version "$RELEASE_VERSION"
+          --target-name ${{ matrix.target_name }}
+          --binary-dir rust/target/release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target_name }}
+          path: dist/envoy_utils-*-macos-*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish checksummed release
+    if: github.event_name == 'push'
+    needs: [windows-x86_64, linux-x86_64, macos]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create SHA-256 manifest
+        working-directory: dist
+        run: find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\0' | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          body: |
+            Envoy Utils provides independently versioned Envoy developer tools.
+            These artifacts are checksummed but currently unsigned.
