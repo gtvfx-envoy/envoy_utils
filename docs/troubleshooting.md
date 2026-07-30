@@ -22,5 +22,15 @@ gh auth login
 Use the development version for a local test archive:
 
 ```console
-engit publish --version dev --zip
+engit publish bundle --output dist --version dev --zip
 ```
+
+## Missing canonical publish root
+
+Set `ENVOY_BUNDLE_PUBLISH_ROOT` for bundles and
+`ENVOY_STACK_PUBLISH_ROOT` for stacks, or pass `--output` explicitly.
+
+## Legacy bundle artifact manifest
+
+Rename `.envoy/bundle-artifacts.json` to `.envoy/publish-manifest.yaml`
+and convert its JSON data to the strict YAML publish-manifest schema.

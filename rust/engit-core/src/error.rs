@@ -74,6 +74,14 @@ https://cli.github.com/ to use this command."
         #[source]
         source: serde_json::Error,
     },
+
+    /// YAML parse error with path context.
+    #[error("invalid YAML in {path}: {source}")]
+    Yaml {
+        path: PathBuf,
+        #[source]
+        source: serde_yaml::Error,
+    },
 }
 
 impl EngitError {
@@ -98,6 +106,14 @@ impl EngitError {
     /// Construct a JSON parse error with path context.
     pub fn json(path: impl Into<PathBuf>, source: serde_json::Error) -> Self {
         EngitError::Json {
+            path: path.into(),
+            source,
+        }
+    }
+
+    /// Construct a YAML parse error with path context.
+    pub fn yaml(path: impl Into<PathBuf>, source: serde_yaml::Error) -> Self {
+        EngitError::Yaml {
             path: path.into(),
             source,
         }
