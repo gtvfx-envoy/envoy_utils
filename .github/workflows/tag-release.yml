@@ -1,0 +1,80 @@
+name: Tag Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Unprefixed Envoy Utils version already merged to main
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: tag-release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Validate and create release tag
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Create release automation token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RELEASE_AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.RELEASE_AUTOMATION_PRIVATE_KEY }}
+
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Validate release state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python scripts/release_automation.py check --expect-version "$RELEASE_VERSION"
+          release_tag="v$RELEASE_VERSION"
+          git fetch origin main --tags
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+          if git show-ref --tags --verify --quiet "refs/tags/$release_tag"; then
+            echo "Tag $release_tag already exists." >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$release_tag" >/dev/null 2>&1; then
+            echo "Release $release_tag already exists." >&2
+            exit 1
+          fi
+          main_sha="$(git rev-parse HEAD)"
+          lint_conclusion="$(
+            gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/lint.yml/runs" \
+              -f head_sha="$main_sha" -f status=completed \
+              --jq '.workflow_runs | sort_by(.created_at) | last | .conclusion'
+          )"
+          test "$lint_conclusion" = success || {
+            echo "Lint has not succeeded for $main_sha (conclusion: $lint_conclusion)." >&2
+            exit 1
+          }
+
+      - name: Push annotated release tag
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          release_tag="v$RELEASE_VERSION"
+          git config user.name "gt-release-automation[bot]"
+          git config user.email "gt-release-automation[bot]@users.noreply.github.com"
+          git tag --annotate "$release_tag" --message "Release $release_tag"
+          git push origin "$release_tag"

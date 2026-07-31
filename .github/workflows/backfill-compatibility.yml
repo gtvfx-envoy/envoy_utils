@@ -1,0 +1,60 @@
+name: Backfill Release Compatibility
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing Envoy Utils release to repair
+        required: true
+        default: v0.1.0
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    name: Backfill compatibility metadata
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout automation
+        uses: actions/checkout@v7
+        with:
+          path: automation
+
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+          path: release-source
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Download existing release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "${{ inputs.release_tag }}" --dir dist --clobber
+
+      - name: Generate compatibility metadata and checksums
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          python automation/scripts/release_automation.py metadata \
+            --repository-root release-source \
+            --release-tag "$RELEASE_TAG" --output-dir dist
+          cd dist
+          find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name release-notes.md \
+            -printf '%f\0' | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+      - name: Repair release body and assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "${{ inputs.release_tag }}" --notes-file dist/release-notes.md
+          gh release upload "${{ inputs.release_tag }}" \
+            dist/compatibility.json dist/SHA256SUMS --clobber

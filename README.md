@@ -19,13 +19,10 @@ API documentation is available from the site navigation.
 
 ## Compatibility
 
-| Envoy Utils | Envoy Core |
-|-------------|------------|
-| 0.1.x       | 0.5.1      |
-
 The released `engit` executable statically links its Envoy Core dependency.
-The compatibility entry identifies the Envoy configuration and bundle contract
-against which it was built and tested.
+Each [Envoy Utils release](https://github.com/gtvfx-contrib/gt-envoy_utils/releases)
+identifies the exact Envoy Core tag and commit against which it was built and
+tested. The release also includes `compatibility.json` for automated consumers.
 
 ## Development
 

@@ -17,10 +17,7 @@ stack publishing.
 
 ## Compatibility
 
-| Envoy Utils | Envoy Core |
-|---|---|
-| 0.1.x | 0.5.1 |
-
 The released `engit` executable statically links its Envoy Core dependency. The
-compatibility entry identifies the Envoy configuration and bundle contract
-against which it was built and tested.
+exact pairing is recorded in each
+[Envoy Utils release](https://github.com/gtvfx-contrib/gt-envoy_utils/releases),
+both in the release summary and in the attached `compatibility.json` file.

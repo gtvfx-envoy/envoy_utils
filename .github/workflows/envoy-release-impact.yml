@@ -1,0 +1,200 @@
+name: Envoy Release Impact
+
+on:
+  repository_dispatch:
+    types: [envoy-released]
+  workflow_dispatch:
+    inputs:
+      envoy_tag:
+        description: Envoy release tag to replay
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  ENVOY_TAG: ${{ github.event.client_payload.envoy_tag || inputs.envoy_tag }}
+
+jobs:
+  classify:
+    name: Classify Envoy Core changes
+    runs-on: ubuntu-24.04
+    outputs:
+      relevant: ${{ steps.impact.outputs.relevant }}
+      pinned_tag: ${{ steps.current.outputs.envoy_tag }}
+
+    steps:
+      - name: Checkout Envoy Utils
+        uses: actions/checkout@v7
+
+      - name: Checkout candidate Envoy release
+        uses: actions/checkout@v7
+        with:
+          repository: gtvfx-contrib/gt-envoy
+          ref: ${{ env.ENVOY_TAG }}
+          fetch-depth: 0
+          path: downstream/envoy
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Validate release and current pin
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAYLOAD_COMMIT: ${{ github.event.client_payload.envoy_commit }}
+          SCHEMA_VERSION: ${{ github.event.client_payload.schema_version }}
+        run: |
+          gh api "repos/gtvfx-contrib/gt-envoy/releases/tags/$ENVOY_TAG" --jq .tag_name
+          if [[ "${{ github.event_name }}" == repository_dispatch ]]; then
+            test "$SCHEMA_VERSION" = 1
+            test "$(git -C downstream/envoy rev-parse HEAD)" = "$PAYLOAD_COMMIT"
+          fi
+          python scripts/release_automation.py check --github-output "$GITHUB_OUTPUT"
+
+      - name: Classify changed Envoy files
+        id: impact
+        run: >-
+          python scripts/release_automation.py impact
+          --envoy-root downstream/envoy
+          --base-tag "${{ steps.current.outputs.envoy_tag }}"
+          --head-tag "$ENVOY_TAG"
+          --output impact.json
+          --github-output "$GITHUB_OUTPUT"
+
+      - name: Upload impact evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: envoy-impact
+          path: impact.json
+
+  compatibility:
+    name: Compatibility (${{ matrix.os_name }})
+    needs: classify
+    if: needs.classify.outputs.relevant == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            os_name: Linux
+          - runner: windows-2025
+            os_name: Windows
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout Envoy Utils
+        uses: actions/checkout@v7
+
+      - name: Checkout candidate Envoy release
+        uses: actions/checkout@v7
+        with:
+          repository: gtvfx-contrib/gt-envoy
+          ref: ${{ env.ENVOY_TAG }}
+          path: downstream/envoy
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test against candidate Envoy Core
+        id: test
+        continue-on-error: true
+        shell: bash
+        run: >-
+          python scripts/release_automation.py compatibility
+          --envoy-root downstream/envoy
+          --output compatibility-${{ matrix.os_name }}.json
+
+      - name: Upload compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-${{ matrix.os_name }}
+          path: compatibility-${{ matrix.os_name }}.json
+          if-no-files-found: error
+
+  notify:
+    name: Create or update release-impact issue
+    needs: [classify, compatibility]
+    if: always() && needs.classify.result == 'success'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Envoy Utils
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Download impact evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: envoy-impact
+          path: evidence
+
+      - name: Download compatibility evidence
+        if: needs.classify.outputs.relevant == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compatibility-*
+          path: evidence/results
+
+      - name: Report no release impact
+        if: needs.classify.outputs.relevant != 'true'
+        run: |
+          echo "### Envoy Utils: no release impact" >> "$GITHUB_STEP_SUMMARY"
+          echo "Envoy $ENVOY_TAG has no relevant Envoy Core changes." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build issue report
+        if: needs.classify.outputs.relevant == 'true'
+        id: report
+        run: >-
+          python scripts/release_automation.py report
+          --impact evidence/impact.json
+          --results evidence/results
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          --output issue.md
+          --github-output "$GITHUB_OUTPUT"
+
+      - name: Create or update issue
+        if: needs.classify.outputs.relevant == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLASSIFICATION: ${{ steps.report.outputs.classification }}
+          MARKER: ${{ steps.report.outputs.marker }}
+        run: |
+          gh label create dependency:envoy-core --color 1D76DB --force \
+            --description "Tracks the statically linked Envoy Core dependency"
+          gh label create "release-impact:$CLASSIFICATION" --color D93F0B --force \
+            --description "Automated downstream release assessment"
+          issue_number="$(
+            gh issue list --state all --limit 100 --json number,body \
+              --jq ".[] | select(.body | contains(\"$MARKER\")) | .number" | head -n 1
+          )"
+          title="Review Envoy $ENVOY_TAG compatibility and release impact"
+          if [[ -n "$issue_number" ]]; then
+            gh issue edit "$issue_number" --title "$title" --body-file issue.md \
+              --add-label dependency:envoy-core \
+              --add-label "release-impact:$CLASSIFICATION"
+            if [[ "$CLASSIFICATION" == required ]]; then
+              gh issue edit "$issue_number" --remove-label release-impact:review || true
+            else
+              gh issue edit "$issue_number" --remove-label release-impact:required || true
+            fi
+            gh issue reopen "$issue_number" || true
+          else
+            gh issue create --title "$title" --body-file issue.md \
+              --label dependency:envoy-core \
+              --label "release-impact:$CLASSIFICATION"
+          fi

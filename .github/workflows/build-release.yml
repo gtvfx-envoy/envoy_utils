@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 env:
   RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
@@ -168,12 +169,23 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: release-*
           path: dist
           merge-multiple: true
+
+      - name: Generate compatibility metadata
+        run: >-
+          python3 scripts/release_automation.py metadata
+          --release-tag "${{ github.ref_name }}"
+          --output-dir dist
 
       - name: Create SHA-256 manifest
         working-directory: dist
@@ -185,8 +197,22 @@ jobs:
           files: |
             dist/*.zip
             dist/*.tar.gz
+            dist/compatibility.json
             dist/SHA256SUMS
           fail_on_unmatched_files: true
-          body: |
-            Envoy Utils provides independently versioned Envoy developer tools.
-            These artifacts are checksummed but currently unsigned.
+          body_path: dist/release-notes.md
+
+      - name: Close matching Envoy impact issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          envoy_tag="$(jq -r '.envoy_core.tag' dist/compatibility.json)"
+          marker="<!-- envoy-compatibility:$envoy_tag -->"
+          issue_number="$(
+            gh issue list --state open --limit 100 --json number,body \
+              --jq ".[] | select(.body | contains(\"$marker\")) | .number" | head -n 1
+          )"
+          if [[ -n "$issue_number" ]]; then
+            gh issue close "$issue_number" \
+              --comment "Released ${{ github.ref_name }} pinned to $envoy_tag."
+          fi

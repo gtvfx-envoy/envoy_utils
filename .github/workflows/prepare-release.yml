@@ -1,0 +1,101 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Unprefixed Envoy Utils semantic version
+        required: true
+        type: string
+      envoy_tag:
+        description: Published Envoy release tag to statically link
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release pull request
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Create release automation token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RELEASE_AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.RELEASE_AUTOMATION_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: gt-envoy_utils,gt-envoy
+
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Validate Envoy release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ENVOY_TAG: ${{ inputs.envoy_tag }}
+        run: gh release view "$ENVOY_TAG" --repo gtvfx-contrib/gt-envoy --json tagName
+
+      - name: Prepare version and Envoy pin
+        run: >-
+          python scripts/release_automation.py prepare
+          --version "${{ inputs.version }}"
+          --envoy-tag "${{ inputs.envoy_tag }}"
+
+      - name: Test release automation
+        run: python -m unittest discover -s tests -p "test_release_automation.py"
+
+      - name: Validate Rust workspace
+        working-directory: rust
+        run: |
+          cargo fmt --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+
+      - name: Ensure release preparation label exists
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: >-
+          gh label create release-prep --color 5319E7 --force
+          --description "Automated release preparation pull request"
+
+      - name: Create or update draft pull request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: automation/release-v${{ inputs.version }}
+          base: main
+          commit-message: Prepare v${{ inputs.version }} release
+          title: Prepare v${{ inputs.version }} release
+          body: |
+            Automated Envoy Utils release preparation.
+
+            - Updates the Envoy Utils workspace version.
+            - Pins Envoy Core to `${{ inputs.envoy_tag }}` and refreshes Cargo.lock.
+            - Runs release-readiness checks.
+
+            Merge only after the normal pull request checks pass.
+          labels: release-prep
+          draft: always-true
+          delete-branch: false
