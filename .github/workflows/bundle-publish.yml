@@ -57,7 +57,7 @@ jobs:
           $releaseDirectory = Join-Path $env:RUNNER_TEMP "engit-$env:ENGIT_VERSION"
           New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
           gh release download $env:ENGIT_VERSION `
-              --repo gtvfx-contrib/gt-envoy_utils `
+              --repo gtvfx-envoy/envoy_utils `
               --pattern $asset --pattern SHA256SUMS `
               --dir $releaseDirectory --clobber
           $manifest = Get-Content (Join-Path $releaseDirectory 'SHA256SUMS')
@@ -90,7 +90,7 @@ jobs:
           release_directory="$RUNNER_TEMP/engit-$ENGIT_VERSION"
           mkdir -p "$release_directory"
           gh release download "$ENGIT_VERSION" \
-            --repo gtvfx-contrib/gt-envoy_utils \
+            --repo gtvfx-envoy/envoy_utils \
             --pattern "$asset" --pattern SHA256SUMS \
             --dir "$release_directory" --clobber
           expected="$(awk -v asset="$asset" '$2 == asset {print $1}' "$release_directory/SHA256SUMS")"

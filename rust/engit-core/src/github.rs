@@ -242,10 +242,10 @@ mod tests {
         let raw = r#"
         [
           {
-            "name": "gt-envoy",
-            "fullName": "gtvfx-contrib/gt-envoy",
+            "name": "envoy",
+            "fullName": "gtvfx-envoy/envoy",
             "description": "Envoy",
-            "url": "https://github.com/gtvfx-contrib/gt-envoy",
+            "url": "https://github.com/gtvfx-envoy/envoy",
             "stargazersCount": 42,
             "updatedAt": "2026-07-01T12:00:00Z"
           }
@@ -255,10 +255,10 @@ mod tests {
         assert_eq!(
             parse_search_results(raw).expect("search results should parse"),
             vec![RepoSearchResult {
-                name: String::from("gt-envoy"),
-                full_name: String::from("gtvfx-contrib/gt-envoy"),
+                name: String::from("envoy"),
+                full_name: String::from("gtvfx-envoy/envoy"),
                 description: String::from("Envoy"),
-                url: String::from("https://github.com/gtvfx-contrib/gt-envoy"),
+                url: String::from("https://github.com/gtvfx-envoy/envoy"),
                 stars: 42,
                 updated_at: String::from("2026-07-01T12:00:00Z"),
             }]

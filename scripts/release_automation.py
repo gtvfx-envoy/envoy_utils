@@ -66,7 +66,7 @@ def replaceEnvoyDependency(manifest_path: Path, envoy_tag: str) -> None:
     """Replace the Envoy Core Git tag and exact crate version together."""
     envoy_version = validateTag(envoy_tag)[1:]
     replacement = (
-        'envoy-core = { git = "https://github.com/gtvfx-contrib/gt-envoy", '
+        'envoy-core = { git = "https://github.com/gtvfx-envoy/envoy", '
         f'tag = "{envoy_tag}", version = "={envoy_version}" }}'
     )
     replaceOne(
@@ -112,7 +112,7 @@ def parseLockfile(repository_root: Path) -> tuple[dict[str, str], str, str, str]
             package_versions[package_name] = version_match.group(1)
         if package_name == "envoy-core":
             source_match = re.search(
-                r'(?m)^source = "git\+https://github\.com/gtvfx-contrib/gt-envoy\?tag=([^#"]+)#([0-9a-f]+)"$',
+                r'(?m)^source = "git\+https://github\.com/gtvfx-envoy/envoy\?tag=([^#"]+)#([0-9a-f]+)"$',
                 package_block,
             )
             if source_match:

@@ -1,8 +1,8 @@
 site_name: Envoy Utils
-site_url: https://gtvfx-contrib.github.io/gt-envoy_utils/
+site_url: https://gtvfx-envoy.github.io/envoy_utils/
 site_description: Git, release, and publishing tools for Envoy bundles and stacks.
-repo_name: gtvfx-contrib/gt-envoy_utils
-repo_url: https://github.com/gtvfx-contrib/gt-envoy_utils
+repo_name: gtvfx-envoy/envoy_utils
+repo_url: https://github.com/gtvfx-envoy/envoy_utils
 edit_uri: edit/main/docs/
 
 theme:
@@ -45,4 +45,4 @@ nav:
   - CLI Reference:
       - engit: cli-reference/engit.md
   - Troubleshooting: troubleshooting.md
-  - Rust API: https://gtvfx-contrib.github.io/gt-envoy_utils/rustdoc/engit_core/
+  - Rust API: https://gtvfx-envoy.github.io/envoy_utils/rustdoc/engit_core/

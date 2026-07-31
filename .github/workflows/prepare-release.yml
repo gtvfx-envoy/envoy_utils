@@ -32,7 +32,7 @@ jobs:
           app-id: ${{ secrets.RELEASE_AUTOMATION_APP_ID }}
           private-key: ${{ secrets.RELEASE_AUTOMATION_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: gt-envoy_utils,gt-envoy
+          repositories: envoy_utils,envoy
 
       - name: Checkout main
         uses: actions/checkout@v7
@@ -55,7 +55,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ENVOY_TAG: ${{ inputs.envoy_tag }}
-        run: gh release view "$ENVOY_TAG" --repo gtvfx-contrib/gt-envoy --json tagName
+        run: gh release view "$ENVOY_TAG" --repo gtvfx-envoy/envoy --json tagName
 
       - name: Prepare version and Envoy pin
         run: >-

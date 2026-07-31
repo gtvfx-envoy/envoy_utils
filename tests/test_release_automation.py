@@ -31,7 +31,7 @@ class ReleaseAutomationTests(unittest.TestCase):
         manifest_path = Path(temporary_directory) / "Cargo.toml"
         manifest_path.write_text(
             "[workspace.dependencies]\n"
-            'envoy-core = { git = "https://github.com/gtvfx-contrib/gt-envoy", '
+            'envoy-core = { git = "https://github.com/gtvfx-envoy/envoy", '
             'tag = "v0.5.1", version = "=0.5.1" }\n',
             encoding="utf-8",
         )

@@ -76,9 +76,9 @@ mod tests {
     #[test]
     fn parses_semicolon_and_comma_separated_orgs() {
         assert_eq!(
-            parse_orgs("gtvfx-contrib, gtvfx ; gt"),
+            parse_orgs("gtvfx-envoy, gtvfx ; gt"),
             vec![
-                String::from("gtvfx-contrib"),
+                String::from("gtvfx-envoy"),
                 String::from("gtvfx"),
                 String::from("gt"),
             ]
