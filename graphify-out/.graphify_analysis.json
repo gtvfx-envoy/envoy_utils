@@ -599,41 +599,8 @@
       "why": "inferred connection - not explicitly stated in source; bridges separate communities"
     }
   ],
-  "questions": [
-    {
-      "type": "bridge_node",
-      "question": "Why does `run()` connect `main.rs` to `publish.rs`, `git.rs`, `github.rs`, `tag.rs`, `framework.rs`, `resolve_specs`, `run_web`?",
-      "why": "High betweenness centrality (0.103) - this node is a cross-community bridge."
-    },
-    {
-      "type": "bridge_node",
-      "question": "Why does `SemVer` connect `SemVer` to `git.rs`, `tag.rs`?",
-      "why": "High betweenness centrality (0.070) - this node is a cross-community bridge."
-    },
-    {
-      "type": "bridge_node",
-      "question": "Why does `run_tag()` connect `tag.rs` to `git.rs`, `SemVer`, `main.rs`?",
-      "why": "High betweenness centrality (0.039) - this node is a cross-community bridge."
-    },
-    {
-      "type": "low_cohesion",
-      "question": "Should `publish.rs` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.09745390693590869 - nodes in this community are weakly interconnected."
-    },
-    {
-      "type": "low_cohesion",
-      "question": "Should `git.rs` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.10291858678955453 - nodes in this community are weakly interconnected."
-    },
-    {
-      "type": "low_cohesion",
-      "question": "Should `release_automation.py` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.09830866807610994 - nodes in this community are weakly interconnected."
-    },
-    {
-      "type": "low_cohesion",
-      "question": "Should `github.rs` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.11153846153846154 - nodes in this community are weakly interconnected."
-    }
-  ]
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
 }

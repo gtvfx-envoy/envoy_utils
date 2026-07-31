@@ -15,8 +15,8 @@
       "_origin": "ast",
       "community": 17,
       "norm_label": "engit",
-      "id": "bin_engit",
-      "community_name": "engit"
+      "community_name": "engit",
+      "id": "bin_engit"
     },
     {
       "label": "engit script",
@@ -30,8 +30,8 @@
       "_origin": "ast",
       "community": 17,
       "norm_label": "engit script",
-      "id": "bin_engit__entry",
-      "community_name": "engit"
+      "community_name": "engit",
+      "id": "bin_engit__entry"
     },
     {
       "label": "build.rs",
@@ -41,8 +41,8 @@
       "_origin": "ast",
       "community": 15,
       "norm_label": "build.rs",
-      "id": "rust_engit_cli_build",
-      "community_name": "git_describe"
+      "community_name": "git_describe",
+      "id": "rust_engit_cli_build"
     },
     {
       "label": "main()",
@@ -52,8 +52,8 @@
       "_origin": "ast",
       "community": 15,
       "norm_label": "main()",
-      "id": "rust_engit_cli_build_main",
-      "community_name": "git_describe"
+      "community_name": "git_describe",
+      "id": "rust_engit_cli_build_main"
     },
     {
       "label": "repo_root()",
@@ -63,8 +63,8 @@
       "_origin": "ast",
       "community": 15,
       "norm_label": "repo_root()",
-      "id": "rust_engit_cli_build_repo_root",
-      "community_name": "git_describe"
+      "community_name": "git_describe",
+      "id": "rust_engit_cli_build_repo_root"
     },
     {
       "label": "PathBuf",
@@ -74,8 +74,8 @@
       "_origin": "ast",
       "community": 15,
       "norm_label": "pathbuf",
-      "id": "rust_engit_cli_build_rs_pathbuf",
-      "community_name": "git_describe"
+      "community_name": "git_describe",
+      "id": "rust_engit_cli_build_rs_pathbuf"
     },
     {
       "label": "git_describe()",
@@ -85,8 +85,8 @@
       "_origin": "ast",
       "community": 15,
       "norm_label": "git_describe()",
-      "id": "rust_engit_cli_build_git_describe",
-      "community_name": "git_describe"
+      "community_name": "git_describe",
+      "id": "rust_engit_cli_build_git_describe"
     },
     {
       "label": "Option",
@@ -96,8 +96,8 @@
       "_origin": "ast",
       "community": 15,
       "norm_label": "option",
-      "id": "rust_engit_cli_build_rs_option",
-      "community_name": "git_describe"
+      "community_name": "git_describe",
+      "id": "rust_engit_cli_build_rs_option"
     },
     {
       "label": "String",
@@ -107,8 +107,8 @@
       "_origin": "ast",
       "community": 15,
       "norm_label": "string",
-      "id": "rust_engit_cli_build_rs_string",
-      "community_name": "git_describe"
+      "community_name": "git_describe",
+      "id": "rust_engit_cli_build_rs_string"
     },
     {
       "label": "main.rs",
@@ -118,8 +118,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "main.rs",
-      "id": "rust_engit_cli_src_main",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main"
     },
     {
       "label": "Cli",
@@ -129,8 +129,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "cli",
-      "id": "rust_engit_cli_src_main_cli",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_cli"
     },
     {
       "label": "Commands",
@@ -140,8 +140,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "commands",
-      "id": "rust_engit_cli_src_main_commands",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_commands"
     },
     {
       "label": "TagArgs",
@@ -151,8 +151,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "tagargs",
-      "id": "rust_engit_cli_src_main_tagargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_tagargs"
     },
     {
       "label": "Option",
@@ -162,8 +162,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "option",
-      "id": "rust_engit_cli_src_main_rs_option",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_rs_option"
     },
     {
       "label": "String",
@@ -173,8 +173,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "string",
-      "id": "rust_engit_cli_src_main_rs_string",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_rs_string"
     },
     {
       "label": "ReleaseArgs",
@@ -184,8 +184,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "releaseargs",
-      "id": "rust_engit_cli_src_main_releaseargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_releaseargs"
     },
     {
       "label": "StatusArgs",
@@ -195,8 +195,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "statusargs",
-      "id": "rust_engit_cli_src_main_statusargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_statusargs"
     },
     {
       "label": "ChangelogArgs",
@@ -206,8 +206,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "changelogargs",
-      "id": "rust_engit_cli_src_main_changelogargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_changelogargs"
     },
     {
       "label": "CleanupArgs",
@@ -217,8 +217,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "cleanupargs",
-      "id": "rust_engit_cli_src_main_cleanupargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_cleanupargs"
     },
     {
       "label": "WebArgs",
@@ -228,8 +228,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "webargs",
-      "id": "rust_engit_cli_src_main_webargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_webargs"
     },
     {
       "label": "PullArgs",
@@ -239,8 +239,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "pullargs",
-      "id": "rust_engit_cli_src_main_pullargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_pullargs"
     },
     {
       "label": "Vec",
@@ -250,8 +250,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "vec",
-      "id": "rust_engit_cli_src_main_rs_vec",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_rs_vec"
     },
     {
       "label": "SearchArgs",
@@ -261,8 +261,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "searchargs",
-      "id": "rust_engit_cli_src_main_searchargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_searchargs"
     },
     {
       "label": "PublishArgs",
@@ -272,8 +272,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "publishargs",
-      "id": "rust_engit_cli_src_main_publishargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_publishargs"
     },
     {
       "label": "PublishCommands",
@@ -283,8 +283,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "publishcommands",
-      "id": "rust_engit_cli_src_main_publishcommands",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_publishcommands"
     },
     {
       "label": "PublishBundleArgs",
@@ -294,8 +294,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "publishbundleargs",
-      "id": "rust_engit_cli_src_main_publishbundleargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_publishbundleargs"
     },
     {
       "label": "PathBuf",
@@ -305,8 +305,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "pathbuf",
-      "id": "rust_engit_cli_src_main_rs_pathbuf",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_rs_pathbuf"
     },
     {
       "label": "PublishStackArgs",
@@ -316,8 +316,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "publishstackargs",
-      "id": "rust_engit_cli_src_main_publishstackargs",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_publishstackargs"
     },
     {
       "label": "current_dir_path()",
@@ -327,8 +327,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "current_dir_path()",
-      "id": "rust_engit_cli_src_main_current_dir_path",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_current_dir_path"
     },
     {
       "label": "Result",
@@ -338,8 +338,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "result",
-      "id": "rust_engit_cli_src_main_rs_result",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_rs_result"
     },
     {
       "label": "selected_bump()",
@@ -349,8 +349,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "selected_bump()",
-      "id": "rust_engit_cli_src_main_selected_bump",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_selected_bump"
     },
     {
       "label": "resolve_publish_bundle_path()",
@@ -360,8 +360,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "resolve_publish_bundle_path()",
-      "id": "rust_engit_cli_src_main_resolve_publish_bundle_path",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_resolve_publish_bundle_path"
     },
     {
       "label": "print_published_stack()",
@@ -371,8 +371,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "print_published_stack()",
-      "id": "rust_engit_cli_src_main_print_published_stack",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_print_published_stack"
     },
     {
       "label": "Path",
@@ -382,8 +382,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "path",
-      "id": "rust_engit_cli_src_main_rs_path",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_rs_path"
     },
     {
       "label": "run()",
@@ -393,8 +393,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "run()",
-      "id": "rust_engit_cli_src_main_run",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_run"
     },
     {
       "label": "main()",
@@ -404,8 +404,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "main()",
-      "id": "rust_engit_cli_src_main_main",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_cli_src_main_main"
     },
     {
       "label": "ExitCode",
@@ -415,8 +415,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "exitcode",
-      "id": "exitcode",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "exitcode"
     },
     {
       "label": "cli.rs",
@@ -426,8 +426,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "cli.rs",
-      "id": "rust_engit_cli_tests_cli",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli"
     },
     {
       "label": "stdout_text()",
@@ -437,8 +437,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "stdout_text()",
-      "id": "rust_engit_cli_tests_cli_stdout_text",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_stdout_text"
     },
     {
       "label": "Assert",
@@ -448,8 +448,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "assert",
-      "id": "assert",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "assert"
     },
     {
       "label": "String",
@@ -459,8 +459,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "string",
-      "id": "rust_engit_cli_tests_cli_rs_string",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_rs_string"
     },
     {
       "label": "stderr_text()",
@@ -470,8 +470,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "stderr_text()",
-      "id": "rust_engit_cli_tests_cli_stderr_text",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_stderr_text"
     },
     {
       "label": "help_lists_all_subcommands()",
@@ -481,8 +481,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "help_lists_all_subcommands()",
-      "id": "rust_engit_cli_tests_cli_help_lists_all_subcommands",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_help_lists_all_subcommands"
     },
     {
       "label": "missing_required_argument_returns_usage_error()",
@@ -492,8 +492,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "missing_required_argument_returns_usage_error()",
-      "id": "rust_engit_cli_tests_cli_missing_required_argument_returns_usage_error",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_missing_required_argument_returns_usage_error"
     },
     {
       "label": "publish_help_lists_bundle_and_stack_subcommands()",
@@ -503,8 +503,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "publish_help_lists_bundle_and_stack_subcommands()",
-      "id": "rust_engit_cli_tests_cli_publish_help_lists_bundle_and_stack_subcommands",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_publish_help_lists_bundle_and_stack_subcommands"
     },
     {
       "label": "retired_publish_stack_command_is_rejected()",
@@ -514,8 +514,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "retired_publish_stack_command_is_rejected()",
-      "id": "rust_engit_cli_tests_cli_retired_publish_stack_command_is_rejected",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_retired_publish_stack_command_is_rejected"
     },
     {
       "label": "tag_requires_exactly_one_bump_or_version_input()",
@@ -525,8 +525,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "tag_requires_exactly_one_bump_or_version_input()",
-      "id": "rust_engit_cli_tests_cli_tag_requires_exactly_one_bump_or_version_input",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_tag_requires_exactly_one_bump_or_version_input"
     },
     {
       "label": "publish_stack_without_stack_root_or_env_var_fails_with_expected_message()",
@@ -536,8 +536,8 @@
       "_origin": "ast",
       "community": 11,
       "norm_label": "publish_stack_without_stack_root_or_env_var_fails_with_expected_message()",
-      "id": "rust_engit_cli_tests_cli_publish_stack_without_stack_root_or_env_var_fails_with_expected_message",
-      "community_name": "cli.rs"
+      "community_name": "cli.rs",
+      "id": "rust_engit_cli_tests_cli_publish_stack_without_stack_root_or_env_var_fails_with_expected_message"
     },
     {
       "label": "changelog.rs",
@@ -547,8 +547,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "changelog.rs",
-      "id": "rust_engit_core_src_changelog",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog"
     },
     {
       "label": "ReleaseDetail",
@@ -558,8 +558,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "releasedetail",
-      "id": "rust_engit_core_src_changelog_releasedetail",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_releasedetail"
     },
     {
       "label": "String",
@@ -569,8 +569,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "string",
-      "id": "rust_engit_core_src_changelog_rs_string",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_rs_string"
     },
     {
       "label": "Option",
@@ -580,8 +580,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "option",
-      "id": "rust_engit_core_src_changelog_rs_option",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_rs_option"
     },
     {
       "label": "fetch_release_detail()",
@@ -591,8 +591,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "fetch_release_detail()",
-      "id": "rust_engit_core_src_changelog_fetch_release_detail",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_fetch_release_detail"
     },
     {
       "label": "Result",
@@ -602,8 +602,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "result",
-      "id": "rust_engit_core_src_changelog_rs_result",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_rs_result"
     },
     {
       "label": "sort_releases()",
@@ -613,8 +613,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "sort_releases()",
-      "id": "rust_engit_core_src_changelog_sort_releases",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_sort_releases"
     },
     {
       "label": "Vec",
@@ -624,8 +624,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "vec",
-      "id": "rust_engit_core_src_changelog_rs_vec",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_rs_vec"
     },
     {
       "label": "run_changelog()",
@@ -635,8 +635,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "run_changelog()",
-      "id": "rust_engit_core_src_changelog_run_changelog",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_run_changelog"
     },
     {
       "label": "Path",
@@ -646,8 +646,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "path",
-      "id": "rust_engit_core_src_changelog_rs_path",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_rs_path"
     },
     {
       "label": "sorts_valid_semver_releases_newest_first()",
@@ -657,8 +657,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "sorts_valid_semver_releases_newest_first()",
-      "id": "rust_engit_core_src_changelog_sorts_valid_semver_releases_newest_first",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_changelog_sorts_valid_semver_releases_newest_first"
     },
     {
       "label": "cleanup.rs",
@@ -668,8 +668,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "cleanup.rs",
-      "id": "rust_engit_core_src_cleanup",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_cleanup"
     },
     {
       "label": "run_cleanup()",
@@ -679,8 +679,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "run_cleanup()",
-      "id": "rust_engit_core_src_cleanup_run_cleanup",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_cleanup_run_cleanup"
     },
     {
       "label": "Option",
@@ -690,8 +690,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "option",
-      "id": "rust_engit_core_src_cleanup_rs_option",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_cleanup_rs_option"
     },
     {
       "label": "Path",
@@ -701,8 +701,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "path",
-      "id": "rust_engit_core_src_cleanup_rs_path",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_cleanup_rs_path"
     },
     {
       "label": "Result",
@@ -712,8 +712,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "result",
-      "id": "rust_engit_core_src_cleanup_rs_result",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_cleanup_rs_result"
     },
     {
       "label": "protected_branch_list_matches_python_defaults()",
@@ -723,8 +723,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "protected_branch_list_matches_python_defaults()",
-      "id": "rust_engit_core_src_cleanup_protected_branch_list_matches_python_defaults",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_cleanup_protected_branch_list_matches_python_defaults"
     },
     {
       "label": "editor.rs",
@@ -734,8 +734,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "editor.rs",
-      "id": "rust_engit_core_src_editor",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor"
     },
     {
       "label": "split_command()",
@@ -745,8 +745,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "split_command()",
-      "id": "rust_engit_core_src_editor_split_command",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_split_command"
     },
     {
       "label": "Vec",
@@ -756,8 +756,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "vec",
-      "id": "rust_engit_core_src_editor_rs_vec",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_rs_vec"
     },
     {
       "label": "String",
@@ -767,8 +767,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "string",
-      "id": "rust_engit_core_src_editor_rs_string",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_rs_string"
     },
     {
       "label": "find_editor()",
@@ -778,8 +778,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "find_editor()",
-      "id": "rust_engit_core_src_editor_find_editor",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_find_editor"
     },
     {
       "label": "scratch_root()",
@@ -789,8 +789,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "scratch_root()",
-      "id": "rust_engit_core_src_editor_scratch_root",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_scratch_root"
     },
     {
       "label": "Result",
@@ -800,8 +800,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "result",
-      "id": "rust_engit_core_src_editor_rs_result",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_rs_result"
     },
     {
       "label": "PathBuf",
@@ -811,8 +811,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "pathbuf",
-      "id": "rust_engit_core_src_editor_rs_pathbuf",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_rs_pathbuf"
     },
     {
       "label": "sanitize_filename()",
@@ -822,8 +822,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "sanitize_filename()",
-      "id": "rust_engit_core_src_editor_sanitize_filename",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_sanitize_filename"
     },
     {
       "label": "unique_scratch_path()",
@@ -833,8 +833,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "unique_scratch_path()",
-      "id": "rust_engit_core_src_editor_unique_scratch_path",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_unique_scratch_path"
     },
     {
       "label": "remove_if_empty()",
@@ -844,8 +844,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "remove_if_empty()",
-      "id": "rust_engit_core_src_editor_remove_if_empty",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_remove_if_empty"
     },
     {
       "label": "Path",
@@ -855,8 +855,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "path",
-      "id": "rust_engit_core_src_editor_rs_path",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_rs_path"
     },
     {
       "label": "open_in_editor()",
@@ -866,8 +866,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "open_in_editor()",
-      "id": "rust_engit_core_src_editor_open_in_editor",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_open_in_editor"
     },
     {
       "label": "Option",
@@ -877,8 +877,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "option",
-      "id": "rust_engit_core_src_editor_rs_option",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_rs_option"
     },
     {
       "label": "EnvVarGuard",
@@ -888,8 +888,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "envvarguard",
-      "id": "rust_engit_core_src_editor_envvarguard",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_envvarguard"
     },
     {
       "label": ".set()",
@@ -899,8 +899,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": ".set()",
-      "id": "rust_engit_core_src_editor_envvarguard_set",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_envvarguard_set"
     },
     {
       "label": "Self",
@@ -910,8 +910,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "self",
-      "id": "rust_engit_core_src_editor_rs_self",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_rs_self"
     },
     {
       "label": "Drop",
@@ -921,8 +921,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "drop",
-      "id": "rust_engit_core_src_editor_rs_drop",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_rs_drop"
     },
     {
       "label": ".drop()",
@@ -932,8 +932,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": ".drop()",
-      "id": "rust_engit_core_src_editor_envvarguard_drop",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_envvarguard_drop"
     },
     {
       "label": "split_command_respects_quotes()",
@@ -943,8 +943,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "split_command_respects_quotes()",
-      "id": "rust_engit_core_src_editor_split_command_respects_quotes",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_split_command_respects_quotes"
     },
     {
       "label": "find_editor_uses_git_editor_priority()",
@@ -954,8 +954,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "find_editor_uses_git_editor_priority()",
-      "id": "rust_engit_core_src_editor_find_editor_uses_git_editor_priority",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_editor_find_editor_uses_git_editor_priority"
     },
     {
       "label": "error.rs",
@@ -965,8 +965,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "error.rs",
-      "id": "rust_engit_core_src_error",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error"
     },
     {
       "label": "EngitError",
@@ -976,8 +976,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "engiterror",
-      "id": "rust_engit_core_src_error_engiterror",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_engiterror"
     },
     {
       "label": "String",
@@ -987,8 +987,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "string",
-      "id": "rust_engit_core_src_error_rs_string",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_rs_string"
     },
     {
       "label": "PathBuf",
@@ -998,8 +998,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "pathbuf",
-      "id": "rust_engit_core_src_error_rs_pathbuf",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_rs_pathbuf"
     },
     {
       "label": "Error",
@@ -1009,8 +1009,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "error",
-      "id": "rust_engit_core_src_error_rs_error",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_rs_error"
     },
     {
       "label": ".git_command()",
@@ -1020,8 +1020,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": ".git_command()",
-      "id": "rust_engit_core_src_error_engiterror_git_command",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_engiterror_git_command"
     },
     {
       "label": "Self",
@@ -1031,8 +1031,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "self",
-      "id": "rust_engit_core_src_error_rs_self",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_rs_self"
     },
     {
       "label": ".github_command()",
@@ -1042,8 +1042,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": ".github_command()",
-      "id": "rust_engit_core_src_error_engiterror_github_command",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_engiterror_github_command"
     },
     {
       "label": ".io()",
@@ -1053,8 +1053,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": ".io()",
-      "id": "rust_engit_core_src_error_engiterror_io",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_engiterror_io"
     },
     {
       "label": "Into",
@@ -1064,8 +1064,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "into",
-      "id": "into",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "into"
     },
     {
       "label": ".json()",
@@ -1075,8 +1075,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": ".json()",
-      "id": "rust_engit_core_src_error_engiterror_json",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_engiterror_json"
     },
     {
       "label": ".yaml()",
@@ -1086,8 +1086,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": ".yaml()",
-      "id": "rust_engit_core_src_error_engiterror_yaml",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_engiterror_yaml"
     },
     {
       "label": "format_command_failure()",
@@ -1097,8 +1097,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "format_command_failure()",
-      "id": "rust_engit_core_src_error_format_command_failure",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_format_command_failure"
     },
     {
       "label": "command_failure_prefers_stderr()",
@@ -1108,8 +1108,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "command_failure_prefers_stderr()",
-      "id": "rust_engit_core_src_error_command_failure_prefers_stderr",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_command_failure_prefers_stderr"
     },
     {
       "label": "command_failure_falls_back_to_stdout()",
@@ -1119,8 +1119,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "command_failure_falls_back_to_stdout()",
-      "id": "rust_engit_core_src_error_command_failure_falls_back_to_stdout",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_command_failure_falls_back_to_stdout"
     },
     {
       "label": "command_failure_uses_generic_message_when_empty()",
@@ -1130,8 +1130,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "command_failure_uses_generic_message_when_empty()",
-      "id": "rust_engit_core_src_error_command_failure_uses_generic_message_when_empty",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_error_command_failure_uses_generic_message_when_empty"
     },
     {
       "label": "framework.rs",
@@ -1141,8 +1141,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "framework.rs",
-      "id": "rust_engit_core_src_framework",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework"
     },
     {
       "label": "default_stack_root_from_env()",
@@ -1152,8 +1152,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "default_stack_root_from_env()",
-      "id": "rust_engit_core_src_framework_default_stack_root_from_env",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_default_stack_root_from_env"
     },
     {
       "label": "Result",
@@ -1163,8 +1163,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "result",
-      "id": "rust_engit_core_src_framework_rs_result",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_rs_result"
     },
     {
       "label": "PathBuf",
@@ -1174,8 +1174,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "pathbuf",
-      "id": "rust_engit_core_src_framework_rs_pathbuf",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_rs_pathbuf"
     },
     {
       "label": "run_publish_stack()",
@@ -1185,8 +1185,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "run_publish_stack()",
-      "id": "rust_engit_core_src_framework_run_publish_stack",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_run_publish_stack"
     },
     {
       "label": "Option",
@@ -1196,8 +1196,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "option",
-      "id": "rust_engit_core_src_framework_rs_option",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_rs_option"
     },
     {
       "label": "Path",
@@ -1207,8 +1207,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "path",
-      "id": "rust_engit_core_src_framework_rs_path",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_rs_path"
     },
     {
       "label": "EnvVarGuard",
@@ -1218,8 +1218,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "envvarguard",
-      "id": "rust_engit_core_src_framework_envvarguard",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_envvarguard"
     },
     {
       "label": "OsString",
@@ -1229,8 +1229,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "osstring",
-      "id": "rust_engit_core_src_framework_rs_osstring",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_rs_osstring"
     },
     {
       "label": ".set()",
@@ -1240,8 +1240,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": ".set()",
-      "id": "rust_engit_core_src_framework_envvarguard_set",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_envvarguard_set"
     },
     {
       "label": "OsStr",
@@ -1251,8 +1251,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "osstr",
-      "id": "rust_engit_core_src_framework_rs_osstr",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_rs_osstr"
     },
     {
       "label": "Self",
@@ -1262,8 +1262,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "self",
-      "id": "rust_engit_core_src_framework_rs_self",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_rs_self"
     },
     {
       "label": "Drop",
@@ -1273,8 +1273,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "drop",
-      "id": "rust_engit_core_src_framework_rs_drop",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_rs_drop"
     },
     {
       "label": ".drop()",
@@ -1284,8 +1284,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": ".drop()",
-      "id": "rust_engit_core_src_framework_envvarguard_drop",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_envvarguard_drop"
     },
     {
       "label": "publishes_stack_to_explicit_root()",
@@ -1295,8 +1295,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "publishes_stack_to_explicit_root()",
-      "id": "rust_engit_core_src_framework_publishes_stack_to_explicit_root",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_publishes_stack_to_explicit_root"
     },
     {
       "label": "stack_publish_root_prefers_canonical_environment_variable()",
@@ -1306,8 +1306,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "stack_publish_root_prefers_canonical_environment_variable()",
-      "id": "rust_engit_core_src_framework_stack_publish_root_prefers_canonical_environment_variable",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_stack_publish_root_prefers_canonical_environment_variable"
     },
     {
       "label": "stack_publish_root_falls_back_to_first_runtime_root()",
@@ -1317,8 +1317,8 @@
       "_origin": "ast",
       "community": 8,
       "norm_label": "stack_publish_root_falls_back_to_first_runtime_root()",
-      "id": "rust_engit_core_src_framework_stack_publish_root_falls_back_to_first_runtime_root",
-      "community_name": "framework.rs"
+      "community_name": "framework.rs",
+      "id": "rust_engit_core_src_framework_stack_publish_root_falls_back_to_first_runtime_root"
     },
     {
       "label": "git.rs",
@@ -1328,8 +1328,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "git.rs",
-      "id": "rust_engit_core_src_git",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git"
     },
     {
       "label": "args_to_strings()",
@@ -1339,8 +1339,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "args_to_strings()",
-      "id": "rust_engit_core_src_git_args_to_strings",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_args_to_strings"
     },
     {
       "label": "I",
@@ -1350,8 +1350,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "i",
-      "id": "i",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "i"
     },
     {
       "label": "Vec",
@@ -1361,8 +1361,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "vec",
-      "id": "rust_engit_core_src_git_rs_vec",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_rs_vec"
     },
     {
       "label": "String",
@@ -1372,8 +1372,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "string",
-      "id": "rust_engit_core_src_git_rs_string",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_rs_string"
     },
     {
       "label": "run_git()",
@@ -1383,8 +1383,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "run_git()",
-      "id": "rust_engit_core_src_git_run_git",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_run_git"
     },
     {
       "label": "Option",
@@ -1394,8 +1394,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "option",
-      "id": "rust_engit_core_src_git_rs_option",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_rs_option"
     },
     {
       "label": "Path",
@@ -1405,8 +1405,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "path",
-      "id": "rust_engit_core_src_git_rs_path",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_rs_path"
     },
     {
       "label": "Result",
@@ -1416,8 +1416,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "result",
-      "id": "rust_engit_core_src_git_rs_result",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_rs_result"
     },
     {
       "label": "is_git_repo()",
@@ -1427,8 +1427,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "is_git_repo()",
-      "id": "rust_engit_core_src_git_is_git_repo",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_is_git_repo"
     },
     {
       "label": "require_git_repo()",
@@ -1438,8 +1438,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "require_git_repo()",
-      "id": "rust_engit_core_src_git_require_git_repo",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_require_git_repo"
     },
     {
       "label": "get_repo_root()",
@@ -1449,8 +1449,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_repo_root()",
-      "id": "rust_engit_core_src_git_get_repo_root",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_repo_root"
     },
     {
       "label": "PathBuf",
@@ -1460,8 +1460,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "pathbuf",
-      "id": "rust_engit_core_src_git_rs_pathbuf",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_rs_pathbuf"
     },
     {
       "label": "get_remote_url()",
@@ -1471,8 +1471,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_remote_url()",
-      "id": "rust_engit_core_src_git_get_remote_url",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_remote_url"
     },
     {
       "label": "get_latest_tag()",
@@ -1482,8 +1482,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_latest_tag()",
-      "id": "rust_engit_core_src_git_get_latest_tag",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_latest_tag"
     },
     {
       "label": "get_latest_semver_tag()",
@@ -1493,8 +1493,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_latest_semver_tag()",
-      "id": "rust_engit_core_src_git_get_latest_semver_tag",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_latest_semver_tag"
     },
     {
       "label": "get_sorted_semver_tags()",
@@ -1504,8 +1504,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_sorted_semver_tags()",
-      "id": "rust_engit_core_src_git_get_sorted_semver_tags",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_sorted_semver_tags"
     },
     {
       "label": "create_tag()",
@@ -1515,8 +1515,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "create_tag()",
-      "id": "rust_engit_core_src_git_create_tag",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_create_tag"
     },
     {
       "label": "get_tag_annotation()",
@@ -1526,8 +1526,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_tag_annotation()",
-      "id": "rust_engit_core_src_git_get_tag_annotation",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_tag_annotation"
     },
     {
       "label": "push_tag()",
@@ -1537,8 +1537,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "push_tag()",
-      "id": "rust_engit_core_src_git_push_tag",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_push_tag"
     },
     {
       "label": "push_branch_and_tag()",
@@ -1548,8 +1548,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "push_branch_and_tag()",
-      "id": "rust_engit_core_src_git_push_branch_and_tag",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_push_branch_and_tag"
     },
     {
       "label": "get_commits_since()",
@@ -1559,8 +1559,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_commits_since()",
-      "id": "rust_engit_core_src_git_get_commits_since",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_commits_since"
     },
     {
       "label": "get_all_commits()",
@@ -1570,8 +1570,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_all_commits()",
-      "id": "rust_engit_core_src_git_get_all_commits",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_all_commits"
     },
     {
       "label": "get_current_branch()",
@@ -1581,8 +1581,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_current_branch()",
-      "id": "rust_engit_core_src_git_get_current_branch",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_current_branch"
     },
     {
       "label": "get_branch_comparison()",
@@ -1592,8 +1592,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_branch_comparison()",
-      "id": "rust_engit_core_src_git_get_branch_comparison",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_branch_comparison"
     },
     {
       "label": "get_last_commit_summary()",
@@ -1603,8 +1603,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_last_commit_summary()",
-      "id": "rust_engit_core_src_git_get_last_commit_summary",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_last_commit_summary"
     },
     {
       "label": "tag_exists()",
@@ -1614,8 +1614,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "tag_exists()",
-      "id": "rust_engit_core_src_git_tag_exists",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_tag_exists"
     },
     {
       "label": "pull()",
@@ -1625,8 +1625,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "pull()",
-      "id": "rust_engit_core_src_git_pull",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_pull"
     },
     {
       "label": "get_merged_branches()",
@@ -1636,8 +1636,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_merged_branches()",
-      "id": "rust_engit_core_src_git_get_merged_branches",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_merged_branches"
     },
     {
       "label": "delete_local_branch()",
@@ -1647,8 +1647,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "delete_local_branch()",
-      "id": "rust_engit_core_src_git_delete_local_branch",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_delete_local_branch"
     },
     {
       "label": "prune_remote()",
@@ -1658,8 +1658,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "prune_remote()",
-      "id": "rust_engit_core_src_git_prune_remote",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_prune_remote"
     },
     {
       "label": "get_remote_tracking_branch()",
@@ -1669,8 +1669,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "get_remote_tracking_branch()",
-      "id": "rust_engit_core_src_git_get_remote_tracking_branch",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_get_remote_tracking_branch"
     },
     {
       "label": "run_git_raw()",
@@ -1680,8 +1680,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "run_git_raw()",
-      "id": "rust_engit_core_src_git_run_git_raw",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_run_git_raw"
     },
     {
       "label": "write_file()",
@@ -1691,8 +1691,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "write_file()",
-      "id": "rust_engit_core_src_git_write_file",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_write_file"
     },
     {
       "label": "init_repo()",
@@ -1702,8 +1702,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "init_repo()",
-      "id": "rust_engit_core_src_git_init_repo",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_init_repo"
     },
     {
       "label": "TempDir",
@@ -1713,8 +1713,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "tempdir",
-      "id": "rust_engit_core_src_git_rs_tempdir",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_rs_tempdir"
     },
     {
       "label": "detects_git_repositories_and_root()",
@@ -1724,8 +1724,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "detects_git_repositories_and_root()",
-      "id": "rust_engit_core_src_git_detects_git_repositories_and_root",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_detects_git_repositories_and_root"
     },
     {
       "label": "finds_semver_tags_and_annotations()",
@@ -1735,8 +1735,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "finds_semver_tags_and_annotations()",
-      "id": "rust_engit_core_src_git_finds_semver_tags_and_annotations",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_finds_semver_tags_and_annotations"
     },
     {
       "label": "returns_commit_subjects_since_ref()",
@@ -1746,8 +1746,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "returns_commit_subjects_since_ref()",
-      "id": "rust_engit_core_src_git_returns_commit_subjects_since_ref",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_git_returns_commit_subjects_since_ref"
     },
     {
       "label": "github.rs",
@@ -1757,8 +1757,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "github.rs",
-      "id": "rust_engit_core_src_github",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github"
     },
     {
       "label": "RepoSearchResult",
@@ -1768,8 +1768,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "reposearchresult",
-      "id": "rust_engit_core_src_github_reposearchresult",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_reposearchresult"
     },
     {
       "label": "String",
@@ -1779,8 +1779,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "string",
-      "id": "rust_engit_core_src_github_rs_string",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_rs_string"
     },
     {
       "label": "ReleaseSummary",
@@ -1790,8 +1790,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "releasesummary",
-      "id": "rust_engit_core_src_github_releasesummary",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_releasesummary"
     },
     {
       "label": "RawSearchResult",
@@ -1801,8 +1801,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "rawsearchresult",
-      "id": "rust_engit_core_src_github_rawsearchresult",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_rawsearchresult"
     },
     {
       "label": "Option",
@@ -1812,8 +1812,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "option",
-      "id": "rust_engit_core_src_github_rs_option",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_rs_option"
     },
     {
       "label": "run_gh()",
@@ -1823,8 +1823,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "run_gh()",
-      "id": "rust_engit_core_src_github_run_gh",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_run_gh"
     },
     {
       "label": "Path",
@@ -1834,8 +1834,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "path",
-      "id": "rust_engit_core_src_github_rs_path",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_rs_path"
     },
     {
       "label": "Result",
@@ -1845,8 +1845,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "result",
-      "id": "rust_engit_core_src_github_rs_result",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_rs_result"
     },
     {
       "label": "create_release()",
@@ -1856,8 +1856,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "create_release()",
-      "id": "rust_engit_core_src_github_create_release",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_create_release"
     },
     {
       "label": "release_exists()",
@@ -1867,8 +1867,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "release_exists()",
-      "id": "rust_engit_core_src_github_release_exists",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_release_exists"
     },
     {
       "label": "get_release_url()",
@@ -1878,8 +1878,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "get_release_url()",
-      "id": "rust_engit_core_src_github_get_release_url",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_get_release_url"
     },
     {
       "label": "get_current_org()",
@@ -1889,8 +1889,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "get_current_org()",
-      "id": "rust_engit_core_src_github_get_current_org",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_get_current_org"
     },
     {
       "label": "search_repos()",
@@ -1900,8 +1900,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "search_repos()",
-      "id": "rust_engit_core_src_github_search_repos",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_search_repos"
     },
     {
       "label": "Vec",
@@ -1911,8 +1911,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "vec",
-      "id": "rust_engit_core_src_github_rs_vec",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_rs_vec"
     },
     {
       "label": "parse_search_results()",
@@ -1922,8 +1922,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "parse_search_results()",
-      "id": "rust_engit_core_src_github_parse_search_results",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_parse_search_results"
     },
     {
       "label": "parse_release_summary()",
@@ -1933,8 +1933,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "parse_release_summary()",
-      "id": "rust_engit_core_src_github_parse_release_summary",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_parse_release_summary"
     },
     {
       "label": "parses_repo_search_results()",
@@ -1944,8 +1944,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "parses_repo_search_results()",
-      "id": "rust_engit_core_src_github_parses_repo_search_results",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_parses_repo_search_results"
     },
     {
       "label": "invalid_search_json_returns_github_error()",
@@ -1955,8 +1955,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "invalid_search_json_returns_github_error()",
-      "id": "rust_engit_core_src_github_invalid_search_json_returns_github_error",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_invalid_search_json_returns_github_error"
     },
     {
       "label": "create_release_reports_missing_gh_when_unavailable()",
@@ -1966,8 +1966,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "create_release_reports_missing_gh_when_unavailable()",
-      "id": "rust_engit_core_src_github_create_release_reports_missing_gh_when_unavailable",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_github_create_release_reports_missing_gh_when_unavailable"
     },
     {
       "label": "lib.rs",
@@ -1977,8 +1977,8 @@
       "_origin": "ast",
       "community": 7,
       "norm_label": "lib.rs",
-      "id": "rust_engit_core_src_lib",
-      "community_name": "error.rs"
+      "community_name": "error.rs",
+      "id": "rust_engit_core_src_lib"
     },
     {
       "label": "publish.rs",
@@ -1988,8 +1988,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "publish.rs",
-      "id": "rust_engit_core_src_publish",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish"
     },
     {
       "label": "BundleArtifact",
@@ -1999,8 +1999,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bundleartifact",
-      "id": "rust_engit_core_src_publish_bundleartifact",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bundleartifact"
     },
     {
       "label": "PathBuf",
@@ -2010,8 +2010,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "pathbuf",
-      "id": "rust_engit_core_src_publish_rs_pathbuf",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rs_pathbuf"
     },
     {
       "label": "Vec",
@@ -2021,8 +2021,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "vec",
-      "id": "rust_engit_core_src_publish_rs_vec",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rs_vec"
     },
     {
       "label": "String",
@@ -2032,8 +2032,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "string",
-      "id": "rust_engit_core_src_publish_rs_string",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rs_string"
     },
     {
       "label": "PublishManifest",
@@ -2043,8 +2043,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "publishmanifest",
-      "id": "rust_engit_core_src_publish_publishmanifest",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_publishmanifest"
     },
     {
       "label": "ArtifactManifest",
@@ -2054,8 +2054,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "artifactmanifest",
-      "id": "rust_engit_core_src_publish_artifactmanifest",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_artifactmanifest"
     },
     {
       "label": "BundleMarkerData",
@@ -2065,8 +2065,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bundlemarkerdata",
-      "id": "rust_engit_core_src_publish_bundlemarkerdata",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bundlemarkerdata"
     },
     {
       "label": "BundlePublishResult",
@@ -2076,8 +2076,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bundlepublishresult",
-      "id": "rust_engit_core_src_publish_bundlepublishresult",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bundlepublishresult"
     },
     {
       "label": "Option",
@@ -2087,8 +2087,8 @@
       "_origin": "ast",
       "community": 14,
       "norm_label": "option",
-      "id": "rust_engit_core_src_publish_rs_option",
-      "community_name": "EnvVarGuard"
+      "community_name": "EnvVarGuard",
+      "id": "rust_engit_core_src_publish_rs_option"
     },
     {
       "label": "BundlePublishOptions",
@@ -2098,8 +2098,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bundlepublishoptions",
-      "id": "rust_engit_core_src_publish_bundlepublishoptions",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bundlepublishoptions"
     },
     {
       "label": "Path",
@@ -2109,8 +2109,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "path",
-      "id": "rust_engit_core_src_publish_rs_path",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rs_path"
     },
     {
       "label": "SourceSelection",
@@ -2120,8 +2120,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "sourceselection",
-      "id": "rust_engit_core_src_publish_sourceselection",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_sourceselection"
     },
     {
       "label": "PublishFiles",
@@ -2131,8 +2131,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "publishfiles",
-      "id": "publishfiles",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "publishfiles"
     },
     {
       "label": "HashSet",
@@ -2142,8 +2142,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "hashset",
-      "id": "hashset",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "hashset"
     },
     {
       "label": "default_destination()",
@@ -2153,8 +2153,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "default_destination()",
-      "id": "rust_engit_core_src_publish_default_destination",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_default_destination"
     },
     {
       "label": "detect_version()",
@@ -2164,8 +2164,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "detect_version()",
-      "id": "rust_engit_core_src_publish_detect_version",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_detect_version"
     },
     {
       "label": "Result",
@@ -2175,8 +2175,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "result",
-      "id": "rust_engit_core_src_publish_rs_result",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rs_result"
     },
     {
       "label": "bndlid_from_name()",
@@ -2186,8 +2186,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bndlid_from_name()",
-      "id": "rust_engit_core_src_publish_bndlid_from_name",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bndlid_from_name"
     },
     {
       "label": "publish_path()",
@@ -2197,8 +2197,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "publish_path()",
-      "id": "rust_engit_core_src_publish_publish_path",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_publish_path"
     },
     {
       "label": "is_bndlid()",
@@ -2208,8 +2208,8 @@
       "_origin": "ast",
       "community": 6,
       "norm_label": "is_bndlid()",
-      "id": "rust_engit_core_src_publish_is_bndlid",
-      "community_name": "main.rs"
+      "community_name": "main.rs",
+      "id": "rust_engit_core_src_publish_is_bndlid"
     },
     {
       "label": "resolve_bndlid_to_path()",
@@ -2219,8 +2219,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "resolve_bndlid_to_path()",
-      "id": "rust_engit_core_src_publish_resolve_bndlid_to_path",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_resolve_bndlid_to_path"
     },
     {
       "label": "repo_name_from()",
@@ -2230,8 +2230,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "repo_name_from()",
-      "id": "rust_engit_core_src_publish_repo_name_from",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_repo_name_from"
     },
     {
       "label": "bundle_marker_data()",
@@ -2241,8 +2241,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bundle_marker_data()",
-      "id": "rust_engit_core_src_publish_bundle_marker_data",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bundle_marker_data"
     },
     {
       "label": "base_version()",
@@ -2252,8 +2252,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "base_version()",
-      "id": "rust_engit_core_src_publish_base_version",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_base_version"
     },
     {
       "label": "resolve_asset_tokens()",
@@ -2263,8 +2263,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "resolve_asset_tokens()",
-      "id": "rust_engit_core_src_publish_resolve_asset_tokens",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_resolve_asset_tokens"
     },
     {
       "label": "load_publish_manifest()",
@@ -2274,8 +2274,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "load_publish_manifest()",
-      "id": "rust_engit_core_src_publish_load_publish_manifest",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_load_publish_manifest"
     },
     {
       "label": "default_bundle_publish_root()",
@@ -2285,8 +2285,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "default_bundle_publish_root()",
-      "id": "rust_engit_core_src_publish_default_bundle_publish_root",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_default_bundle_publish_root"
     },
     {
       "label": "resolve_asset_tokens_strict()",
@@ -2296,8 +2296,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "resolve_asset_tokens_strict()",
-      "id": "rust_engit_core_src_publish_resolve_asset_tokens_strict",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_resolve_asset_tokens_strict"
     },
     {
       "label": "validate_destination()",
@@ -2307,8 +2307,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "validate_destination()",
-      "id": "rust_engit_core_src_publish_validate_destination",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_validate_destination"
     },
     {
       "label": "validate_patterns()",
@@ -2318,8 +2318,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "validate_patterns()",
-      "id": "rust_engit_core_src_publish_validate_patterns",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_validate_patterns"
     },
     {
       "label": "compile_glob()",
@@ -2329,8 +2329,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "compile_glob()",
-      "id": "rust_engit_core_src_publish_compile_glob",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_compile_glob"
     },
     {
       "label": "Glob",
@@ -2340,8 +2340,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "glob",
-      "id": "glob",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "glob"
     },
     {
       "label": "Error",
@@ -2351,8 +2351,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "error",
-      "id": "rust_engit_core_src_publish_rs_error",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rs_error"
     },
     {
       "label": "build_glob_set()",
@@ -2362,8 +2362,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "build_glob_set()",
-      "id": "rust_engit_core_src_publish_build_glob_set",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_build_glob_set"
     },
     {
       "label": "GlobSet",
@@ -2373,8 +2373,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "globset",
-      "id": "globset",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "globset"
     },
     {
       "label": "normalize_relative()",
@@ -2384,8 +2384,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "normalize_relative()",
-      "id": "rust_engit_core_src_publish_normalize_relative",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_normalize_relative"
     },
     {
       "label": "walk_source()",
@@ -2395,8 +2395,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "walk_source()",
-      "id": "rust_engit_core_src_publish_walk_source",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_walk_source"
     },
     {
       "label": "expanded_include_pattern()",
@@ -2406,8 +2406,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "expanded_include_pattern()",
-      "id": "rust_engit_core_src_publish_expanded_include_pattern",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_expanded_include_pattern"
     },
     {
       "label": "collect_source_files()",
@@ -2417,8 +2417,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "collect_source_files()",
-      "id": "rust_engit_core_src_publish_collect_source_files",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_collect_source_files"
     },
     {
       "label": "list_publish_files()",
@@ -2428,8 +2428,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "list_publish_files()",
-      "id": "rust_engit_core_src_publish_list_publish_files",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_list_publish_files"
     },
     {
       "label": "bundle_publish()",
@@ -2439,8 +2439,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bundle_publish()",
-      "id": "rust_engit_core_src_publish_bundle_publish",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bundle_publish"
     },
     {
       "label": "validate_version()",
@@ -2450,8 +2450,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "validate_version()",
-      "id": "rust_engit_core_src_publish_validate_version",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_validate_version"
     },
     {
       "label": "ensure_destination_available()",
@@ -2461,8 +2461,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "ensure_destination_available()",
-      "id": "rust_engit_core_src_publish_ensure_destination_available",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_ensure_destination_available"
     },
     {
       "label": "remove_existing()",
@@ -2472,8 +2472,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "remove_existing()",
-      "id": "rust_engit_core_src_publish_remove_existing",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_remove_existing"
     },
     {
       "label": "build_publish_dir()",
@@ -2483,8 +2483,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "build_publish_dir()",
-      "id": "rust_engit_core_src_publish_build_publish_dir",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_build_publish_dir"
     },
     {
       "label": "build_publish_zip()",
@@ -2494,8 +2494,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "build_publish_zip()",
-      "id": "rust_engit_core_src_publish_build_publish_zip",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_build_publish_zip"
     },
     {
       "label": "EnvVarGuard",
@@ -2505,8 +2505,8 @@
       "_origin": "ast",
       "community": 14,
       "norm_label": "envvarguard",
-      "id": "rust_engit_core_src_publish_envvarguard",
-      "community_name": "EnvVarGuard"
+      "community_name": "EnvVarGuard",
+      "id": "rust_engit_core_src_publish_envvarguard"
     },
     {
       "label": "OsString",
@@ -2516,8 +2516,8 @@
       "_origin": "ast",
       "community": 14,
       "norm_label": "osstring",
-      "id": "rust_engit_core_src_publish_rs_osstring",
-      "community_name": "EnvVarGuard"
+      "community_name": "EnvVarGuard",
+      "id": "rust_engit_core_src_publish_rs_osstring"
     },
     {
       "label": ".set()",
@@ -2527,8 +2527,8 @@
       "_origin": "ast",
       "community": 14,
       "norm_label": ".set()",
-      "id": "rust_engit_core_src_publish_envvarguard_set",
-      "community_name": "EnvVarGuard"
+      "community_name": "EnvVarGuard",
+      "id": "rust_engit_core_src_publish_envvarguard_set"
     },
     {
       "label": "OsStr",
@@ -2538,8 +2538,8 @@
       "_origin": "ast",
       "community": 14,
       "norm_label": "osstr",
-      "id": "rust_engit_core_src_publish_rs_osstr",
-      "community_name": "EnvVarGuard"
+      "community_name": "EnvVarGuard",
+      "id": "rust_engit_core_src_publish_rs_osstr"
     },
     {
       "label": "Self",
@@ -2549,8 +2549,8 @@
       "_origin": "ast",
       "community": 14,
       "norm_label": "self",
-      "id": "rust_engit_core_src_publish_rs_self",
-      "community_name": "EnvVarGuard"
+      "community_name": "EnvVarGuard",
+      "id": "rust_engit_core_src_publish_rs_self"
     },
     {
       "label": "Drop",
@@ -2560,8 +2560,8 @@
       "_origin": "ast",
       "community": 14,
       "norm_label": "drop",
-      "id": "rust_engit_core_src_publish_rs_drop",
-      "community_name": "EnvVarGuard"
+      "community_name": "EnvVarGuard",
+      "id": "rust_engit_core_src_publish_rs_drop"
     },
     {
       "label": ".drop()",
@@ -2571,8 +2571,8 @@
       "_origin": "ast",
       "community": 14,
       "norm_label": ".drop()",
-      "id": "rust_engit_core_src_publish_envvarguard_drop",
-      "community_name": "EnvVarGuard"
+      "community_name": "EnvVarGuard",
+      "id": "rust_engit_core_src_publish_envvarguard_drop"
     },
     {
       "label": "write_file()",
@@ -2582,8 +2582,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "write_file()",
-      "id": "rust_engit_core_src_publish_write_file",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_write_file"
     },
     {
       "label": "create_bundle()",
@@ -2593,8 +2593,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "create_bundle()",
-      "id": "rust_engit_core_src_publish_create_bundle",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_create_bundle"
     },
     {
       "label": "TempDir",
@@ -2604,8 +2604,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "tempdir",
-      "id": "rust_engit_core_src_publish_rs_tempdir",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rs_tempdir"
     },
     {
       "label": "write_manifest()",
@@ -2615,8 +2615,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "write_manifest()",
-      "id": "rust_engit_core_src_publish_write_manifest",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_write_manifest"
     },
     {
       "label": "relative_files()",
@@ -2626,8 +2626,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "relative_files()",
-      "id": "rust_engit_core_src_publish_relative_files",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_relative_files"
     },
     {
       "label": "publish_bundle()",
@@ -2637,8 +2637,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "publish_bundle()",
-      "id": "rust_engit_core_src_publish_publish_bundle",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_publish_bundle"
     },
     {
       "label": "run_git()",
@@ -2648,8 +2648,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "run_git()",
-      "id": "rust_engit_core_src_publish_run_git",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_run_git"
     },
     {
       "label": "init_repo()",
@@ -2659,8 +2659,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "init_repo()",
-      "id": "rust_engit_core_src_publish_init_repo",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_init_repo"
     },
     {
       "label": "bundle_id_helpers_match_python_behavior()",
@@ -2670,8 +2670,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bundle_id_helpers_match_python_behavior()",
-      "id": "rust_engit_core_src_publish_bundle_id_helpers_match_python_behavior",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bundle_id_helpers_match_python_behavior"
     },
     {
       "label": "resolves_asset_tokens_and_base_version()",
@@ -2681,8 +2681,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "resolves_asset_tokens_and_base_version()",
-      "id": "rust_engit_core_src_publish_resolves_asset_tokens_and_base_version",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_resolves_asset_tokens_and_base_version"
     },
     {
       "label": "default_allowlist_selects_runtime_and_legal_files()",
@@ -2692,8 +2692,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "default_allowlist_selects_runtime_and_legal_files()",
-      "id": "rust_engit_core_src_publish_default_allowlist_selects_runtime_and_legal_files",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_default_allowlist_selects_runtime_and_legal_files"
     },
     {
       "label": "manifest_and_cli_rules_extend_defaults_with_excludes_winning()",
@@ -2703,8 +2703,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "manifest_and_cli_rules_extend_defaults_with_excludes_winning()",
-      "id": "rust_engit_core_src_publish_manifest_and_cli_rules_extend_defaults_with_excludes_winning",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_manifest_and_cli_rules_extend_defaults_with_excludes_winning"
     },
     {
       "label": "hard_exclusions_override_an_explicit_catch_all_include()",
@@ -2714,8 +2714,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "hard_exclusions_override_an_explicit_catch_all_include()",
-      "id": "rust_engit_core_src_publish_hard_exclusions_override_an_explicit_catch_all_include",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_hard_exclusions_override_an_explicit_catch_all_include"
     },
     {
       "label": "external_sources_use_defaults_and_source_specific_rules()",
@@ -2725,8 +2725,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "external_sources_use_defaults_and_source_specific_rules()",
-      "id": "rust_engit_core_src_publish_external_sources_use_defaults_and_source_specific_rules",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_external_sources_use_defaults_and_source_specific_rules"
     },
     {
       "label": "rejects_legacy_manifest_and_unknown_yaml_keys()",
@@ -2736,8 +2736,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "rejects_legacy_manifest_and_unknown_yaml_keys()",
-      "id": "rust_engit_core_src_publish_rejects_legacy_manifest_and_unknown_yaml_keys",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rejects_legacy_manifest_and_unknown_yaml_keys"
     },
     {
       "label": "rejects_unresolved_tokens_unsafe_destinations_and_unmatched_includes()",
@@ -2747,8 +2747,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "rejects_unresolved_tokens_unsafe_destinations_and_unmatched_includes()",
-      "id": "rust_engit_core_src_publish_rejects_unresolved_tokens_unsafe_destinations_and_unmatched_includes",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rejects_unresolved_tokens_unsafe_destinations_and_unmatched_includes"
     },
     {
       "label": "rejects_destination_collisions()",
@@ -2758,8 +2758,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "rejects_destination_collisions()",
-      "id": "rust_engit_core_src_publish_rejects_destination_collisions",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_rejects_destination_collisions"
     },
     {
       "label": "publishes_folder_and_optional_zip_from_the_same_dataset()",
@@ -2769,8 +2769,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "publishes_folder_and_optional_zip_from_the_same_dataset()",
-      "id": "rust_engit_core_src_publish_publishes_folder_and_optional_zip_from_the_same_dataset",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_publishes_folder_and_optional_zip_from_the_same_dataset"
     },
     {
       "label": "released_versions_are_immutable_and_dev_requires_force()",
@@ -2780,8 +2780,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "released_versions_are_immutable_and_dev_requires_force()",
-      "id": "rust_engit_core_src_publish_released_versions_are_immutable_and_dev_requires_force",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_released_versions_are_immutable_and_dev_requires_force"
     },
     {
       "label": "dry_run_validates_without_writing()",
@@ -2791,8 +2791,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "dry_run_validates_without_writing()",
-      "id": "rust_engit_core_src_publish_dry_run_validates_without_writing",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_dry_run_validates_without_writing"
     },
     {
       "label": "bundle_publish_root_prefers_new_environment_variable()",
@@ -2802,8 +2802,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "bundle_publish_root_prefers_new_environment_variable()",
-      "id": "rust_engit_core_src_publish_bundle_publish_root_prefers_new_environment_variable",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_bundle_publish_root_prefers_new_environment_variable"
     },
     {
       "label": "resolves_bundle_id_paths_from_env()",
@@ -2813,8 +2813,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "resolves_bundle_id_paths_from_env()",
-      "id": "rust_engit_core_src_publish_resolves_bundle_id_paths_from_env",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_resolves_bundle_id_paths_from_env"
     },
     {
       "label": "detect_version_returns_string_form_without_v_prefix()",
@@ -2824,8 +2824,8 @@
       "_origin": "ast",
       "community": 0,
       "norm_label": "detect_version_returns_string_form_without_v_prefix()",
-      "id": "rust_engit_core_src_publish_detect_version_returns_string_form_without_v_prefix",
-      "community_name": "publish.rs"
+      "community_name": "publish.rs",
+      "id": "rust_engit_core_src_publish_detect_version_returns_string_form_without_v_prefix"
     },
     {
       "label": "pull.rs",
@@ -2835,8 +2835,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "pull.rs",
-      "id": "rust_engit_core_src_pull",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull"
     },
     {
       "label": "resolve_specs()",
@@ -2846,8 +2846,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "resolve_specs()",
-      "id": "rust_engit_core_src_pull_resolve_specs",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_resolve_specs"
     },
     {
       "label": "String",
@@ -2857,8 +2857,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "string",
-      "id": "rust_engit_core_src_pull_rs_string",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_string"
     },
     {
       "label": "Result",
@@ -2868,8 +2868,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "result",
-      "id": "rust_engit_core_src_pull_rs_result",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_result"
     },
     {
       "label": "Vec",
@@ -2879,8 +2879,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "vec",
-      "id": "rust_engit_core_src_pull_rs_vec",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_vec"
     },
     {
       "label": "PathBuf",
@@ -2890,8 +2890,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "pathbuf",
-      "id": "rust_engit_core_src_pull_rs_pathbuf",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_pathbuf"
     },
     {
       "label": "run_pull()",
@@ -2901,8 +2901,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "run_pull()",
-      "id": "rust_engit_core_src_pull_run_pull",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_run_pull"
     },
     {
       "label": "EnvVarGuard",
@@ -2912,8 +2912,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "envvarguard",
-      "id": "rust_engit_core_src_pull_envvarguard",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_envvarguard"
     },
     {
       "label": "Option",
@@ -2923,8 +2923,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "option",
-      "id": "rust_engit_core_src_pull_rs_option",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_option"
     },
     {
       "label": "OsString",
@@ -2934,8 +2934,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "osstring",
-      "id": "rust_engit_core_src_pull_rs_osstring",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_osstring"
     },
     {
       "label": ".set()",
@@ -2945,8 +2945,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": ".set()",
-      "id": "rust_engit_core_src_pull_envvarguard_set",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_envvarguard_set"
     },
     {
       "label": "OsStr",
@@ -2956,8 +2956,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "osstr",
-      "id": "rust_engit_core_src_pull_rs_osstr",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_osstr"
     },
     {
       "label": "Self",
@@ -2967,8 +2967,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "self",
-      "id": "rust_engit_core_src_pull_rs_self",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_self"
     },
     {
       "label": "Drop",
@@ -2978,8 +2978,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "drop",
-      "id": "rust_engit_core_src_pull_rs_drop",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_rs_drop"
     },
     {
       "label": ".drop()",
@@ -2989,8 +2989,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": ".drop()",
-      "id": "rust_engit_core_src_pull_envvarguard_drop",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_envvarguard_drop"
     },
     {
       "label": "resolves_explicit_and_wildcard_bundle_specs()",
@@ -3000,8 +3000,8 @@
       "_origin": "ast",
       "community": 9,
       "norm_label": "resolves_explicit_and_wildcard_bundle_specs()",
-      "id": "rust_engit_core_src_pull_resolves_explicit_and_wildcard_bundle_specs",
-      "community_name": "resolve_specs"
+      "community_name": "resolve_specs",
+      "id": "rust_engit_core_src_pull_resolves_explicit_and_wildcard_bundle_specs"
     },
     {
       "label": "release.rs",
@@ -3011,8 +3011,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "release.rs",
-      "id": "rust_engit_core_src_release",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release"
     },
     {
       "label": "build_draft_notes()",
@@ -3022,8 +3022,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "build_draft_notes()",
-      "id": "rust_engit_core_src_release_build_draft_notes",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_build_draft_notes"
     },
     {
       "label": "String",
@@ -3033,8 +3033,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "string",
-      "id": "rust_engit_core_src_release_rs_string",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_rs_string"
     },
     {
       "label": "parse_annotation()",
@@ -3044,8 +3044,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "parse_annotation()",
-      "id": "rust_engit_core_src_release_parse_annotation",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_parse_annotation"
     },
     {
       "label": "run_release()",
@@ -3055,8 +3055,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "run_release()",
-      "id": "rust_engit_core_src_release_run_release",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_run_release"
     },
     {
       "label": "Option",
@@ -3066,8 +3066,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "option",
-      "id": "rust_engit_core_src_release_rs_option",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_rs_option"
     },
     {
       "label": "Path",
@@ -3077,8 +3077,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "path",
-      "id": "rust_engit_core_src_release_rs_path",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_rs_path"
     },
     {
       "label": "Result",
@@ -3088,8 +3088,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "result",
-      "id": "rust_engit_core_src_release_rs_result",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_rs_result"
     },
     {
       "label": "builds_initial_and_no_change_notes()",
@@ -3099,8 +3099,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "builds_initial_and_no_change_notes()",
-      "id": "rust_engit_core_src_release_builds_initial_and_no_change_notes",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_builds_initial_and_no_change_notes"
     },
     {
       "label": "parses_annotation_title_and_body()",
@@ -3110,8 +3110,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "parses_annotation_title_and_body()",
-      "id": "rust_engit_core_src_release_parses_annotation_title_and_body",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_release_parses_annotation_title_and_body"
     },
     {
       "label": "search.rs",
@@ -3121,8 +3121,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "search.rs",
-      "id": "rust_engit_core_src_search",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search"
     },
     {
       "label": "parse_orgs()",
@@ -3132,8 +3132,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "parse_orgs()",
-      "id": "rust_engit_core_src_search_parse_orgs",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search_parse_orgs"
     },
     {
       "label": "Vec",
@@ -3143,8 +3143,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "vec",
-      "id": "rust_engit_core_src_search_rs_vec",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search_rs_vec"
     },
     {
       "label": "String",
@@ -3154,8 +3154,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "string",
-      "id": "rust_engit_core_src_search_rs_string",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search_rs_string"
     },
     {
       "label": "print_results()",
@@ -3165,8 +3165,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "print_results()",
-      "id": "rust_engit_core_src_search_print_results",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search_print_results"
     },
     {
       "label": "Option",
@@ -3176,8 +3176,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "option",
-      "id": "rust_engit_core_src_search_rs_option",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search_rs_option"
     },
     {
       "label": "run_search()",
@@ -3187,8 +3187,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "run_search()",
-      "id": "rust_engit_core_src_search_run_search",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search_run_search"
     },
     {
       "label": "Result",
@@ -3198,8 +3198,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "result",
-      "id": "rust_engit_core_src_search_rs_result",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search_rs_result"
     },
     {
       "label": "parses_semicolon_and_comma_separated_orgs()",
@@ -3209,8 +3209,8 @@
       "_origin": "ast",
       "community": 3,
       "norm_label": "parses_semicolon_and_comma_separated_orgs()",
-      "id": "rust_engit_core_src_search_parses_semicolon_and_comma_separated_orgs",
-      "community_name": "github.rs"
+      "community_name": "github.rs",
+      "id": "rust_engit_core_src_search_parses_semicolon_and_comma_separated_orgs"
     },
     {
       "label": "semver.rs",
@@ -3220,8 +3220,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "semver.rs",
-      "id": "rust_engit_core_src_semver",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver"
     },
     {
       "label": "semver_regex()",
@@ -3231,8 +3231,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "semver_regex()",
-      "id": "rust_engit_core_src_semver_semver_regex",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_regex"
     },
     {
       "label": "Regex",
@@ -3242,8 +3242,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "regex",
-      "id": "regex",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "regex"
     },
     {
       "label": "SemVer",
@@ -3253,8 +3253,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "semver",
-      "id": "rust_engit_core_src_semver_semver",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver"
     },
     {
       "label": "Option",
@@ -3264,8 +3264,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "option",
-      "id": "rust_engit_core_src_semver_rs_option",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_rs_option"
     },
     {
       "label": "String",
@@ -3275,8 +3275,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "string",
-      "id": "rust_engit_core_src_semver_rs_string",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_rs_string"
     },
     {
       "label": ".parse()",
@@ -3286,8 +3286,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".parse()",
-      "id": "rust_engit_core_src_semver_semver_parse",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_parse"
     },
     {
       "label": "Result",
@@ -3297,8 +3297,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "result",
-      "id": "rust_engit_core_src_semver_rs_result",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_rs_result"
     },
     {
       "label": "Self",
@@ -3308,8 +3308,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "self",
-      "id": "rust_engit_core_src_semver_rs_self",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_rs_self"
     },
     {
       "label": ".prerelease_label()",
@@ -3319,8 +3319,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".prerelease_label()",
-      "id": "rust_engit_core_src_semver_semver_prerelease_label",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_prerelease_label"
     },
     {
       "label": ".prerelease_number()",
@@ -3330,8 +3330,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".prerelease_number()",
-      "id": "rust_engit_core_src_semver_semver_prerelease_number",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_prerelease_number"
     },
     {
       "label": ".bump_major()",
@@ -3341,8 +3341,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".bump_major()",
-      "id": "rust_engit_core_src_semver_semver_bump_major",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_bump_major"
     },
     {
       "label": ".bump_minor()",
@@ -3352,8 +3352,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".bump_minor()",
-      "id": "rust_engit_core_src_semver_semver_bump_minor",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_bump_minor"
     },
     {
       "label": ".bump_patch()",
@@ -3363,8 +3363,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".bump_patch()",
-      "id": "rust_engit_core_src_semver_semver_bump_patch",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_bump_patch"
     },
     {
       "label": ".to_tag()",
@@ -3374,8 +3374,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".to_tag()",
-      "id": "rust_engit_core_src_semver_semver_to_tag",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_to_tag"
     },
     {
       "label": "Display",
@@ -3385,8 +3385,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "display",
-      "id": "display",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "display"
     },
     {
       "label": ".fmt()",
@@ -3396,8 +3396,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".fmt()",
-      "id": "rust_engit_core_src_semver_semver_fmt",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_fmt"
     },
     {
       "label": "Formatter",
@@ -3407,8 +3407,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "formatter",
-      "id": "formatter",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "formatter"
     },
     {
       "label": "FromStr",
@@ -3418,8 +3418,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "fromstr",
-      "id": "fromstr",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "fromstr"
     },
     {
       "label": ".from_str()",
@@ -3429,8 +3429,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".from_str()",
-      "id": "rust_engit_core_src_semver_semver_from_str",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_from_str"
     },
     {
       "label": "PartialOrd",
@@ -3440,8 +3440,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "partialord",
-      "id": "partialord",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "partialord"
     },
     {
       "label": ".partial_cmp()",
@@ -3451,8 +3451,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".partial_cmp()",
-      "id": "rust_engit_core_src_semver_semver_partial_cmp",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_partial_cmp"
     },
     {
       "label": "Ordering",
@@ -3462,8 +3462,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "ordering",
-      "id": "ordering",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "ordering"
     },
     {
       "label": "Ord",
@@ -3473,8 +3473,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "ord",
-      "id": "ord",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "ord"
     },
     {
       "label": ".cmp()",
@@ -3484,8 +3484,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": ".cmp()",
-      "id": "rust_engit_core_src_semver_semver_cmp",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_semver_cmp"
     },
     {
       "label": "compare_prerelease()",
@@ -3495,8 +3495,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "compare_prerelease()",
-      "id": "rust_engit_core_src_semver_compare_prerelease",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_compare_prerelease"
     },
     {
       "label": "split_prerelease()",
@@ -3506,8 +3506,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "split_prerelease()",
-      "id": "rust_engit_core_src_semver_split_prerelease",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_split_prerelease"
     },
     {
       "label": "parse_accepts_stable_and_prerelease_tags()",
@@ -3517,8 +3517,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "parse_accepts_stable_and_prerelease_tags()",
-      "id": "rust_engit_core_src_semver_parse_accepts_stable_and_prerelease_tags",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_parse_accepts_stable_and_prerelease_tags"
     },
     {
       "label": "parse_rejects_invalid_versions()",
@@ -3528,8 +3528,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "parse_rejects_invalid_versions()",
-      "id": "rust_engit_core_src_semver_parse_rejects_invalid_versions",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_parse_rejects_invalid_versions"
     },
     {
       "label": "bump_helpers_reset_lower_parts()",
@@ -3539,8 +3539,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "bump_helpers_reset_lower_parts()",
-      "id": "rust_engit_core_src_semver_bump_helpers_reset_lower_parts",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_bump_helpers_reset_lower_parts"
     },
     {
       "label": "display_and_to_tag_match_python_behavior()",
@@ -3550,8 +3550,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "display_and_to_tag_match_python_behavior()",
-      "id": "rust_engit_core_src_semver_display_and_to_tag_match_python_behavior",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_display_and_to_tag_match_python_behavior"
     },
     {
       "label": "ordering_places_stable_after_matching_prerelease()",
@@ -3561,8 +3561,8 @@
       "_origin": "ast",
       "community": 5,
       "norm_label": "ordering_places_stable_after_matching_prerelease()",
-      "id": "rust_engit_core_src_semver_ordering_places_stable_after_matching_prerelease",
-      "community_name": "SemVer"
+      "community_name": "SemVer",
+      "id": "rust_engit_core_src_semver_ordering_places_stable_after_matching_prerelease"
     },
     {
       "label": "status.rs",
@@ -3572,8 +3572,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "status.rs",
-      "id": "rust_engit_core_src_status",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_status"
     },
     {
       "label": "format_status_lines()",
@@ -3583,8 +3583,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "format_status_lines()",
-      "id": "rust_engit_core_src_status_format_status_lines",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_status_format_status_lines"
     },
     {
       "label": "String",
@@ -3594,8 +3594,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "string",
-      "id": "rust_engit_core_src_status_rs_string",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_status_rs_string"
     },
     {
       "label": "run_status()",
@@ -3605,8 +3605,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "run_status()",
-      "id": "rust_engit_core_src_status_run_status",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_status_run_status"
     },
     {
       "label": "Option",
@@ -3616,8 +3616,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "option",
-      "id": "rust_engit_core_src_status_rs_option",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_status_rs_option"
     },
     {
       "label": "Path",
@@ -3627,8 +3627,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "path",
-      "id": "rust_engit_core_src_status_rs_path",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_status_rs_path"
     },
     {
       "label": "Result",
@@ -3638,8 +3638,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "result",
-      "id": "rust_engit_core_src_status_rs_result",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_status_rs_result"
     },
     {
       "label": "formats_status_summary_lines()",
@@ -3649,8 +3649,8 @@
       "_origin": "ast",
       "community": 1,
       "norm_label": "formats_status_summary_lines()",
-      "id": "rust_engit_core_src_status_formats_status_summary_lines",
-      "community_name": "git.rs"
+      "community_name": "git.rs",
+      "id": "rust_engit_core_src_status_formats_status_summary_lines"
     },
     {
       "label": "tag.rs",
@@ -3660,8 +3660,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "tag.rs",
-      "id": "rust_engit_core_src_tag",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag"
     },
     {
       "label": "next_prerelease_number()",
@@ -3671,8 +3671,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "next_prerelease_number()",
-      "id": "rust_engit_core_src_tag_next_prerelease_number",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_next_prerelease_number"
     },
     {
       "label": "Option",
@@ -3682,8 +3682,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "option",
-      "id": "rust_engit_core_src_tag_rs_option",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_rs_option"
     },
     {
       "label": "Path",
@@ -3693,8 +3693,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "path",
-      "id": "rust_engit_core_src_tag_rs_path",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_rs_path"
     },
     {
       "label": "resolve_next_version()",
@@ -3704,8 +3704,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "resolve_next_version()",
-      "id": "rust_engit_core_src_tag_resolve_next_version",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_resolve_next_version"
     },
     {
       "label": "Result",
@@ -3715,8 +3715,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "result",
-      "id": "rust_engit_core_src_tag_rs_result",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_rs_result"
     },
     {
       "label": "strip_comments()",
@@ -3726,8 +3726,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "strip_comments()",
-      "id": "rust_engit_core_src_tag_strip_comments",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_strip_comments"
     },
     {
       "label": "String",
@@ -3737,8 +3737,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "string",
-      "id": "rust_engit_core_src_tag_rs_string",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_rs_string"
     },
     {
       "label": "build_tag_draft()",
@@ -3748,8 +3748,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "build_tag_draft()",
-      "id": "rust_engit_core_src_tag_build_tag_draft",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_build_tag_draft"
     },
     {
       "label": "run_tag()",
@@ -3759,8 +3759,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "run_tag()",
-      "id": "rust_engit_core_src_tag_run_tag",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_run_tag"
     },
     {
       "label": "run_git()",
@@ -3770,8 +3770,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "run_git()",
-      "id": "rust_engit_core_src_tag_run_git",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_run_git"
     },
     {
       "label": "init_repo()",
@@ -3781,8 +3781,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "init_repo()",
-      "id": "rust_engit_core_src_tag_init_repo",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_init_repo"
     },
     {
       "label": "TempDir",
@@ -3792,8 +3792,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "tempdir",
-      "id": "rust_engit_core_src_tag_rs_tempdir",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_rs_tempdir"
     },
     {
       "label": "resolves_explicit_prerelease_with_auto_number()",
@@ -3803,8 +3803,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "resolves_explicit_prerelease_with_auto_number()",
-      "id": "rust_engit_core_src_tag_resolves_explicit_prerelease_with_auto_number",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_resolves_explicit_prerelease_with_auto_number"
     },
     {
       "label": "bump_requires_existing_tags()",
@@ -3814,8 +3814,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "bump_requires_existing_tags()",
-      "id": "rust_engit_core_src_tag_bump_requires_existing_tags",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_bump_requires_existing_tags"
     },
     {
       "label": "strips_comment_lines_and_blank_edges()",
@@ -3825,8 +3825,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "strips_comment_lines_and_blank_edges()",
-      "id": "rust_engit_core_src_tag_strips_comment_lines_and_blank_edges",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_strips_comment_lines_and_blank_edges"
     },
     {
       "label": "build_tag_draft_includes_initial_release_message()",
@@ -3836,8 +3836,8 @@
       "_origin": "ast",
       "community": 4,
       "norm_label": "build_tag_draft_includes_initial_release_message()",
-      "id": "rust_engit_core_src_tag_build_tag_draft_includes_initial_release_message",
-      "community_name": "tag.rs"
+      "community_name": "tag.rs",
+      "id": "rust_engit_core_src_tag_build_tag_draft_includes_initial_release_message"
     },
     {
       "label": "web.rs",
@@ -3847,8 +3847,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "web.rs",
-      "id": "rust_engit_core_src_web",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web"
     },
     {
       "label": "to_https_url()",
@@ -3858,8 +3858,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "to_https_url()",
-      "id": "rust_engit_core_src_web_to_https_url",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web_to_https_url"
     },
     {
       "label": "String",
@@ -3869,8 +3869,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "string",
-      "id": "rust_engit_core_src_web_rs_string",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web_rs_string"
     },
     {
       "label": "open_url()",
@@ -3880,8 +3880,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "open_url()",
-      "id": "rust_engit_core_src_web_open_url",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web_open_url"
     },
     {
       "label": "Result",
@@ -3891,8 +3891,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "result",
-      "id": "rust_engit_core_src_web_rs_result",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web_rs_result"
     },
     {
       "label": "run_web()",
@@ -3902,8 +3902,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "run_web()",
-      "id": "rust_engit_core_src_web_run_web",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web_run_web"
     },
     {
       "label": "Option",
@@ -3913,8 +3913,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "option",
-      "id": "rust_engit_core_src_web_rs_option",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web_rs_option"
     },
     {
       "label": "Path",
@@ -3924,8 +3924,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "path",
-      "id": "rust_engit_core_src_web_rs_path",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web_rs_path"
     },
     {
       "label": "normalizes_ssh_and_https_urls()",
@@ -3935,8 +3935,8 @@
       "_origin": "ast",
       "community": 13,
       "norm_label": "normalizes_ssh_and_https_urls()",
-      "id": "rust_engit_core_src_web_normalizes_ssh_and_https_urls",
-      "community_name": "run_web"
+      "community_name": "run_web",
+      "id": "rust_engit_core_src_web_normalizes_ssh_and_https_urls"
     },
     {
       "label": "build_native.py",
@@ -3946,8 +3946,8 @@
       "_origin": "ast",
       "community": 16,
       "norm_label": "build_native.py",
-      "id": "scripts_build_native",
-      "community_name": "parseArguments"
+      "community_name": "parseArguments",
+      "id": "scripts_build_native"
     },
     {
       "label": "parseArguments()",
@@ -3957,8 +3957,8 @@
       "_origin": "ast",
       "community": 16,
       "norm_label": "parsearguments()",
-      "id": "scripts_build_native_parsearguments",
-      "community_name": "parseArguments"
+      "community_name": "parseArguments",
+      "id": "scripts_build_native_parsearguments"
     },
     {
       "label": "Namespace",
@@ -3968,8 +3968,8 @@
       "_origin": "ast",
       "community": 16,
       "norm_label": "namespace",
-      "id": "scripts_build_native_py_namespace",
-      "community_name": "parseArguments"
+      "community_name": "parseArguments",
+      "id": "scripts_build_native_py_namespace"
     },
     {
       "label": "main()",
@@ -3979,8 +3979,8 @@
       "_origin": "ast",
       "community": 16,
       "norm_label": "main()",
-      "id": "scripts_build_native_main",
-      "community_name": "parseArguments"
+      "community_name": "parseArguments",
+      "id": "scripts_build_native_main"
     },
     {
       "label": "Build the native Envoy Utils command-line tools.",
@@ -3990,8 +3990,8 @@
       "_origin": "ast",
       "community": 16,
       "norm_label": "build the native envoy utils command-line tools.",
-      "id": "scripts_build_native_rationale_1",
-      "community_name": "parseArguments"
+      "community_name": "parseArguments",
+      "id": "scripts_build_native_rationale_1"
     },
     {
       "label": "Parse build arguments. Returns: Parsed command-line options.",
@@ -4001,8 +4001,8 @@
       "_origin": "ast",
       "community": 16,
       "norm_label": "parse build arguments. returns: parsed command-line options.",
-      "id": "scripts_build_native_rationale_15",
-      "community_name": "parseArguments"
+      "community_name": "parseArguments",
+      "id": "scripts_build_native_rationale_15"
     },
     {
       "label": "Build the Rust workspace. Returns: Process exit status.",
@@ -4012,8 +4012,8 @@
       "_origin": "ast",
       "community": 16,
       "norm_label": "build the rust workspace. returns: process exit status.",
-      "id": "scripts_build_native_rationale_35",
-      "community_name": "parseArguments"
+      "community_name": "parseArguments",
+      "id": "scripts_build_native_rationale_35"
     },
     {
       "label": "package_release.py",
@@ -4023,8 +4023,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "package_release.py",
-      "id": "scripts_package_release",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release"
     },
     {
       "label": "parseArguments()",
@@ -4034,8 +4034,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "parsearguments()",
-      "id": "scripts_package_release_parsearguments",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_parsearguments"
     },
     {
       "label": "Namespace",
@@ -4045,8 +4045,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "namespace",
-      "id": "scripts_package_release_py_namespace",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_py_namespace"
     },
     {
       "label": "copyReleaseFiles()",
@@ -4056,8 +4056,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "copyreleasefiles()",
-      "id": "scripts_package_release_copyreleasefiles",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_copyreleasefiles"
     },
     {
       "label": "Path",
@@ -4067,8 +4067,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "path",
-      "id": "scripts_package_release_py_path",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_py_path"
     },
     {
       "label": "normalizeTarMetadata()",
@@ -4078,8 +4078,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "normalizetarmetadata()",
-      "id": "scripts_package_release_normalizetarmetadata",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_normalizetarmetadata"
     },
     {
       "label": "TarInfo",
@@ -4089,8 +4089,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "tarinfo",
-      "id": "tarinfo",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "tarinfo"
     },
     {
       "label": "writeArchive()",
@@ -4100,8 +4100,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "writearchive()",
-      "id": "scripts_package_release_writearchive",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_writearchive"
     },
     {
       "label": "main()",
@@ -4111,8 +4111,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "main()",
-      "id": "scripts_package_release_main",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_main"
     },
     {
       "label": "Create one platform-specific Envoy Utils release archive. This is a release-\u2026",
@@ -4122,8 +4122,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "create one platform-specific envoy utils release archive. this is a release-...",
-      "id": "scripts_package_release_rationale_1",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_rationale_1"
     },
     {
       "label": "Parse release-packaging arguments. Returns: Parsed command-line options.",
@@ -4133,8 +4133,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "parse release-packaging arguments. returns: parsed command-line options.",
-      "id": "scripts_package_release_rationale_55",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_rationale_55"
     },
     {
       "label": "Populate a staged Envoy Utils bundle. Args: bundle_root: Destination\u2026",
@@ -4144,8 +4144,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "populate a staged envoy utils bundle. args: bundle_root: destination...",
-      "id": "scripts_package_release_rationale_78",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_rationale_78"
     },
     {
       "label": "Make archive ownership and permissions host-independent. Args: member: Archive\u2026",
@@ -4155,8 +4155,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "make archive ownership and permissions host-independent. args: member: archive...",
-      "id": "scripts_package_release_rationale_114",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_rationale_114"
     },
     {
       "label": "Write the staged tree as ZIP or compressed tar. Args: staging_directory:\u2026",
@@ -4166,8 +4166,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "write the staged tree as zip or compressed tar. args: staging_directory:...",
-      "id": "scripts_package_release_rationale_144",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_rationale_144"
     },
     {
       "label": "Create one release archive. Returns: Process exit status.",
@@ -4177,8 +4177,8 @@
       "_origin": "ast",
       "community": 10,
       "norm_label": "create one release archive. returns: process exit status.",
-      "id": "scripts_package_release_rationale_180",
-      "community_name": "package_release.py"
+      "community_name": "package_release.py",
+      "id": "scripts_package_release_rationale_180"
     },
     {
       "label": "release_automation.py",
@@ -4188,8 +4188,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "release_automation.py",
-      "id": "scripts_release_automation",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation"
     },
     {
       "label": "validateVersion()",
@@ -4199,8 +4199,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "validateversion()",
-      "id": "scripts_release_automation_validateversion",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_validateversion"
     },
     {
       "label": "validateTag()",
@@ -4210,8 +4210,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "validatetag()",
-      "id": "scripts_release_automation_validatetag",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_validatetag"
     },
     {
       "label": "replaceOne()",
@@ -4221,8 +4221,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "replaceone()",
-      "id": "scripts_release_automation_replaceone",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_replaceone"
     },
     {
       "label": "Path",
@@ -4232,8 +4232,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "path",
-      "id": "scripts_release_automation_py_path",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_py_path"
     },
     {
       "label": "Pattern",
@@ -4243,8 +4243,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "pattern",
-      "id": "pattern",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "pattern"
     },
     {
       "label": "replaceWorkspaceVersion()",
@@ -4254,8 +4254,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "replaceworkspaceversion()",
-      "id": "scripts_release_automation_replaceworkspaceversion",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_replaceworkspaceversion"
     },
     {
       "label": "replaceEnvoyDependency()",
@@ -4265,8 +4265,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "replaceenvoydependency()",
-      "id": "scripts_release_automation_replaceenvoydependency",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_replaceenvoydependency"
     },
     {
       "label": "parseManifest()",
@@ -4276,8 +4276,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "parsemanifest()",
-      "id": "scripts_release_automation_parsemanifest",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_parsemanifest"
     },
     {
       "label": "parseLockfile()",
@@ -4287,8 +4287,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "parselockfile()",
-      "id": "scripts_release_automation_parselockfile",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_parselockfile"
     },
     {
       "label": "checkRelease()",
@@ -4298,8 +4298,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "checkrelease()",
-      "id": "scripts_release_automation_checkrelease",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_checkrelease"
     },
     {
       "label": "prepareRelease()",
@@ -4309,8 +4309,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "preparerelease()",
-      "id": "scripts_release_automation_preparerelease",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_preparerelease"
     },
     {
       "label": "replaceWithLocalEnvoy()",
@@ -4320,8 +4320,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "replacewithlocalenvoy()",
-      "id": "scripts_release_automation_replacewithlocalenvoy",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_replacewithlocalenvoy"
     },
     {
       "label": "testCompatibility()",
@@ -4331,8 +4331,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "testcompatibility()",
-      "id": "scripts_release_automation_testcompatibility",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_testcompatibility"
     },
     {
       "label": "gitOutput()",
@@ -4342,8 +4342,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "gitoutput()",
-      "id": "scripts_release_automation_gitoutput",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_gitoutput"
     },
     {
       "label": "lockfileHasDependencyChanges()",
@@ -4353,8 +4353,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "lockfilehasdependencychanges()",
-      "id": "scripts_release_automation_lockfilehasdependencychanges",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_lockfilehasdependencychanges"
     },
     {
       "label": "workspaceManifestHasDependencyChanges()",
@@ -4364,8 +4364,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "workspacemanifesthasdependencychanges()",
-      "id": "scripts_release_automation_workspacemanifesthasdependencychanges",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_workspacemanifesthasdependencychanges"
     },
     {
       "label": "classifyImpact()",
@@ -4375,8 +4375,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "classifyimpact()",
-      "id": "scripts_release_automation_classifyimpact",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_classifyimpact"
     },
     {
       "label": "writeCompatibilityMetadata()",
@@ -4386,8 +4386,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "writecompatibilitymetadata()",
-      "id": "scripts_release_automation_writecompatibilitymetadata",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_writecompatibilitymetadata"
     },
     {
       "label": "writeGitHubOutput()",
@@ -4397,8 +4397,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "writegithuboutput()",
-      "id": "scripts_release_automation_writegithuboutput",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_writegithuboutput"
     },
     {
       "label": "buildIssueReport()",
@@ -4408,8 +4408,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "buildissuereport()",
-      "id": "scripts_release_automation_buildissuereport",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_buildissuereport"
     },
     {
       "label": "buildParser()",
@@ -4419,8 +4419,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "buildparser()",
-      "id": "scripts_release_automation_buildparser",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_buildparser"
     },
     {
       "label": "ArgumentParser",
@@ -4430,8 +4430,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "argumentparser",
-      "id": "argumentparser",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "argumentparser"
     },
     {
       "label": "main()",
@@ -4441,8 +4441,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "main()",
-      "id": "scripts_release_automation_main",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_main"
     },
     {
       "label": "Release and Envoy Core compatibility automation for Envoy Utils.",
@@ -4452,8 +4452,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "release and envoy core compatibility automation for envoy utils.",
-      "id": "scripts_release_automation_rationale_1",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_1"
     },
     {
       "label": "Validate and return an unprefixed semantic version.",
@@ -4463,8 +4463,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "validate and return an unprefixed semantic version.",
-      "id": "scripts_release_automation_rationale_28",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_28"
     },
     {
       "label": "Apply one deterministic text replacement.",
@@ -4474,8 +4474,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "apply one deterministic text replacement.",
-      "id": "scripts_release_automation_rationale_45",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_45"
     },
     {
       "label": "Replace the workspace package version.",
@@ -4485,8 +4485,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "replace the workspace package version.",
-      "id": "scripts_release_automation_rationale_56",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_56"
     },
     {
       "label": "Replace the Envoy Core Git tag and exact crate version together.",
@@ -4496,8 +4496,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "replace the envoy core git tag and exact crate version together.",
-      "id": "scripts_release_automation_rationale_66",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_66"
     },
     {
       "label": "Return the Utils version and Envoy tag/version from Cargo.toml.",
@@ -4507,8 +4507,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "return the utils version and envoy tag/version from cargo.toml.",
-      "id": "scripts_release_automation_rationale_81",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_81"
     },
     {
       "label": "Return local versions and the locked Envoy version/tag/commit.",
@@ -4518,8 +4518,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "return local versions and the locked envoy version/tag/commit.",
-      "id": "scripts_release_automation_rationale_99",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_99"
     },
     {
       "label": "Validate release versions, the Envoy pin, and the lockfile.",
@@ -4529,8 +4529,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "validate release versions, the envoy pin, and the lockfile.",
-      "id": "scripts_release_automation_rationale_132",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_132"
     },
     {
       "label": "Update release versions and resolve the new Envoy Core tag.",
@@ -4540,8 +4540,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "update release versions and resolve the new envoy core tag.",
-      "id": "scripts_release_automation_rationale_171",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_171"
     },
     {
       "label": "Replace the pinned Envoy dependency with a candidate local crate.",
@@ -4551,8 +4551,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "replace the pinned envoy dependency with a candidate local crate.",
-      "id": "scripts_release_automation_rationale_183",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_183"
     },
     {
       "label": "Test this source tree against a candidate Envoy Core in isolation.",
@@ -4562,8 +4562,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "test this source tree against a candidate envoy core in isolation.",
-      "id": "scripts_release_automation_rationale_198",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_198"
     },
     {
       "label": "Run Git and return stripped standard output.",
@@ -4573,8 +4573,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "run git and return stripped standard output.",
-      "id": "scripts_release_automation_rationale_225",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_225"
     },
     {
       "label": "Return whether Envoy's lockfile changed beyond workspace version lines.",
@@ -4584,8 +4584,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "return whether envoy's lockfile changed beyond workspace version lines.",
-      "id": "scripts_release_automation_rationale_239",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_239"
     },
     {
       "label": "Return whether Envoy's workspace manifest changed beyond its release version.",
@@ -4595,8 +4595,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "return whether envoy's workspace manifest changed beyond its release version.",
-      "id": "scripts_release_automation_rationale_255",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_255"
     },
     {
       "label": "Classify Envoy changes that can affect Envoy Utils.",
@@ -4606,8 +4606,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "classify envoy changes that can affect envoy utils.",
-      "id": "scripts_release_automation_rationale_269",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_269"
     },
     {
       "label": "Write machine- and human-readable compatibility release metadata.",
@@ -4617,8 +4617,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "write machine- and human-readable compatibility release metadata.",
-      "id": "scripts_release_automation_rationale_307",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_307"
     },
     {
       "label": "Append simple values to a GitHub Actions output file.",
@@ -4628,8 +4628,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "append simple values to a github actions output file.",
-      "id": "scripts_release_automation_rationale_346",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_346"
     },
     {
       "label": "Build the downstream compatibility issue body and classification.",
@@ -4639,8 +4639,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "build the downstream compatibility issue body and classification.",
-      "id": "scripts_release_automation_rationale_359",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_359"
     },
     {
       "label": "Build the command-line parser.",
@@ -4650,8 +4650,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "build the command-line parser.",
-      "id": "scripts_release_automation_rationale_413",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_413"
     },
     {
       "label": "Run Envoy Utils release automation.",
@@ -4661,8 +4661,8 @@
       "_origin": "ast",
       "community": 2,
       "norm_label": "run envoy utils release automation.",
-      "id": "scripts_release_automation_rationale_446",
-      "community_name": "release_automation.py"
+      "community_name": "release_automation.py",
+      "id": "scripts_release_automation_rationale_446"
     },
     {
       "label": "test_release_automation.py",
@@ -4672,8 +4672,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": "test_release_automation.py",
-      "id": "tests_test_release_automation",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation"
     },
     {
       "label": "ReleaseAutomationTests",
@@ -4683,8 +4683,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": "releaseautomationtests",
-      "id": "tests_test_release_automation_releaseautomationtests",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_releaseautomationtests"
     },
     {
       "label": ".testValidateVersion()",
@@ -4694,8 +4694,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": ".testvalidateversion()",
-      "id": "tests_test_release_automation_releaseautomationtests_testvalidateversion",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_releaseautomationtests_testvalidateversion"
     },
     {
       "label": ".testReplaceEnvoyDependency()",
@@ -4705,8 +4705,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": ".testreplaceenvoydependency()",
-      "id": "tests_test_release_automation_releaseautomationtests_testreplaceenvoydependency",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_releaseautomationtests_testreplaceenvoydependency"
     },
     {
       "label": ".testReplaceWithLocalEnvoy()",
@@ -4716,8 +4716,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": ".testreplacewithlocalenvoy()",
-      "id": "tests_test_release_automation_releaseautomationtests_testreplacewithlocalenvoy",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_releaseautomationtests_testreplacewithlocalenvoy"
     },
     {
       "label": "Tests for Envoy Utils release automation.",
@@ -4727,8 +4727,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": "tests for envoy utils release automation.",
-      "id": "tests_test_release_automation_rationale_1",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_rationale_1"
     },
     {
       "label": "Exercise deterministic release metadata rewrites.",
@@ -4738,8 +4738,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": "exercise deterministic release metadata rewrites.",
-      "id": "tests_test_release_automation_rationale_19",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_rationale_19"
     },
     {
       "label": "SemVer validation accepts stable and prerelease values.",
@@ -4749,8 +4749,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": "semver validation accepts stable and prerelease values.",
-      "id": "tests_test_release_automation_rationale_22",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_rationale_22"
     },
     {
       "label": "The Cargo tag and exact version move together.",
@@ -4760,8 +4760,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": "the cargo tag and exact version move together.",
-      "id": "tests_test_release_automation_rationale_29",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_rationale_29"
     },
     {
       "label": "Candidate testing removes the remote exact-version constraint.",
@@ -4771,8 +4771,8 @@
       "_origin": "ast",
       "community": 12,
       "norm_label": "candidate testing removes the remote exact-version constraint.",
-      "id": "tests_test_release_automation_rationale_44",
-      "community_name": "ReleaseAutomationTests"
+      "community_name": "ReleaseAutomationTests",
+      "id": "tests_test_release_automation_rationale_44"
     }
   ],
   "links": [
