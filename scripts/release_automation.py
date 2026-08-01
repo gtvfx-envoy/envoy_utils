@@ -8,6 +8,9 @@ import re
 import shutil
 import subprocess
 import tempfile
+import tomllib
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 SEMVER_PATTERN = re.compile(
@@ -21,6 +24,9 @@ DIRECT_ENVOY_APIS = (
     "envoy_core::discovery::{discover_bundles_auto, Bundle}",
     "envoy_core::stack::Stack",
     "envoy_core::stack_registry::STACK_ROOTS_VAR",
+)
+ENVOY_MANIFEST_URL = (
+    "https://raw.githubusercontent.com/gtvfx-envoy/envoy/{tag}/rust/Cargo.toml"
 )
 
 
@@ -42,6 +48,60 @@ def validateTag(tag: str) -> str:
         raise ValueError(f"Release tag must start with 'v': {tag!r}")
     validateVersion(tag[1:])
     return tag
+
+
+def readEnvoyReleaseVersion(envoy_tag: str) -> str:
+    """Read the workspace version declared by an Envoy release tag."""
+    validated_tag = validateTag(envoy_tag)
+    manifest_url = ENVOY_MANIFEST_URL.format(tag=validated_tag)
+    request = urllib.request.Request(
+        manifest_url,
+        headers={"User-Agent": "envoy-utils-release-automation"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            manifest = tomllib.loads(response.read().decode("utf-8"))
+    except (
+        TimeoutError,
+        UnicodeDecodeError,
+        urllib.error.URLError,
+        tomllib.TOMLDecodeError,
+    ) as error:
+        raise RuntimeError(
+            f"Unable to read the Envoy manifest for {validated_tag}: {error}"
+        ) from error
+
+    try:
+        workspace_version = manifest["workspace"]["package"]["version"]
+    except (KeyError, TypeError) as error:
+        raise RuntimeError(
+            f"Envoy release {validated_tag} has no [workspace.package] version."
+        ) from error
+    if not isinstance(workspace_version, str):
+        raise RuntimeError(
+            f"Envoy release {validated_tag} has a non-string workspace version."
+        )
+    try:
+        return validateVersion(workspace_version)
+    except ValueError as error:
+        raise RuntimeError(
+            f"Envoy release {validated_tag} has invalid workspace version "
+            f"{workspace_version!r}."
+        ) from error
+
+
+def validateEnvoyReleaseVersion(envoy_tag: str) -> None:
+    """Ensure an Envoy release tag agrees with its Cargo workspace version."""
+    validated_tag = validateTag(envoy_tag)
+    expected_version = validated_tag[1:]
+    workspace_version = readEnvoyReleaseVersion(validated_tag)
+    if workspace_version != expected_version:
+        raise RuntimeError(
+            f"Envoy release {validated_tag} is inconsistent: rust/Cargo.toml "
+            f"declares workspace version {workspace_version}, expected "
+            f"{expected_version}. Publish a corrected Envoy patch release before "
+            "preparing Envoy Utils."
+        )
 
 
 def replaceOne(
@@ -176,6 +236,7 @@ def prepareRelease(repository_root: Path, version: str, envoy_version: str) -> N
     """Update release versions and resolve the new Envoy Core tag."""
     validated_version = validateVersion(version)
     validated_tag = versionToTag(envoy_version)
+    validateEnvoyReleaseVersion(validated_tag)
     rust_root = repository_root / "rust"
     replaceWorkspaceVersion(rust_root / "Cargo.toml", validated_version)
     replaceEnvoyDependency(rust_root / "Cargo.toml", validated_tag)
