@@ -600,7 +600,7 @@ checksum = "9e5e8f6c15a24b9a3ee5efec809ccd006d3b30e8b3bb63c39af737c7f87daa1d"
 
 [[package]]
 name = "engit-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -609,7 +609,7 @@ dependencies = [
 
 [[package]]
 name = "engit-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "envoy-core",
@@ -626,7 +626,7 @@ dependencies = [
 [[package]]
 name = "envoy-core"
 version = "0.5.1"
-source = "git+https://github.com/gtvfx-envoy/envoy?tag=v0.5.1#c8ff60af83ca06207fa5778c7568a96742b51c5e"
+source = "git+https://github.com/gtvfx-envoy/envoy?tag=v0.5.1#0c53386f7494f933c724d905726def4953192002"
 dependencies = [
  "age",
  "base64 0.22.1",
