@@ -45,4 +45,5 @@ nav:
   - CLI Reference:
       - engit: cli-reference/engit.md
   - Troubleshooting: troubleshooting.md
+  - Maintainer Release Guide: https://gtvfx-envoy.github.io/envoy/maintainers/releasing/
   - Rust API: https://gtvfx-envoy.github.io/envoy_utils/rustdoc/engit_core/

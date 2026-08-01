@@ -20,4 +20,6 @@ stack publishing.
 The released `engit` executable statically links its Envoy Core dependency. The
 exact pairing is recorded in each
 [Envoy Utils release](https://github.com/gtvfx-envoy/envoy_utils/releases),
+For the complete cross-repository release process, see the [Envoy maintainer release guide](https://gtvfx-envoy.github.io/envoy/maintainers/releasing/).
+
 both in the release summary and in the attached `compatibility.json` file.
