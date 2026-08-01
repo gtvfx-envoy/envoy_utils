@@ -625,8 +625,8 @@ dependencies = [
 
 [[package]]
 name = "envoy-core"
-version = "0.5.1"
-source = "git+https://github.com/gtvfx-envoy/envoy?tag=v0.5.1#0c53386f7494f933c724d905726def4953192002"
+version = "0.6.0"
+source = "git+https://github.com/gtvfx-envoy/envoy/commit/68ae2c1839a449b9ed925d144b408994e463724a"
 dependencies = [
  "age",
  "base64 0.22.1",
