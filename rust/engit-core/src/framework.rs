@@ -254,7 +254,7 @@ mod tests {
         let source_dir = root.join(name);
         fs::create_dir_all(&source_dir).expect("failed to create stack source directory");
         let source = source_dir.join(format!("{name}.estack"));
-        let contents = format!("bundles:\n  - path: '{}'\n", bundle.display());
+        let contents = format!("name: {name}\nbundles:\n  - path: '{}'\n", bundle.display());
         fs::write(&source, contents).expect("failed to write source stack");
         source
     }
