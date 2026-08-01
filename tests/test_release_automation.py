@@ -7,7 +7,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 SCRIPT_PATH = Path(__file__).parents[1] / "scripts" / "release_automation.py"
 SPEC = importlib.util.spec_from_file_location("release_automation", SCRIPT_PATH)
 assert SPEC is not None and SPEC.loader is not None
@@ -24,6 +23,12 @@ class ReleaseAutomationTests(unittest.TestCase):
         self.assertEqual(release_automation.validateVersion("1.0.0-rc.1"), "1.0.0-rc.1")
         with self.assertRaises(ValueError):
             release_automation.validateVersion("v0.2.0")
+
+    def testVersionToTag(self):
+        """Unprefixed dependency versions convert to Git tags."""
+        self.assertEqual(release_automation.versionToTag("0.6.1"), "v0.6.1")
+        with self.assertRaises(ValueError):
+            release_automation.versionToTag("v0.6.1")
 
     def testReplaceEnvoyDependency(self):
         """The Cargo tag and exact version move together."""

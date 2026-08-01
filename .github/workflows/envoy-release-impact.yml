@@ -5,8 +5,8 @@ on:
     types: [envoy-released]
   workflow_dispatch:
     inputs:
-      envoy_tag:
-        description: Envoy release tag to replay
+      envoy_version:
+        description: Unprefixed Envoy semantic version to replay
         required: true
         type: string
 
@@ -15,7 +15,7 @@ permissions:
   issues: write
 
 env:
-  ENVOY_TAG: ${{ github.event.client_payload.envoy_tag || inputs.envoy_tag }}
+  ENVOY_TAG: ${{ github.event.client_payload.envoy_tag || format('v{0}', inputs.envoy_version) }}
 
 jobs:
   classify:

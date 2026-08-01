@@ -10,7 +10,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-
 SEMVER_PATTERN = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     r"(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
@@ -20,7 +19,8 @@ SEMVER_PATTERN = re.compile(
 WORKSPACE_PACKAGE_NAMES = {"engit-cli", "engit-core"}
 DIRECT_ENVOY_APIS = (
     "envoy_core::discovery::{discover_bundles_auto, Bundle}",
-    "envoy_core::stack_registry::{publish_stack, STACK_ROOTS_VAR}",
+    "envoy_core::stack::Stack",
+    "envoy_core::stack_registry::STACK_ROOTS_VAR",
 )
 
 
@@ -29,6 +29,11 @@ def validateVersion(version: str) -> str:
     if not SEMVER_PATTERN.fullmatch(version):
         raise ValueError(f"Invalid semantic version: {version!r}")
     return version
+
+
+def versionToTag(version: str) -> str:
+    """Convert an unprefixed semantic version to its Git tag."""
+    return f"v{validateVersion(version)}"
 
 
 def validateTag(tag: str) -> str:
@@ -127,7 +132,7 @@ def parseLockfile(repository_root: Path) -> tuple[dict[str, str], str, str, str]
 def checkRelease(
     repository_root: Path,
     expected_version: str | None = None,
-    expected_envoy_tag: str | None = None,
+    expected_envoy_version: str | None = None,
 ) -> dict:
     """Validate release versions, the Envoy pin, and the lockfile."""
     utils_version, envoy_tag, envoy_version = parseManifest(repository_root)
@@ -155,9 +160,9 @@ def checkRelease(
         raise RuntimeError(
             f"Expected Envoy Utils {expected_version}, found {utils_version}."
         )
-    if expected_envoy_tag and envoy_tag != validateTag(expected_envoy_tag):
+    if expected_envoy_version and envoy_tag != versionToTag(expected_envoy_version):
         raise RuntimeError(
-            f"Expected Envoy Core {expected_envoy_tag}, found {envoy_tag}."
+            f"Expected Envoy Core v{expected_envoy_version}, found {envoy_tag}."
         )
     return {
         "utils_version": utils_version,
@@ -167,10 +172,10 @@ def checkRelease(
     }
 
 
-def prepareRelease(repository_root: Path, version: str, envoy_tag: str) -> None:
+def prepareRelease(repository_root: Path, version: str, envoy_version: str) -> None:
     """Update release versions and resolve the new Envoy Core tag."""
     validated_version = validateVersion(version)
-    validated_tag = validateTag(envoy_tag)
+    validated_tag = versionToTag(envoy_version)
     rust_root = repository_root / "rust"
     replaceWorkspaceVersion(rust_root / "Cargo.toml", validated_version)
     replaceEnvoyDependency(rust_root / "Cargo.toml", validated_tag)
@@ -399,7 +404,7 @@ Envoy {impact["head_tag"]} was released after the currently pinned {impact["base
 
 - [ ] Review behavioral changes, even if compilation and tests pass.
 - [ ] Decide whether users need an Envoy Utils release linked to this Envoy Core.
-- [ ] If releasing, use **Prepare Release** with Envoy tag `{impact["head_tag"]}`.
+- [ ] If releasing, use **Prepare Release** with Envoy version `{impact["head_tag"][1:]}`.
 - [ ] If no release is needed, close this issue with the rationale.
 """
     output_path.write_text(body, encoding="utf-8")
@@ -415,11 +420,11 @@ def buildParser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     check_parser = subparsers.add_parser("check")
     check_parser.add_argument("--expect-version")
-    check_parser.add_argument("--expect-envoy-tag")
+    check_parser.add_argument("--expect-envoy-version")
     check_parser.add_argument("--github-output")
     prepare_parser = subparsers.add_parser("prepare")
     prepare_parser.add_argument("--version", required=True)
-    prepare_parser.add_argument("--envoy-tag", required=True)
+    prepare_parser.add_argument("--envoy-version", required=True)
     compatibility_parser = subparsers.add_parser("compatibility")
     compatibility_parser.add_argument("--envoy-root", required=True)
     compatibility_parser.add_argument("--output", required=True)
@@ -450,7 +455,7 @@ def main(arguments: list[str] | None = None) -> int:
     try:
         if args.command == "check":
             state = checkRelease(
-                repository_root, args.expect_version, args.expect_envoy_tag
+                repository_root, args.expect_version, args.expect_envoy_version
             )
             print(
                 f"Envoy Utils v{state['utils_version']} is pinned to {state['envoy_tag']} "
@@ -467,7 +472,7 @@ def main(arguments: list[str] | None = None) -> int:
                     },
                 )
         elif args.command == "prepare":
-            prepareRelease(repository_root, args.version, args.envoy_tag)
+            prepareRelease(repository_root, args.version, args.envoy_version)
         elif args.command == "compatibility":
             result = testCompatibility(
                 repository_root, Path(args.envoy_root), Path(args.output)

@@ -7,8 +7,8 @@ on:
         description: Unprefixed Envoy Utils semantic version
         required: true
         type: string
-      envoy_tag:
-        description: Published Envoy release tag to statically link
+      envoy_version:
+        description: Unprefixed published Envoy semantic version to statically link
         required: true
         type: string
 
@@ -54,14 +54,14 @@ jobs:
       - name: Validate Envoy release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          ENVOY_TAG: ${{ inputs.envoy_tag }}
+          ENVOY_TAG: v${{ inputs.envoy_version }}
         run: gh release view "$ENVOY_TAG" --repo gtvfx-envoy/envoy --json tagName
 
       - name: Prepare version and Envoy pin
         run: >-
           python scripts/release_automation.py prepare
           --version "${{ inputs.version }}"
-          --envoy-tag "${{ inputs.envoy_tag }}"
+          --envoy-version "${{ inputs.envoy_version }}"
 
       - name: Test release automation
         run: python -m unittest discover -s tests -p "test_release_automation.py"
@@ -92,7 +92,7 @@ jobs:
             Automated Envoy Utils release preparation.
 
             - Updates the Envoy Utils workspace version.
-            - Pins Envoy Core to `${{ inputs.envoy_tag }}` and refreshes Cargo.lock.
+            - Pins Envoy Core to `v${{ inputs.envoy_version }}` and refreshes Cargo.lock.
             - Runs release-readiness checks.
 
             Merge only after the normal pull request checks pass.

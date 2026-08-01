@@ -4,10 +4,10 @@ on:
   workflow_call:
     inputs:
       engit_version:
-        description: Tagged Envoy Utils release providing Engit
+        description: Unprefixed Envoy Utils semantic version providing Engit
         type: string
         required: false
-        default: v0.1.0
+        default: 0.1.0
       extra_excludes:
         description: Space-separated additional exclude patterns
         type: string
@@ -51,12 +51,12 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          ENGIT_VERSION: ${{ inputs.engit_version }}
+          ENGIT_TAG: v${{ inputs.engit_version }}
         run: |
-          $asset = "envoy_utils-$env:ENGIT_VERSION-windows-x86_64.zip"
-          $releaseDirectory = Join-Path $env:RUNNER_TEMP "engit-$env:ENGIT_VERSION"
+          $asset = "envoy_utils-$env:ENGIT_TAG-windows-x86_64.zip"
+          $releaseDirectory = Join-Path $env:RUNNER_TEMP "engit-$env:ENGIT_TAG"
           New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
-          gh release download $env:ENGIT_VERSION `
+          gh release download $env:ENGIT_TAG `
               --repo gtvfx-envoy/envoy_utils `
               --pattern $asset --pattern SHA256SUMS `
               --dir $releaseDirectory --clobber
@@ -78,7 +78,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          ENGIT_VERSION: ${{ inputs.engit_version }}
+          ENGIT_TAG: v${{ inputs.engit_version }}
         run: |
           case "$RUNNER_OS:$RUNNER_ARCH" in
             Linux:X64) target="linux-x86_64-musl" ;;
@@ -86,10 +86,10 @@ jobs:
             macOS:ARM64) target="macos-aarch64" ;;
             *) echo "Unsupported runner: $RUNNER_OS/$RUNNER_ARCH" >&2; exit 1 ;;
           esac
-          asset="envoy_utils-$ENGIT_VERSION-$target.tar.gz"
-          release_directory="$RUNNER_TEMP/engit-$ENGIT_VERSION"
+          asset="envoy_utils-$ENGIT_TAG-$target.tar.gz"
+          release_directory="$RUNNER_TEMP/engit-$ENGIT_TAG"
           mkdir -p "$release_directory"
-          gh release download "$ENGIT_VERSION" \
+          gh release download "$ENGIT_TAG" \
             --repo gtvfx-envoy/envoy_utils \
             --pattern "$asset" --pattern SHA256SUMS \
             --dir "$release_directory" --clobber

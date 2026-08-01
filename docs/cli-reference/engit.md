@@ -166,15 +166,20 @@ engit publish bundle --include config/** --dry-run
 ### `engit publish stack`
 
 Publish a validated `.estack` file to a timestamped named slot and update its
-`latest` pointer.
+`latest.estack` symlink. The stack name is derived from the source filename,
+and the source's immediate parent directory must use the same name.
 
 ```text
-engit publish stack NAME SOURCE [OPTIONS]
+<root>/<name>/<timestamp>/<name>.estack
+<root>/<name>/latest.estack -> <timestamp>/<name>.estack
+```
+
+```text
+engit publish stack SOURCE [OPTIONS]
 ```
 
 | Argument/Flag | Description |
 |---|---|
-| `NAME` | Named stack slot |
 | `SOURCE` | Strict YAML `.estack` file |
 | `--output`, `-o DIR` | Stack publish root. Defaults to `ENVOY_STACK_PUBLISH_ROOT` |
 | `--dry-run` | Validate and show planned writes without publishing |
@@ -183,9 +188,9 @@ During the environment-variable transition, Engit falls back to the first
 `ENVOY_STACK_ROOTS` entry with a warning.
 
 ```powershell
-engit publish stack studio R:/my/studio.estack
-engit publish stack studio R:/my/studio.estack --output R:/studio/envoy/stacks
-engit publish stack studio R:/my/studio.estack --dry-run
+engit publish stack V:/repo/gtvfx-envoy/stacks/studio/studio.estack
+engit publish stack V:/repo/gtvfx-envoy/stacks/studio/studio.estack --output R:/studio/envoy/stack
+engit publish stack V:/repo/gtvfx-envoy/stacks/studio/studio.estack --dry-run
 ```
 
 ## `engit status`

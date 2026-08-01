@@ -329,9 +329,9 @@ containing the same runtime dataset."
     Bundle(PublishBundleArgs),
 
     #[command(
-        about = "Publish a stack file to a named stack slot.",
+        about = "Publish a stack file using its filename as its name.",
         long_about = "Copy a stack YAML file into a timestamped named slot \
-under a stack publish root, and update the \"latest\" pointer."
+under a stack publish root, and update the latest.estack symlink."
     )]
     Stack(PublishStackArgs),
 }
@@ -404,14 +404,9 @@ multiple times and applies to every publish source."
 #[derive(Debug, Args)]
 struct PublishStackArgs {
     #[arg(
-        value_name = "NAME",
-        help = "Named stack slot (e.g. studio, dev, production)."
-    )]
-    name: String,
-
-    #[arg(
         value_name = "SOURCE",
-        help = "Path to the stack YAML file to publish."
+        help = "Path to the stack YAML file. Its parent directory must match \
+its filename stem."
     )]
     source: PathBuf,
 
@@ -456,10 +451,15 @@ fn resolve_publish_bundle_path(spec: Option<&str>) -> Result<PathBuf> {
     }
 }
 
-fn print_published_stack(name: &str, path: &Path) {
-    let version = path
+fn print_published_stack(path: &Path) {
+    let name = path
         .file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let version = path
+        .parent()
+        .and_then(Path::file_name)
+        .map(|directory| directory.to_string_lossy().into_owned())
         .unwrap_or_default();
 
     println!("Published config: {name}");
@@ -546,15 +546,10 @@ fn run() -> Result<()> {
                 }
             }
             PublishCommands::Stack(args) => {
-                let result = run_publish_stack(
-                    args.output.as_deref(),
-                    &args.name,
-                    &args.source,
-                    args.dry_run,
-                )?;
+                let result = run_publish_stack(args.output.as_deref(), &args.source, args.dry_run)?;
 
                 if !args.dry_run {
-                    print_published_stack(&args.name, &result);
+                    print_published_stack(&result);
                 }
             }
         },
