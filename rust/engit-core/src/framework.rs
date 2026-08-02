@@ -221,6 +221,7 @@ mod tests {
         LATEST_LINK, LEGACY_LATEST_POINTER, STACK_PUBLISH_ROOT_VAR,
     };
     use crate::{EngitError, ENVOY_ENV_MUTEX};
+    use envoy_core::stack::Stack;
     use envoy_core::stack_registry::STACK_ROOTS_VAR;
 
     struct EnvVarGuard {
@@ -254,8 +255,13 @@ mod tests {
         let source_dir = root.join(name);
         fs::create_dir_all(&source_dir).expect("failed to create stack source directory");
         let source = source_dir.join(format!("{name}.estack"));
-        let contents = format!("name: {name}\nbundles:\n  - path: '{}'\n", bundle.display());
-        fs::write(&source, contents).expect("failed to write source stack");
+        let contents = format!("bundles:\n  - path: '{}'\n", bundle.display());
+        fs::write(&source, &contents).expect("failed to write source stack");
+        // Main and the release-prepared dependency pin span the Stack name schema change.
+        if Stack::new(&source).is_err() {
+            let legacy_contents = format!("name: {name}\n{contents}");
+            fs::write(&source, legacy_contents).expect("failed to write legacy source stack");
+        }
         source
     }
 
