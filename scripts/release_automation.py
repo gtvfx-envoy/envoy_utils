@@ -235,14 +235,15 @@ def checkRelease(
 def prepareRelease(repository_root: Path, version: str, envoy_version: str) -> None:
     """Update release versions and resolve the new Envoy Core tag."""
     validated_version = validateVersion(version)
-    validated_tag = versionToTag(envoy_version)
+    validated_envoy_version = validateVersion(envoy_version)
+    validated_tag = versionToTag(validated_envoy_version)
     validateEnvoyReleaseVersion(validated_tag)
     rust_root = repository_root / "rust"
     replaceWorkspaceVersion(rust_root / "Cargo.toml", validated_version)
     replaceEnvoyDependency(rust_root / "Cargo.toml", validated_tag)
     subprocess.run(["cargo", "update", "-p", "envoy-core"], cwd=rust_root, check=True)
     subprocess.run(["cargo", "check", "--workspace"], cwd=rust_root, check=True)
-    checkRelease(repository_root, validated_version, validated_tag)
+    checkRelease(repository_root, validated_version, validated_envoy_version)
 
 
 def replaceWithLocalEnvoy(manifest_path: Path, envoy_root: Path) -> None:

@@ -116,6 +116,19 @@ class ReleaseAutomationTests(unittest.TestCase):
         self.assertEqual(manifest_path.read_text(encoding="utf-8"), original_contents)
         run_command.assert_not_called()
 
+    def testPrepareReleaseChecksUnprefixedEnvoyVersion(self):
+        """The final release check receives an unprefixed Envoy version."""
+        repository_root = Path("repository")
+        with (
+            mock.patch.object(release_automation, "validateEnvoyReleaseVersion"),
+            mock.patch.object(release_automation, "replaceWorkspaceVersion"),
+            mock.patch.object(release_automation, "replaceEnvoyDependency"),
+            mock.patch.object(release_automation.subprocess, "run"),
+            mock.patch.object(release_automation, "checkRelease") as check_release,
+        ):
+            release_automation.prepareRelease(repository_root, "0.2.1", "0.6.2")
+        check_release.assert_called_once_with(repository_root, "0.2.1", "0.6.2")
+
     def testReplaceEnvoyDependency(self):
         """The Cargo tag and exact version move together."""
         temporary_directory = self.enterContext(tempfile.TemporaryDirectory())
