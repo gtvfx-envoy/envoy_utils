@@ -22,7 +22,7 @@ on:
         description: JSON array of runner labels
         type: string
         required: false
-        default: '["self-hosted", "X64", "Windows", "synology"]'
+        default: '["self-hosted", "X64", "Windows"]'
     secrets:
       ARTIFACTS_NAS_USER:
         description: Optional username for a Windows UNC artifact root
