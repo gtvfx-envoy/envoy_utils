@@ -268,7 +268,7 @@ engit search QUERY [--org ORG] [--limit N]
 
 | Flag | Description |
 |---|---|
-| `--org ORG` | GitHub organisation to search. May be repeated. Overrides `ENGIT_ORGS` |
+| `--org ORG` | GitHub organisation to search. May be repeated. Overrides `ENVOY_GITHUB_ORGS` |
 | `--limit N` | Maximum results per organisation (default: 20) |
 
-The default organisations are read from the `ENGIT_ORGS` environment variable (semicolon-separated).
+The default organisations are read from the `ENVOY_GITHUB_ORGS` environment variable (semicolon-separated).
