@@ -7,12 +7,16 @@
 //! publish bundle  Publish a versioned runtime bundle.
 //! publish stack   Publish a stack file to a named stack slot.
 //! search          Search GitHub repositories.
+//! cache validate  Validate cached bundle content against its manifest.
+//! cache prune     Remove cached bundle entries by ID, pattern, or age.
 
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::Duration;
 
 use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand};
+use engit_core::cache::{default_cache_dir, run_cache_prune, run_cache_validate, PruneSelector};
 use engit_core::changelog::run_changelog;
 use engit_core::cleanup::run_cleanup;
 use engit_core::error::{EngitError, Result};
@@ -109,6 +113,13 @@ Default organisations are read from the ENVOY_GITHUB_ORGS environment variable \
 to its canonical studio location."
     )]
     Publish(PublishArgs),
+
+    #[command(
+        about = "Inspect or clean up the local bundle cache.",
+        long_about = "Validate cached bundle content against its manifest, or \
+prune cached entries by ID, glob pattern, or age."
+    )]
+    Cache(CacheArgs),
 }
 
 #[derive(Debug, Args)]
@@ -423,6 +434,92 @@ ENVOY_STACK_PUBLISH_ROOT."
     dry_run: bool,
 }
 
+#[derive(Debug, Args)]
+struct CacheArgs {
+    #[command(subcommand)]
+    command: CacheCommands,
+}
+
+#[derive(Debug, Subcommand)]
+enum CacheCommands {
+    #[command(
+        about = "Validate cached bundle content against its manifest.",
+        long_about = "Recompute each cached bundle's content hash and check for \
+a metadata sidecar, missing storage directories, and content-hash \
+directories with no referencing cache entry."
+    )]
+    Validate(CacheValidateArgs),
+
+    #[command(
+        about = "Prune cached bundle entries.",
+        long_about = "Remove cached entries matching --id / --pattern / \
+--older-than (combined with AND semantics), and/or orphaned storage \
+directories via --remove-orphans. With no selector, immediately applies \
+envoy's own age/size retention policy instead of waiting for it to trigger \
+on the next cache write."
+    )]
+    Prune(CachePruneArgs),
+}
+
+#[derive(Debug, Args)]
+struct CacheValidateArgs {
+    #[arg(
+        long = "cache-dir",
+        value_name = "DIR",
+        help = "Cache directory to validate. Defaults to the resolved default \
+bundle cache (ENVOY_BUNDLE_CACHE, user config, or platform default)."
+    )]
+    cache_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct CachePruneArgs {
+    #[arg(
+        long = "cache-dir",
+        value_name = "DIR",
+        help = "Cache directory to prune. Defaults to the resolved default \
+bundle cache (ENVOY_BUNDLE_CACHE, user config, or platform default)."
+    )]
+    cache_dir: Option<PathBuf>,
+
+    #[arg(
+        long = "id",
+        action = ArgAction::Append,
+        value_name = "BUNDLE_ID",
+        help = "Restrict to entries with this exact bundle ID. May be repeated."
+    )]
+    ids: Vec<String>,
+
+    #[arg(
+        long,
+        value_name = "GLOB",
+        help = "Restrict to entries whose bundle ID matches this glob pattern."
+    )]
+    pattern: Option<String>,
+
+    #[arg(
+        long = "older-than",
+        value_name = "DAYS",
+        help = "Restrict to entries created more than this many days ago."
+    )]
+    older_than_days: Option<u64>,
+
+    #[arg(
+        long = "remove-orphans",
+        help = "Also remove content-hash storage directories no longer \
+referenced by the cache index."
+    )]
+    remove_orphans: bool,
+
+    #[arg(
+        long,
+        help = "Print what would be removed without deleting anything. Not \
+supported when no selector is given (the default retention policy has no \
+preview mode)."
+    )]
+    dry_run: bool,
+}
+
 fn current_dir_path() -> Result<PathBuf> {
     env::current_dir().map_err(|source| {
         EngitError::Engit(format!("Could not determine current directory: {source}"))
@@ -553,9 +650,42 @@ fn run() -> Result<()> {
                 }
             }
         },
+        Commands::Cache(args) => match args.command {
+            CacheCommands::Validate(args) => {
+                let cache_dir = resolve_cache_dir(args.cache_dir)?;
+                let report = run_cache_validate(&cache_dir)?;
+                if report.has_problems() {
+                    return Err(EngitError::Cache(
+                        "Cache validation found problems (see above).".to_string(),
+                    ));
+                }
+            }
+            CacheCommands::Prune(args) => {
+                let cache_dir = resolve_cache_dir(args.cache_dir)?;
+                let selector = PruneSelector {
+                    ids: args.ids,
+                    pattern: args.pattern,
+                    older_than: args
+                        .older_than_days
+                        .map(|days| Duration::from_secs(days * 86400)),
+                    remove_orphans: args.remove_orphans,
+                };
+                run_cache_prune(&cache_dir, &selector, args.dry_run)?;
+            }
+        },
     }
 
     Ok(())
+}
+
+fn resolve_cache_dir(explicit: Option<PathBuf>) -> Result<PathBuf> {
+    explicit.or_else(default_cache_dir).ok_or_else(|| {
+        EngitError::Cache(
+            "No cache directory to operate on: ENVOY_DISABLE_BUNDLE_CACHE is set and no \
+             --cache-dir was given."
+                .to_string(),
+        )
+    })
 }
 
 fn main() -> ExitCode {
