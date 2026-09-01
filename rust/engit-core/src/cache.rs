@@ -210,8 +210,16 @@ pub fn prune_cache(
             .map(|cached| cached.content_hash)
             .collect();
         for orphan in find_orphaned_dirs(cache.root(), &referenced) {
-            let removed = dry_run || fs::remove_dir_all(&orphan).is_ok();
-            if removed {
+            if dry_run {
+                outcome.removed_orphans.push(orphan);
+            } else {
+                fs::remove_dir_all(&orphan).map_err(|source| {
+                    EngitError::Cache(format!(
+                        "failed to remove orphaned cache directory {}: {}",
+                        orphan.display(),
+                        source
+                    ))
+                })?;
                 outcome.removed_orphans.push(orphan);
             }
         }
