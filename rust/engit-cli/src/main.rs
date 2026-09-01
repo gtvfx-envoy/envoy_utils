@@ -662,12 +662,23 @@ fn run() -> Result<()> {
             }
             CacheCommands::Prune(args) => {
                 let cache_dir = resolve_cache_dir(args.cache_dir)?;
+                let older_than = args
+                    .older_than_days
+                    .map(|days| {
+                        days.checked_mul(86_400)
+                            .map(Duration::from_secs)
+                            .ok_or_else(|| {
+                                EngitError::Cache(
+                                    "The value passed to --older-than-days is too large."
+                                        .to_string(),
+                                )
+                            })
+                    })
+                    .transpose()?;
                 let selector = PruneSelector {
                     ids: args.ids,
                     pattern: args.pattern,
-                    older_than: args
-                        .older_than_days
-                        .map(|days| Duration::from_secs(days * 86400)),
+                    older_than,
                     remove_orphans: args.remove_orphans,
                 };
                 run_cache_prune(&cache_dir, &selector, args.dry_run)?;
