@@ -21,6 +21,9 @@ mindmap
       publish
         bundle
         stack
+    cache
+      validate
+      prune
 ```
 
 ## `engit tag`
@@ -272,3 +275,57 @@ engit search QUERY [--org ORG] [--limit N]
 | `--limit N` | Maximum results per organisation (default: 20) |
 
 The default organisations are read from the `ENGIT_ORGS` environment variable (semicolon-separated).
+
+## `engit cache`
+
+Inspect or clean up the local bundle cache that envoy populates automatically
+during stack resolution.
+
+### `engit cache validate`
+
+Recompute each cached bundle's content hash and check for a metadata
+sidecar, a missing storage directory, or content-hash directories with no
+referencing cache entry (orphans left behind by interrupted writes).
+
+```
+engit cache validate [--cache-dir DIR]
+```
+
+| Flag | Description |
+|---|---|
+| `--cache-dir DIR` | Cache directory to validate. Defaults to the resolved default bundle cache (`ENVOY_BUNDLE_CACHE`, user config, or platform default) |
+
+Exits non-zero if any problems are found.
+
+### `engit cache prune`
+
+Remove cached entries matching a selector, or -- with no selector --
+immediately apply envoy's own age/size retention policy instead of waiting
+for it to trigger on the next cache write.
+
+```
+engit cache prune [--cache-dir DIR] [--id BUNDLE_ID]... [--pattern GLOB] [--older-than DAYS] [--remove-orphans] [--dry-run]
+```
+
+| Flag | Description |
+|---|---|
+| `--cache-dir DIR` | Cache directory to prune. Defaults to the resolved default bundle cache |
+| `--id BUNDLE_ID` | Restrict to entries with this exact bundle ID. May be repeated |
+| `--pattern GLOB` | Restrict to entries whose bundle ID matches this glob pattern |
+| `--older-than DAYS` | Restrict to entries created more than this many days ago |
+| `--remove-orphans` | Also remove content-hash storage directories no longer referenced by the cache index |
+| `--dry-run` | Print what would be removed without deleting anything. Not supported with no selector (the default retention policy has no preview mode) |
+
+Selectors combine with AND semantics: `--id gt:globals --older-than 30`
+prunes only cached entries for `gt:globals` older than 30 days, not every
+entry matching either condition.
+
+**Examples:**
+
+```powershell
+engit cache validate
+engit cache prune --id gt:globals --dry-run
+engit cache prune --pattern "gt:*" --older-than 60
+engit cache prune --remove-orphans
+engit cache prune                    # apply default retention policy now
+```

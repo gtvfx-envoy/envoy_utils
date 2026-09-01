@@ -51,6 +51,10 @@ https://cli.github.com/ to use this command."
     #[error("{0}")]
     Publish(String),
 
+    /// Local module-specific error for bundle cache maintenance flows.
+    #[error("{0}")]
+    Cache(String),
+
     /// Validation / usage error.
     #[error("{0}")]
     Validation(String),

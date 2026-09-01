@@ -5,6 +5,7 @@
 //! dependency. The companion `engit-cli` crate provides the native
 //! command-line interface.
 
+pub mod cache;
 pub mod changelog;
 pub mod cleanup;
 pub mod editor;
