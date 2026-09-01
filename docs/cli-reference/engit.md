@@ -21,10 +21,9 @@ mindmap
       publish
         bundle
         stack
-    Cache
-      cache
-        validate
-        prune
+    cache
+      validate
+      prune
 ```
 
 ## `engit tag`
