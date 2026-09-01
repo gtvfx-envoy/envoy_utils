@@ -318,22 +318,57 @@ fn classify_entry(storage_dir: &Path, expected_hash: &str) -> CacheEntryStatus {
     }
 }
 
-fn find_orphaned_dirs(cache_root: &Path, referenced_hashes: &HashSet<String>) -> Vec<PathBuf> {
+const BUNDLE_CONTENT_HASH_HEX_LEN: usize = 64;
+
+fn is_expected_content_hash_dir_name(name: &str) -> bool {
+    name.len() == BUNDLE_CONTENT_HASH_HEX_LEN
+        && name
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+fn find_orphaned_dirs(
+    cache_root: &Path,
+    referenced_hashes: &HashSet<String>,
+) -> Result<Vec<PathBuf>> {
     let mut orphans = Vec::new();
-    let Ok(read_dir) = fs::read_dir(cache_root) else {
-        return orphans;
-    };
-    for entry in read_dir.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
+    let read_dir = fs::read_dir(cache_root).map_err(|err| {
+        EngitError::Cache(format!(
+            "failed to read cache directory {}: {}",
+            cache_root.display(),
+            err
+        ))
+    })?;
+
+    for entry in read_dir {
+        let entry = entry.map_err(|err| {
+            EngitError::Cache(format!(
+                "failed to read entry in cache directory {}: {}",
+                cache_root.display(),
+                err
+            ))
+        })?;
+        let file_type = entry.file_type().map_err(|err| {
+            EngitError::Cache(format!(
+                "failed to read file type for cache entry {}: {}",
+                entry.path().display(),
+                err
+            ))
+        })?;
+        if !file_type.is_dir() {
             continue;
         }
+
         let name = entry.file_name().to_string_lossy().into_owned();
+        if !is_expected_content_hash_dir_name(&name) {
+            continue;
+        }
         if !referenced_hashes.contains(&name) {
-            orphans.push(path);
+            orphans.push(entry.path());
         }
     }
-    orphans
+
+    Ok(orphans)
 }
 
 /// Return how long ago a cached entry was created, or `None` if its
