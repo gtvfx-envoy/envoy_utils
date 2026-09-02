@@ -105,7 +105,7 @@ pub fn validate_cache(cache_dir: &Path) -> Result<CacheValidationReport> {
         });
     }
 
-    report.orphaned_dirs = find_orphaned_dirs(cache.root(), &referenced_hashes);
+    report.orphaned_dirs = find_orphaned_dirs(cache.root(), &referenced_hashes)?;
 
     Ok(report)
 }
@@ -209,7 +209,7 @@ pub fn prune_cache(
             .filter_map(|(id, version)| cache.get(&id, &version).ok())
             .map(|cached| cached.content_hash)
             .collect();
-        for orphan in find_orphaned_dirs(cache.root(), &referenced) {
+        for orphan in find_orphaned_dirs(cache.root(), &referenced)? {
             if dry_run {
                 outcome.removed_orphans.push(orphan);
             } else {
@@ -330,9 +330,7 @@ const BUNDLE_CONTENT_HASH_HEX_LEN: usize = 64;
 
 fn is_expected_content_hash_dir_name(name: &str) -> bool {
     name.len() == BUNDLE_CONTENT_HASH_HEX_LEN
-        && name
-            .bytes()
-            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+        && name.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 fn find_orphaned_dirs(
@@ -398,6 +396,12 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
+    /// Fake content hash used by orphan-detection tests. Must be
+    /// `BUNDLE_CONTENT_HASH_HEX_LEN` hex characters so it is recognized as a
+    /// content-hash-shaped directory name by `is_expected_content_hash_dir_name`.
+    const FAKE_ORPHAN_HASH: &str =
+        "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+
     fn create_sample_bundle(dir: &Path, name: &str, content: &str) {
         fs::create_dir_all(dir).unwrap();
         fs::write(dir.join(name), content).unwrap();
@@ -462,7 +466,7 @@ mod tests {
         let cache_dir = tempdir().unwrap();
         fs::create_dir_all(cache_dir.path()).unwrap();
         // A content-hash-shaped directory with no index entry pointing to it.
-        fs::create_dir_all(cache_dir.path().join("deadbeef")).unwrap();
+        fs::create_dir_all(cache_dir.path().join(FAKE_ORPHAN_HASH)).unwrap();
 
         let report = validate_cache(cache_dir.path()).unwrap();
         assert!(report.has_problems());
@@ -550,7 +554,7 @@ mod tests {
     fn prune_remove_orphans_deletes_unreferenced_directories() {
         let cache_dir = tempdir().unwrap();
         fs::create_dir_all(cache_dir.path()).unwrap();
-        let orphan_dir = cache_dir.path().join("deadbeef");
+        let orphan_dir = cache_dir.path().join(FAKE_ORPHAN_HASH);
         fs::create_dir_all(&orphan_dir).unwrap();
 
         let selector = PruneSelector {
