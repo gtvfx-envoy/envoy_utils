@@ -84,16 +84,12 @@ fn publish_stack_without_stack_root_or_env_var_fails_with_expected_message() {
     let assert = command
         .args(["publish", "stack", "dummy.estack"])
         .env_remove("ENVOY_STACK_PUBLISH_ROOT")
-        .env_remove("ENVOY_STACK_ROOTS")
         .assert()
         .failure();
     let stderr = stderr_text(&assert);
 
     assert!(
-        stderr.contains(
-            "Error: No --output specified and neither ENVOY_STACK_PUBLISH_ROOT nor \
-ENVOY_STACK_ROOTS is set."
-        ),
+        stderr.contains("Error: No --output specified and ENVOY_STACK_PUBLISH_ROOT is not set."),
         "stderr was:\n{stderr}"
     );
 }

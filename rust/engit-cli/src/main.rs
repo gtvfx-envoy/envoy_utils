@@ -342,7 +342,7 @@ containing the same runtime dataset."
     #[command(
         about = "Publish a stack file using its filename as its name.",
         long_about = "Copy a stack YAML file into a timestamped named slot \
-under a stack publish root, and update the latest.estack symlink."
+under a stack publish root."
     )]
     Stack(PublishStackArgs),
 }

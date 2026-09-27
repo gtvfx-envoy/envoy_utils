@@ -7,40 +7,22 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use envoy_core::stack::Stack;
-use envoy_core::stack_registry::{is_stack_name, STACK_ROOTS_VAR};
+use envoy_core::stack_registry::is_stack_name;
 
 use crate::error::{EngitError, Result};
 
 /// Preferred canonical stack publish root environment variable.
 pub const STACK_PUBLISH_ROOT_VAR: &str = "ENVOY_STACK_PUBLISH_ROOT";
 
-const LATEST_LINK: &str = "latest.estack";
-const LEGACY_LATEST_POINTER: &str = "latest";
-const TIMESTAMP_FORMAT: &str = "%Y-%m-%dT%H-%M-%S";
+const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H%M%S";
 
 fn default_stack_root_from_env() -> Result<PathBuf> {
     if let Some(root) = env::var_os(STACK_PUBLISH_ROOT_VAR).filter(|value| !value.is_empty()) {
         return Ok(PathBuf::from(root));
     }
 
-    let separator = if cfg!(windows) { ';' } else { ':' };
-    let legacy_root = env::var(STACK_ROOTS_VAR).ok().and_then(|raw| {
-        raw.split(separator)
-            .map(str::trim)
-            .find(|entry| !entry.is_empty())
-            .map(PathBuf::from)
-    });
-    if let Some(root) = legacy_root {
-        eprintln!(
-            "warning: using the first {STACK_ROOTS_VAR} entry for publishing is \
-deprecated; use {STACK_PUBLISH_ROOT_VAR} instead."
-        );
-        return Ok(root);
-    }
-
     Err(EngitError::Framework(format!(
-        "No --output specified and neither {STACK_PUBLISH_ROOT_VAR} nor \
-{STACK_ROOTS_VAR} is set."
+        "No --output specified and {STACK_PUBLISH_ROOT_VAR} is not set."
     )))
 }
 
@@ -48,33 +30,16 @@ fn current_timestamp() -> String {
     Utc::now().format(TIMESTAMP_FORMAT).to_string()
 }
 
-#[cfg(unix)]
-fn create_file_symlink(target: &Path, link: &Path) -> io::Result<()> {
-    std::os::unix::fs::symlink(target, link)
-}
-
-#[cfg(windows)]
-fn create_file_symlink(target: &Path, link: &Path) -> io::Result<()> {
-    std::os::windows::fs::symlink_file(target, link)
-}
-
-fn cleanup_failed_publish(version_dir: &Path, temporary_link: Option<&Path>) {
-    if let Some(temporary_link) = temporary_link {
-        let _ = fs::remove_file(temporary_link);
-    }
+fn cleanup_failed_publish(version_dir: &Path) {
     let _ = fs::remove_dir_all(version_dir);
 }
 
-fn publish_stack_at<F>(
+fn publish_stack_at(
     stack_root: &Path,
     source: &Path,
     dry_run: bool,
     timestamp: &str,
-    create_symlink: F,
-) -> Result<PathBuf>
-where
-    F: Fn(&Path, &Path) -> io::Result<()>,
-{
+) -> Result<PathBuf> {
     if !source.is_file() {
         return Err(EngitError::Validation(format!(
             "Source stack file does not exist: {}",
@@ -108,17 +73,10 @@ where
     let name_dir = stack_root.join(name);
     let version_dir = name_dir.join(timestamp);
     let destination = version_dir.join(format!("{name}.estack"));
-    let latest_link = name_dir.join(LATEST_LINK);
-    let relative_target = Path::new(timestamp).join(format!("{name}.estack"));
 
     if dry_run {
         println!("Would publish: {}", source_path.display());
         println!("          to: {}", destination.display());
-        println!(
-            "      latest: {} -> {}",
-            latest_link.display(),
-            relative_target.display()
-        );
         return Ok(destination);
     }
 
@@ -135,53 +93,8 @@ where
     })?;
 
     if let Err(source) = fs::copy(source_path, &destination) {
-        cleanup_failed_publish(&version_dir, None);
+        cleanup_failed_publish(&version_dir);
         return Err(EngitError::io(&destination, source));
-    }
-
-    let temporary_link = name_dir.join(format!(".{LATEST_LINK}.{}.tmp", std::process::id()));
-    if fs::symlink_metadata(&temporary_link).is_ok() {
-        cleanup_failed_publish(&version_dir, Some(&temporary_link));
-        return Err(EngitError::Publish(format!(
-            "Temporary latest link already exists: {}",
-            temporary_link.display()
-        )));
-    }
-    if let Err(source) = create_symlink(&relative_target, &temporary_link) {
-        cleanup_failed_publish(&version_dir, Some(&temporary_link));
-        return Err(EngitError::io(&temporary_link, source));
-    }
-
-    let backup_link = name_dir.join(format!(".{LATEST_LINK}.{}.backup", std::process::id()));
-    let had_previous = fs::symlink_metadata(&latest_link).is_ok();
-    if had_previous {
-        if fs::symlink_metadata(&backup_link).is_ok() {
-            cleanup_failed_publish(&version_dir, Some(&temporary_link));
-            return Err(EngitError::Publish(format!(
-                "Temporary latest backup already exists: {}",
-                backup_link.display()
-            )));
-        }
-        if let Err(source) = fs::rename(&latest_link, &backup_link) {
-            cleanup_failed_publish(&version_dir, Some(&temporary_link));
-            return Err(EngitError::io(&latest_link, source));
-        }
-    }
-
-    if let Err(source) = fs::rename(&temporary_link, &latest_link) {
-        if had_previous {
-            let _ = fs::rename(&backup_link, &latest_link);
-        }
-        cleanup_failed_publish(&version_dir, Some(&temporary_link));
-        return Err(EngitError::io(&latest_link, source));
-    }
-
-    if had_previous {
-        let _ = fs::remove_file(&backup_link);
-    }
-    let legacy_pointer = name_dir.join(LEGACY_LATEST_POINTER);
-    if fs::symlink_metadata(&legacy_pointer).is_ok() {
-        let _ = fs::remove_file(legacy_pointer);
     }
 
     Ok(destination)
@@ -198,31 +111,25 @@ pub fn run_publish_stack(
         None => default_stack_root_from_env()?,
     };
 
-    publish_stack_at(
-        &stack_root,
-        source,
-        dry_run,
-        &current_timestamp(),
-        create_file_symlink,
-    )
+    publish_stack_at(&stack_root, source, dry_run, &current_timestamp())
 }
 
 #[cfg(test)]
 mod tests {
     use std::ffi::{OsStr, OsString};
     use std::fs;
-    use std::io;
     use std::path::{Path, PathBuf};
 
     use tempfile::tempdir;
 
     use super::{
-        create_file_symlink, default_stack_root_from_env, publish_stack_at, run_publish_stack,
-        LATEST_LINK, LEGACY_LATEST_POINTER, STACK_PUBLISH_ROOT_VAR,
+        current_timestamp, default_stack_root_from_env, publish_stack_at, run_publish_stack,
+        STACK_PUBLISH_ROOT_VAR,
     };
-    use crate::{EngitError, ENVOY_ENV_MUTEX};
+    use crate::ENVOY_ENV_MUTEX;
     use envoy_core::stack::Stack;
     use envoy_core::stack_registry::STACK_ROOTS_VAR;
+    use regex::Regex;
 
     struct EnvVarGuard {
         key: &'static str,
@@ -266,42 +173,35 @@ mod tests {
     }
 
     #[test]
-    fn publishes_stack_to_nested_version_and_updates_latest_symlink() {
+    fn publishes_stack_to_immutable_version_directory() {
         let temp = tempdir().expect("failed to create temp dir");
         let source = write_stack_source(temp.path(), "studio");
 
         let stack_root = temp.path().join("stacks");
         let name_dir = stack_root.join("studio");
-        fs::create_dir_all(&name_dir).expect("failed to create stack name directory");
-        fs::write(name_dir.join(LEGACY_LATEST_POINTER), "legacy.estack")
-            .expect("failed to write legacy pointer");
-        let published = match publish_stack_at(
-            &stack_root,
-            &source,
-            false,
-            "2026-08-01T15-23-45",
-            create_file_symlink,
-        ) {
-            Ok(published) => published,
-            Err(EngitError::Io { source, .. }) if source.raw_os_error() == Some(1314) => return,
-            Err(error) => panic!("stack should publish: {error}"),
-        };
+        let published = publish_stack_at(&stack_root, &source, false, "2026-08-01-152345")
+            .unwrap_or_else(|error| panic!("stack should publish: {error}"));
 
         assert!(published.is_file());
         assert_eq!(
             published,
-            name_dir.join("2026-08-01T15-23-45").join("studio.estack")
-        );
-        let latest_link = name_dir.join(LATEST_LINK);
-        assert_eq!(
-            fs::read_link(&latest_link).expect("latest should be a symlink"),
-            Path::new("2026-08-01T15-23-45").join("studio.estack")
+            name_dir.join("2026-08-01-152345").join("studio.estack")
         );
         assert_eq!(
-            fs::canonicalize(latest_link).expect("latest target should resolve"),
-            fs::canonicalize(published).expect("published path should resolve")
+            fs::read_to_string(&published).expect("published file should be readable"),
+            fs::read_to_string(&source).expect("source file should be readable")
         );
-        assert!(!name_dir.join(LEGACY_LATEST_POINTER).exists());
+    }
+
+    #[test]
+    fn current_timestamp_uses_year_month_day_dash_time_format() {
+        let timestamp = current_timestamp();
+        let pattern = Regex::new(r"^\d{4}-\d{2}-\d{2}-\d{6}$").expect("regex should compile");
+
+        assert!(
+            pattern.is_match(&timestamp),
+            "unexpected timestamp format: {timestamp}"
+        );
     }
 
     #[test]
@@ -325,62 +225,27 @@ mod tests {
         let source = write_stack_source(temp.path(), "studio");
         let stack_root = temp.path().join("stacks");
 
-        let destination = publish_stack_at(
-            &stack_root,
-            &source,
-            true,
-            "2026-08-01T15-23-45",
-            create_file_symlink,
-        )
-        .expect("dry run should succeed");
+        let destination = publish_stack_at(&stack_root, &source, true, "2026-08-01-152345")
+            .expect("dry run should succeed");
 
         assert_eq!(
             destination,
             stack_root
                 .join("studio")
-                .join("2026-08-01T15-23-45")
+                .join("2026-08-01-152345")
                 .join("studio.estack")
         );
         assert!(!stack_root.exists());
     }
 
     #[test]
-    fn symlink_failure_cleans_version_and_preserves_previous_latest() {
-        let temp = tempdir().expect("failed to create temp dir");
-        let source = write_stack_source(temp.path(), "studio");
-        let stack_root = temp.path().join("stacks");
-        let name_dir = stack_root.join("studio");
-        fs::create_dir_all(&name_dir).expect("failed to create stack name directory");
-        let latest_link = name_dir.join(LATEST_LINK);
-        fs::write(&latest_link, "previous").expect("failed to write previous latest fixture");
-
-        let error = publish_stack_at(
-            &stack_root,
-            &source,
-            false,
-            "2026-08-01T15-23-45",
-            |_, _| Err(io::Error::new(io::ErrorKind::PermissionDenied, "denied")),
-        )
-        .expect_err("symlink failure should fail publication");
-
-        assert!(error.to_string().contains("denied"));
-        assert_eq!(
-            fs::read_to_string(latest_link).expect("previous latest should remain"),
-            "previous"
-        );
-        assert!(!name_dir.join("2026-08-01T15-23-45").exists());
-    }
-
-    #[test]
-    fn stack_publish_root_prefers_canonical_environment_variable() {
+    fn stack_publish_root_resolves_from_canonical_environment_variable() {
         let _lock = ENVOY_ENV_MUTEX.lock().expect("env mutex poisoned");
         let temp = tempdir().expect("failed to create temp dir");
         let preferred = temp.path().join("preferred");
-        let legacy = temp.path().join("legacy");
-        let legacy_roots = std::env::join_paths([legacy]).expect("failed to join stack roots");
         let _preferred_guard =
             EnvVarGuard::set(STACK_PUBLISH_ROOT_VAR, Some(preferred.as_os_str()));
-        let _legacy_guard = EnvVarGuard::set(STACK_ROOTS_VAR, Some(legacy_roots.as_os_str()));
+        let _legacy_guard = EnvVarGuard::set(STACK_ROOTS_VAR, None);
 
         assert_eq!(
             default_stack_root_from_env().expect("publish root should resolve"),
@@ -389,19 +254,17 @@ mod tests {
     }
 
     #[test]
-    fn stack_publish_root_falls_back_to_first_runtime_root() {
+    fn stack_publish_root_ignores_legacy_runtime_roots_variable() {
         let _lock = ENVOY_ENV_MUTEX.lock().expect("env mutex poisoned");
         let temp = tempdir().expect("failed to create temp dir");
-        let first = temp.path().join("first");
-        let second = temp.path().join("second");
-        let legacy_roots = std::env::join_paths([first.as_path(), second.as_path()])
-            .expect("failed to join roots");
+        let legacy_roots =
+            std::env::join_paths([temp.path().join("legacy")]).expect("failed to join stack roots");
         let _preferred_guard = EnvVarGuard::set(STACK_PUBLISH_ROOT_VAR, None);
         let _legacy_guard = EnvVarGuard::set(STACK_ROOTS_VAR, Some(legacy_roots.as_os_str()));
 
-        assert_eq!(
-            default_stack_root_from_env().expect("legacy publish root should resolve"),
-            first
-        );
+        let error = default_stack_root_from_env()
+            .expect_err("legacy ENVOY_STACK_ROOTS must not be used for publishing");
+
+        assert!(error.to_string().contains(STACK_PUBLISH_ROOT_VAR));
     }
 }

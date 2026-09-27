@@ -107,8 +107,7 @@ engit publish bundle [PATH] [OPTIONS]
 | `--force` | Replace an existing `dev` publish; invalid for released versions |
 | `--dry-run` | Validate and list files and destinations without writing |
 
-Without `--output`, Engit uses `ENVOY_BUNDLE_PUBLISH_ROOT`. During the
-environment-variable transition it falls back to `ENVOY_BNDLE_PROD` with a warning.
+Without `--output`, Engit uses `ENVOY_BUNDLE_PUBLISH_ROOT`.
 
 The default runtime allowlist is:
 
@@ -168,13 +167,12 @@ engit publish bundle --include config/** --dry-run
 
 ### `engit publish stack`
 
-Publish a validated `.estack` file to a timestamped named slot and update its
-`latest.estack` symlink. The stack name is derived from the source filename,
-and the source's immediate parent directory must use the same name.
+Publish a validated `.estack` file to an immutable, timestamped named slot.
+The stack name is derived from the source filename, and the source's
+immediate parent directory must use the same name.
 
 ```text
 <root>/<name>/<timestamp>/<name>.estack
-<root>/<name>/latest.estack -> <timestamp>/<name>.estack
 ```
 
 ```text
@@ -186,9 +184,6 @@ engit publish stack SOURCE [OPTIONS]
 | `SOURCE` | Strict YAML `.estack` file |
 | `--output`, `-o DIR` | Stack publish root. Defaults to `ENVOY_STACK_PUBLISH_ROOT` |
 | `--dry-run` | Validate and show planned writes without publishing |
-
-During the environment-variable transition, Engit falls back to the first
-`ENVOY_STACK_ROOTS` entry with a warning.
 
 ```powershell
 engit publish stack V:/repo/gtvfx-envoy/stacks/studio/studio.estack

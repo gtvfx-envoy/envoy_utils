@@ -30,6 +30,13 @@ engit publish bundle --output dist --version dev --zip
 Set `ENVOY_BUNDLE_PUBLISH_ROOT` for bundles and
 `ENVOY_STACK_PUBLISH_ROOT` for stacks, or pass `--output` explicitly.
 
+## Stack publish symlink errors on network shares
+
+`engit publish stack` no longer creates or updates `latest.estack`, so SMB
+and other network-share publishes no longer fail on Windows symlink
+permissions. When no `latest.estack` exists, Envoy resolves the newest
+published stack version automatically by modified time.
+
 ## Legacy bundle artifact manifest
 
 Rename `.envoy/bundle-artifacts.json` to `.envoy/publish-manifest.yaml`

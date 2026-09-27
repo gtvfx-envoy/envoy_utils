@@ -27,8 +27,6 @@ pub const LEGACY_BUNDLE_ARTIFACTS_FILE: &str = "bundle-artifacts.json";
 pub const BUNDLE_ENV_DIR: &str = ".envoy";
 /// Preferred canonical bundle publish root environment variable.
 pub const BUNDLE_PUBLISH_ROOT_VAR: &str = "ENVOY_BUNDLE_PUBLISH_ROOT";
-/// Deprecated canonical bundle publish root environment variable.
-pub const LEGACY_BUNDLE_PUBLISH_ROOT_VAR: &str = "ENVOY_BNDLE_PROD";
 /// Runtime paths included from every declared source root.
 pub const DEFAULT_INCLUDES: &[&str] = &[
     ".envoy/**",
@@ -351,18 +349,8 @@ pub fn default_bundle_publish_root() -> Result<PathBuf> {
     if let Some(root) = env::var_os(BUNDLE_PUBLISH_ROOT_VAR).filter(|value| !value.is_empty()) {
         return Ok(PathBuf::from(root));
     }
-    if let Some(root) =
-        env::var_os(LEGACY_BUNDLE_PUBLISH_ROOT_VAR).filter(|value| !value.is_empty())
-    {
-        eprintln!(
-            "warning: {LEGACY_BUNDLE_PUBLISH_ROOT_VAR} is deprecated; use \
-{BUNDLE_PUBLISH_ROOT_VAR} instead."
-        );
-        return Ok(PathBuf::from(root));
-    }
     Err(EngitError::Publish(format!(
-        "No --output specified and neither {BUNDLE_PUBLISH_ROOT_VAR} nor \
-{LEGACY_BUNDLE_PUBLISH_ROOT_VAR} is set."
+        "No --output specified and {BUNDLE_PUBLISH_ROOT_VAR} is not set."
     )))
 }
 
@@ -897,7 +885,7 @@ mod tests {
         detect_version, is_bndlid, list_publish_files, publish_path, resolve_asset_tokens,
         resolve_bndlid_to_path, BundlePublishOptions, BundlePublishResult, BUNDLE_ENV_DIR,
         BUNDLE_MARKER_FILE, BUNDLE_PUBLISH_ROOT_VAR, LEGACY_BUNDLE_ARTIFACTS_FILE,
-        LEGACY_BUNDLE_PUBLISH_ROOT_VAR, PUBLISH_MANIFEST_FILE,
+        PUBLISH_MANIFEST_FILE,
     };
     use crate::{error::Result, ENVOY_ENV_MUTEX};
 
@@ -1330,20 +1318,32 @@ mod tests {
     }
 
     #[test]
-    fn bundle_publish_root_prefers_new_environment_variable() {
+    fn bundle_publish_root_resolves_from_canonical_environment_variable() {
         let _lock = ENVOY_ENV_MUTEX.lock().expect("env mutex poisoned");
         let temp = tempdir().expect("failed to create temp dir");
         let preferred = temp.path().join("preferred");
-        let legacy = temp.path().join("legacy");
         let _preferred_guard =
             EnvVarGuard::set(BUNDLE_PUBLISH_ROOT_VAR, Some(preferred.as_os_str()));
-        let _legacy_guard =
-            EnvVarGuard::set(LEGACY_BUNDLE_PUBLISH_ROOT_VAR, Some(legacy.as_os_str()));
+        let _legacy_guard = EnvVarGuard::set("ENVOY_BNDLE_PROD", None);
 
         assert_eq!(
             default_bundle_publish_root().expect("publish root should resolve"),
             preferred
         );
+    }
+
+    #[test]
+    fn bundle_publish_root_ignores_legacy_publish_root_variable() {
+        let _lock = ENVOY_ENV_MUTEX.lock().expect("env mutex poisoned");
+        let temp = tempdir().expect("failed to create temp dir");
+        let legacy = temp.path().join("legacy");
+        let _preferred_guard = EnvVarGuard::set(BUNDLE_PUBLISH_ROOT_VAR, None);
+        let _legacy_guard = EnvVarGuard::set("ENVOY_BNDLE_PROD", Some(legacy.as_os_str()));
+
+        let error = default_bundle_publish_root()
+            .expect_err("legacy ENVOY_BNDLE_PROD must not be used for publishing");
+
+        assert!(error.to_string().contains(BUNDLE_PUBLISH_ROOT_VAR));
     }
 
     #[test]
