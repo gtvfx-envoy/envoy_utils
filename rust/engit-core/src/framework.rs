@@ -92,7 +92,14 @@ fn publish_stack_at(
         }
     })?;
 
-    if let Err(source) = fs::copy(source_path, &destination) {
+    let staged_destination = version_dir.join(format!(".{name}.estack.{}.tmp", std::process::id()));
+    if let Err(source) = fs::copy(source_path, &staged_destination) {
+        let _ = fs::remove_file(&staged_destination);
+        cleanup_failed_publish(&version_dir);
+        return Err(EngitError::io(&destination, source));
+    }
+    if let Err(source) = fs::rename(&staged_destination, &destination) {
+        let _ = fs::remove_file(&staged_destination);
         cleanup_failed_publish(&version_dir);
         return Err(EngitError::io(&destination, source));
     }
@@ -128,7 +135,6 @@ mod tests {
     };
     use crate::ENVOY_ENV_MUTEX;
     use envoy_core::stack::Stack;
-    use envoy_core::stack_registry::STACK_ROOTS_VAR;
     use regex::Regex;
 
     struct EnvVarGuard {
@@ -194,6 +200,32 @@ mod tests {
     }
 
     #[test]
+    fn publish_leaves_no_staging_artifacts_behind() {
+        let temp = tempdir().expect("failed to create temp dir");
+        let source = write_stack_source(temp.path(), "studio");
+        let stack_root = temp.path().join("stacks");
+
+        publish_stack_at(&stack_root, &source, false, "2026-08-01-152345")
+            .unwrap_or_else(|error| panic!("stack should publish: {error}"));
+
+        let version_dir = stack_root.join("studio").join("2026-08-01-152345");
+        let entries: Vec<_> = fs::read_dir(&version_dir)
+            .expect("version directory should be readable")
+            .map(|entry| {
+                entry
+                    .expect("directory entry should be readable")
+                    .file_name()
+            })
+            .collect();
+
+        assert_eq!(
+            entries,
+            vec![OsStr::new("studio.estack").to_os_string()],
+            "version directory should contain only the published file, no staging artifacts"
+        );
+    }
+
+    #[test]
     fn current_timestamp_uses_year_month_day_dash_time_format() {
         let timestamp = current_timestamp();
         let pattern = Regex::new(r"^\d{4}-\d{2}-\d{2}-\d{6}$").expect("regex should compile");
@@ -245,7 +277,7 @@ mod tests {
         let preferred = temp.path().join("preferred");
         let _preferred_guard =
             EnvVarGuard::set(STACK_PUBLISH_ROOT_VAR, Some(preferred.as_os_str()));
-        let _legacy_guard = EnvVarGuard::set(STACK_ROOTS_VAR, None);
+        let _legacy_guard = EnvVarGuard::set("ENVOY_STACK_ROOTS", None);
 
         assert_eq!(
             default_stack_root_from_env().expect("publish root should resolve"),
@@ -260,7 +292,7 @@ mod tests {
         let legacy_roots =
             std::env::join_paths([temp.path().join("legacy")]).expect("failed to join stack roots");
         let _preferred_guard = EnvVarGuard::set(STACK_PUBLISH_ROOT_VAR, None);
-        let _legacy_guard = EnvVarGuard::set(STACK_ROOTS_VAR, Some(legacy_roots.as_os_str()));
+        let _legacy_guard = EnvVarGuard::set("ENVOY_STACK_ROOTS", Some(legacy_roots.as_os_str()));
 
         let error = default_stack_root_from_env()
             .expect_err("legacy ENVOY_STACK_ROOTS must not be used for publishing");
