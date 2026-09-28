@@ -23,7 +23,7 @@ WORKSPACE_PACKAGE_NAMES = {"engit-cli", "engit-core"}
 DIRECT_ENVOY_APIS = (
     "envoy_core::discovery::{discover_bundles_auto, Bundle}",
     "envoy_core::stack::Stack",
-    "envoy_core::stack_registry::STACK_ROOTS_VAR",
+    "envoy_core::stack_registry::is_stack_name",
 )
 ENVOY_MANIFEST_URL = (
     "https://raw.githubusercontent.com/gtvfx-envoy/envoy/{tag}/rust/Cargo.toml"
