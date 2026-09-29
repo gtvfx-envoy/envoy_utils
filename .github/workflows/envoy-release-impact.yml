@@ -13,6 +13,12 @@ on:
 permissions:
   contents: read
   issues: write
+  # Needed only for the notify job's opt-in auto-cascade dispatch below
+  # (RELEASE_AUTOMATION_AUTO_PREPARE); dispatching this repository's own
+  # prepare-release.yml via `workflow_dispatch` is exempt from the usual
+  # GITHUB_TOKEN recursive-trigger restriction, so no cross-repo App token
+  # is needed for this same-repo dispatch.
+  actions: write
 
 env:
   ENVOY_TAG: ${{ github.event.client_payload.envoy_tag || format('v{0}', inputs.envoy_version) }}
@@ -197,4 +203,61 @@ jobs:
             gh issue create --title "$title" --body-file issue.md \
               --label dependency:envoy-core \
               --label "release-impact:$CLASSIFICATION"
+          fi
+
+      # The following two steps only build engit when auto-cascade is both
+      # enabled and actually applicable, so the common case (no relevant
+      # change, or auto-cascade disabled) never pays their cost.
+      - name: Install Rust
+        if: >-
+          needs.classify.outputs.relevant == 'true' &&
+          steps.report.outputs.classification == 'review' &&
+          vars.RELEASE_AUTOMATION_AUTO_PREPARE == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        if: >-
+          needs.classify.outputs.relevant == 'true' &&
+          steps.report.outputs.classification == 'review' &&
+          vars.RELEASE_AUTOMATION_AUTO_PREPARE == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build engit
+        if: >-
+          needs.classify.outputs.relevant == 'true' &&
+          steps.report.outputs.classification == 'review' &&
+          vars.RELEASE_AUTOMATION_AUTO_PREPARE == 'true'
+        working-directory: rust
+        run: cargo build -p engit-cli
+
+      # A `review` classification means the current Envoy Utils source
+      # already compiles and tests cleanly against this Envoy candidate --
+      # the mechanical case automation can safely act on. `required`
+      # (compatibility failure) always still needs a human fix first and is
+      # deliberately excluded here. This only ever dispatches the existing,
+      # unmodified prepare-release.yml, which still runs its own full
+      # validation and opens a draft pull request; nothing is auto-merged.
+      - name: Dispatch downstream Prepare Release
+        if: >-
+          needs.classify.outputs.relevant == 'true' &&
+          steps.report.outputs.classification == 'review' &&
+          vars.RELEASE_AUTOMATION_AUTO_PREPARE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MARKER: ${{ steps.report.outputs.marker }}
+        run: |
+          envoy_version="${ENVOY_TAG#v}"
+          rust/target/debug/engit release-train prepare-downstream \
+            --owner "${{ github.repository_owner }}" \
+            --repo envoy_utils \
+            --envoy-version "$envoy_version"
+          issue_number="$(
+            gh issue list --state all --limit 100 --json number,body \
+              --jq ".[] | select(.body | contains(\"$MARKER\")) | .number" | head -n 1
+          )"
+          if [[ -n "$issue_number" ]]; then
+            gh issue comment "$issue_number" --body \
+              "🤖 Automatically dispatched **Prepare Release** for Envoy Utils with Envoy \`v$envoy_version\`. See the [Actions tab](${{ github.server_url }}/${{ github.repository }}/actions/workflows/prepare-release.yml) for progress."
           fi

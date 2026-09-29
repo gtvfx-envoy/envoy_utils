@@ -55,6 +55,14 @@ https://cli.github.com/ to use this command."
     #[error("{0}")]
     Cache(String),
 
+    /// Local module-specific error for local cross-repo dev-link flows.
+    #[error("{0}")]
+    Dev(String),
+
+    /// Local module-specific error for release-train orchestration flows.
+    #[error("{0}")]
+    ReleaseTrain(String),
+
     /// Validation / usage error.
     #[error("{0}")]
     Validation(String),
@@ -97,6 +105,12 @@ impl EngitError {
     /// Construct a GitHub CLI failure from captured command output.
     pub fn github_command(args: &[String], stdout: &str, stderr: &str) -> Self {
         EngitError::GitHub(format_command_failure("gh", args, stdout, stderr))
+    }
+
+    /// Construct a development-tool subprocess failure (e.g. `cargo`,
+    /// `maturin`, `pip`, `envoy`) from captured command output.
+    pub fn tool_command(tool: &str, args: &[String], stdout: &str, stderr: &str) -> Self {
+        EngitError::Dev(format_command_failure(tool, args, stdout, stderr))
     }
 
     /// Construct an I/O error with path context.

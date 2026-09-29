@@ -9,6 +9,12 @@
 //! search          Search GitHub repositories.
 //! cache validate  Validate cached bundle content against its manifest.
 //! cache prune     Remove cached bundle entries by ID, pattern, or age.
+//! dev link rust    Link the envoy-core Cargo dependency to a local Envoy checkout.
+//! dev link python  Build/install a local Envoy Python wheel into a dev bundle.
+//! dev unlink       Reverse a prior dev link.
+//! dev status       Show local dev-link status.
+//! release-train status              Cross-repo release-train status.
+//! release-train prepare-downstream  Dispatch a downstream Prepare Release.
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -19,6 +25,10 @@ use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand};
 use engit_core::cache::{default_cache_dir, run_cache_prune, run_cache_validate, PruneSelector};
 use engit_core::changelog::run_changelog;
 use engit_core::cleanup::run_cleanup;
+use engit_core::dev::{
+    run_dev_link_python, run_dev_link_rust, run_dev_status, run_dev_unlink_python,
+    run_dev_unlink_rust,
+};
 use engit_core::error::{EngitError, Result};
 use engit_core::framework::run_publish_stack;
 use engit_core::publish::{
@@ -27,6 +37,7 @@ use engit_core::publish::{
 };
 use engit_core::pull::run_pull;
 use engit_core::release::run_release;
+use engit_core::release_train::{run_release_train_prepare_downstream, run_release_train_status};
 use engit_core::search::run_search;
 use engit_core::status::run_status;
 use engit_core::tag::run_tag;
@@ -120,6 +131,22 @@ to its canonical studio location."
 prune cached entries by ID, glob pattern, or age."
     )]
     Cache(CacheArgs),
+
+    #[command(
+        about = "Local cross-repo development helpers.",
+        long_about = "Link this workspace's envoy-core dependency, or a \
+freshly built Envoy Python wheel, to a local Envoy checkout instead of a \
+published release. Every link is reversible via unlink."
+    )]
+    Dev(DevArgs),
+
+    #[command(
+        about = "Cross-repo release-train status and downstream dispatch.",
+        long_about = "Report release-train status across Envoy and its \
+downstream repositories, or compute the next downstream version and \
+dispatch its existing Prepare Release workflow."
+    )]
+    ReleaseTrain(ReleaseTrainArgs),
 }
 
 #[derive(Debug, Args)]
@@ -520,6 +547,206 @@ preview mode)."
     dry_run: bool,
 }
 
+#[derive(Debug, Args)]
+struct DevArgs {
+    #[command(subcommand)]
+    command: DevCommands,
+}
+
+#[derive(Debug, Subcommand)]
+enum DevCommands {
+    #[command(
+        about = "Link envoy-core (Rust) or Envoy's Python API to a local checkout.",
+        long_about = "Point this workspace's envoy-core Cargo dependency, or a \
+freshly built Envoy Python wheel, at a local Envoy checkout instead of a \
+published release."
+    )]
+    Link(DevLinkArgs),
+
+    #[command(
+        about = "Restore the published Rust dependency, or remove the local Python dev bundle.",
+        long_about = "Reverse a prior `engit dev link`, restoring the exact \
+previously pinned envoy-core dependency or removing the generated local \
+Python dev bundle."
+    )]
+    Unlink(DevUnlinkArgs),
+
+    #[command(
+        about = "Show local dev-link status for Rust and Python.",
+        long_about = "Report whether the envoy-core Cargo dependency and/or \
+the Python API are currently linked to a local Envoy checkout, and to what \
+path."
+    )]
+    Status,
+}
+
+#[derive(Debug, Args)]
+struct DevLinkArgs {
+    #[command(subcommand)]
+    target: DevLinkTarget,
+}
+
+#[derive(Debug, Subcommand)]
+enum DevLinkTarget {
+    #[command(about = "Link the envoy-core Cargo dependency to a local Envoy checkout.")]
+    Rust(DevLinkRustArgs),
+
+    #[command(about = "Build a local Envoy Python wheel and install it into a dev bundle.")]
+    Python(DevLinkPythonArgs),
+}
+
+#[derive(Debug, Args)]
+struct DevLinkRustArgs {
+    #[arg(
+        value_name = "ENVOY",
+        help = "Local Envoy checkout path or bundle ID (e.g. gt:envoy). \
+Defaults to gt:envoy, resolved via ENVOY_BNDL_ROOTS."
+    )]
+    envoy: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct DevLinkPythonArgs {
+    #[arg(
+        value_name = "ENVOY",
+        help = "Local Envoy checkout path or bundle ID (e.g. gt:envoy). \
+Defaults to gt:envoy, resolved via ENVOY_BNDL_ROOTS."
+    )]
+    envoy: Option<String>,
+
+    #[arg(long, help = "Build Envoy's Python wheel in release mode.")]
+    release: bool,
+}
+
+#[derive(Debug, Args)]
+struct DevUnlinkArgs {
+    #[command(subcommand)]
+    target: DevUnlinkTarget,
+}
+
+#[derive(Debug, Subcommand)]
+enum DevUnlinkTarget {
+    #[command(about = "Restore the published envoy-core Cargo dependency.")]
+    Rust,
+
+    #[command(about = "Remove the local Envoy Python dev bundle.")]
+    Python,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum DownstreamRepo {
+    #[value(name = "envoy_utils")]
+    EnvoyUtils,
+    Despatch,
+}
+
+impl DownstreamRepo {
+    fn repo_name(self) -> &'static str {
+        match self {
+            DownstreamRepo::EnvoyUtils => "envoy_utils",
+            DownstreamRepo::Despatch => "despatch",
+        }
+    }
+}
+
+#[derive(Debug, Args)]
+struct ReleaseTrainArgs {
+    #[command(subcommand)]
+    command: ReleaseTrainCommands,
+}
+
+#[derive(Debug, Subcommand)]
+enum ReleaseTrainCommands {
+    #[command(
+        about = "Report release-train status across Envoy and its downstream repositories.",
+        long_about = "Print each repository's latest published release and \
+any open, tracked release-impact issue. Defaults to envoy, envoy_utils, \
+and despatch."
+    )]
+    Status(ReleaseTrainStatusArgs),
+
+    #[command(
+        about = "Compute the next downstream version and dispatch its Prepare Release workflow.",
+        long_about = "Compute the next version for a downstream repository \
+(a patch bump of its latest release by default, or an explicit --version), \
+then dispatch its existing, unmodified prepare-release.yml workflow with \
+that version and the given Envoy pin. This never bypasses or auto-merges \
+that workflow's own validation and draft pull request."
+    )]
+    PrepareDownstream(ReleaseTrainPrepareDownstreamArgs),
+}
+
+#[derive(Debug, Args)]
+struct ReleaseTrainStatusArgs {
+    #[arg(
+        long,
+        default_value = "gtvfx-envoy",
+        value_name = "ORG",
+        help = "GitHub organisation owning the release-train repositories."
+    )]
+    owner: String,
+
+    #[arg(
+        long = "repo",
+        action = ArgAction::Append,
+        value_name = "REPO",
+        help = "Repository to report on (envoy, envoy_utils, or despatch). May be \
+repeated. Defaults to all three."
+    )]
+    repos: Vec<String>,
+}
+
+#[derive(Debug, Args)]
+#[command(group(
+    ArgGroup::new("prepare-downstream-version-source")
+        .required(false)
+        .multiple(false)
+        .args(["major", "minor", "patch", "explicit_version"])
+))]
+struct ReleaseTrainPrepareDownstreamArgs {
+    #[arg(
+        long,
+        default_value = "gtvfx-envoy",
+        value_name = "ORG",
+        help = "GitHub organisation owning the release-train repositories."
+    )]
+    owner: String,
+
+    #[arg(long, value_name = "REPO", help = "Downstream repository to prepare.")]
+    repo: DownstreamRepo,
+
+    #[arg(
+        long = "envoy-version",
+        value_name = "VERSION",
+        required = true,
+        help = "Published, unprefixed Envoy semantic version to pin (e.g. 0.6.0)."
+    )]
+    envoy_version: String,
+
+    #[arg(long, help = "Increment the major version component.")]
+    major: bool,
+
+    #[arg(long, help = "Increment the minor version component.")]
+    minor: bool,
+
+    #[arg(
+        long,
+        help = "Increment the patch version component (the default when no \
+other source is given)."
+    )]
+    patch: bool,
+
+    #[arg(
+        long = "version",
+        value_name = "VERSION",
+        help = "Explicit next downstream version, instead of bumping the latest release."
+    )]
+    explicit_version: Option<String>,
+
+    #[arg(long, help = "Print the gh invocation without dispatching anything.")]
+    dry_run: bool,
+}
+
 fn current_dir_path() -> Result<PathBuf> {
     env::current_dir().map_err(|source| {
         EngitError::Engit(format!("Could not determine current directory: {source}"))
@@ -532,6 +759,18 @@ fn selected_bump(tag_args: &TagArgs) -> Option<&'static str> {
     } else if tag_args.minor {
         Some("minor")
     } else if tag_args.patch {
+        Some("patch")
+    } else {
+        None
+    }
+}
+
+fn selected_downstream_bump(args: &ReleaseTrainPrepareDownstreamArgs) -> Option<&'static str> {
+    if args.major {
+        Some("major")
+    } else if args.minor {
+        Some("minor")
+    } else if args.patch {
         Some("patch")
     } else {
         None
@@ -682,6 +921,66 @@ fn run() -> Result<()> {
                     remove_orphans: args.remove_orphans,
                 };
                 run_cache_prune(&cache_dir, &selector, args.dry_run)?;
+            }
+        },
+        Commands::Dev(args) => match args.command {
+            DevCommands::Link(link_args) => match link_args.target {
+                DevLinkTarget::Rust(rust_args) => {
+                    let linked = run_dev_link_rust(rust_args.envoy.as_deref(), None)?;
+                    println!("Linked envoy-core to local checkout: {}", linked.display());
+                    println!("Run `engit dev unlink rust` to restore the published dependency.");
+                }
+                DevLinkTarget::Python(python_args) => {
+                    let bundle = run_dev_link_python(
+                        python_args.envoy.as_deref(),
+                        python_args.release,
+                        None,
+                    )?;
+                    println!(
+                        "Built a local Envoy Python dev bundle: {}",
+                        bundle.display()
+                    );
+                    println!(
+                        "Add its parent directory to ENVOY_BNDL_ROOTS (or reference it \
+directly) to make it available."
+                    );
+                    println!("Run `engit dev unlink python` to remove it.");
+                }
+            },
+            DevCommands::Unlink(unlink_args) => match unlink_args.target {
+                DevUnlinkTarget::Rust => {
+                    if run_dev_unlink_rust(None)? {
+                        println!("Restored the published envoy-core dependency.");
+                    } else {
+                        println!("Rust is not currently dev-linked; nothing to do.");
+                    }
+                }
+                DevUnlinkTarget::Python => {
+                    if run_dev_unlink_python(None)? {
+                        println!("Removed the local Envoy Python dev bundle.");
+                    } else {
+                        println!("Python is not currently dev-linked; nothing to do.");
+                    }
+                }
+            },
+            DevCommands::Status => {
+                run_dev_status(None)?;
+            }
+        },
+        Commands::ReleaseTrain(args) => match args.command {
+            ReleaseTrainCommands::Status(status_args) => {
+                run_release_train_status(&status_args.owner, &status_args.repos)?;
+            }
+            ReleaseTrainCommands::PrepareDownstream(prepare_args) => {
+                let bump = selected_downstream_bump(&prepare_args);
+                run_release_train_prepare_downstream(
+                    &prepare_args.owner,
+                    prepare_args.repo.repo_name(),
+                    &prepare_args.envoy_version,
+                    prepare_args.explicit_version.as_deref(),
+                    bump,
+                    prepare_args.dry_run,
+                )?;
             }
         },
     }

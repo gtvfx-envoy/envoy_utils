@@ -24,6 +24,15 @@ mindmap
     cache
       validate
       prune
+    dev
+      link
+        rust
+        python
+      unlink
+      status
+    release-train
+      status
+      prepare-downstream
 ```
 
 ## `engit tag`
@@ -323,4 +332,131 @@ engit cache prune --id gt:globals --dry-run
 engit cache prune --pattern "gt:*" --older-than 60
 engit cache prune --remove-orphans
 engit cache prune                    # apply default retention policy now
+```
+
+## `engit dev`
+
+Local cross-repo development helpers. Point this workspace's `envoy-core`
+Cargo dependency, or a freshly built Envoy Python wheel, at an in-progress
+local Envoy checkout instead of a published release -- reversibly, and
+without a by-hand `Cargo.toml` edit. All state lives under the
+already-gitignored `rust/target/engit-dev/`, so a link can never be
+accidentally committed (`lint.yml` also fails fast if one is).
+
+### `engit dev link rust`
+
+Swap the `envoy-core` Cargo dependency to a local Envoy checkout, saving the
+original pin so it can be restored exactly.
+
+```
+engit dev link rust [ENVOY]
+```
+
+| Argument | Description |
+|---|---|
+| `ENVOY` | Local Envoy checkout path or bundle ID (e.g. `gt:envoy`). Defaults to `gt:envoy`, resolved via `ENVOY_BNDL_ROOTS` |
+
+Runs `cargo check --workspace` after swapping to confirm it resolves.
+Re-running `engit dev link rust` with a different checkout re-points the
+dependency without losing the originally saved pin.
+
+### `engit dev link python`
+
+Build a local Envoy Python wheel via `maturin` and install it into an
+isolated, self-contained dev bundle (a generated `.envoy/python_env.json`
+pointing `PYTHONPATH` at the installed wheel). No shared or global
+site-packages are ever touched.
+
+```
+engit dev link python [ENVOY] [--release]
+```
+
+| Argument/Flag | Description |
+|---|---|
+| `ENVOY` | Local Envoy checkout path or bundle ID. Defaults to `gt:envoy` |
+| `--release` | Build Envoy's Python wheel in release mode |
+
+The interpreter is resolved via `envoy --which python`, matching whatever
+Stack is currently active -- add the printed bundle directory's parent to
+`ENVOY_BNDL_ROOTS` (or reference it directly) to make it available.
+
+### `engit dev unlink`
+
+Reverse a prior `engit dev link`.
+
+```
+engit dev unlink rust
+engit dev unlink python
+```
+
+`unlink rust` restores the exact previously pinned `envoy-core` dependency
+and reruns `cargo check --workspace`. `unlink python` removes the generated
+dev bundle. Both are safe no-ops when nothing is currently linked.
+
+### `engit dev status`
+
+Show whether Rust and/or Python are currently dev-linked, and to what path.
+
+```
+engit dev status
+```
+
+**Examples:**
+
+```powershell
+engit dev link rust ..\envoy
+engit dev status
+engit dev unlink rust
+
+engit dev link python ..\envoy --release
+engit dev unlink python
+```
+
+## `engit release-train`
+
+Cross-repo release-train orchestration across Envoy and its downstream
+repositories (`envoy_utils`, `despatch`). See the
+[releasing guide](https://gtvfx-envoy.github.io/envoy/maintainers/releasing/)
+for the full release-train process this complements.
+
+### `engit release-train status`
+
+Print each repository's latest published release and any open, tracked
+release-impact issue -- a single-pane view of the release-train checklist.
+
+```
+engit release-train status [--owner ORG] [--repo REPO]...
+```
+
+| Flag | Description |
+|---|---|
+| `--owner ORG` | GitHub organisation owning the release-train repositories (default: `gtvfx-envoy`) |
+| `--repo REPO` | Repository to report on (`envoy`, `envoy_utils`, or `despatch`). May be repeated. Defaults to all three |
+
+### `engit release-train prepare-downstream`
+
+Compute the next version for a downstream repository and dispatch its
+existing, unmodified `prepare-release.yml` workflow with that version and
+the given Envoy pin. This never bypasses or auto-merges that workflow's own
+validation and draft pull request -- it only ever triggers it.
+
+```
+engit release-train prepare-downstream --repo REPO --envoy-version VERSION [OPTIONS]
+```
+
+| Flag | Description |
+|---|---|
+| `--repo REPO` | Downstream repository to prepare (`envoy_utils` or `despatch`) |
+| `--envoy-version VERSION` | Published, unprefixed Envoy semantic version to pin (e.g. `0.6.0`) |
+| `--major` / `--minor` / `--patch` | Bump component of the latest release. Defaults to `--patch` when no bump or `--version` is given |
+| `--version VERSION` | Explicit next downstream version, instead of bumping the latest release |
+| `--owner ORG` | GitHub organisation (default: `gtvfx-envoy`) |
+| `--dry-run` | Print the `gh` invocation without dispatching anything |
+
+**Examples:**
+
+```powershell
+engit release-train status
+engit release-train prepare-downstream --repo despatch --envoy-version 0.6.0 --dry-run
+engit release-train prepare-downstream --repo envoy_utils --envoy-version 0.6.0
 ```

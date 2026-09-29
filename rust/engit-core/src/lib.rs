@@ -8,6 +8,7 @@
 pub mod cache;
 pub mod changelog;
 pub mod cleanup;
+pub mod dev;
 pub mod editor;
 pub mod error;
 pub mod framework;
@@ -16,6 +17,7 @@ pub mod github;
 pub mod publish;
 pub mod pull;
 pub mod release;
+pub mod release_train;
 pub mod search;
 pub mod semver;
 pub mod status;
