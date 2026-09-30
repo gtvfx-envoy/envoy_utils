@@ -13,12 +13,6 @@ on:
 permissions:
   contents: read
   issues: write
-  # Needed only for the notify job's opt-in auto-cascade dispatch below
-  # (RELEASE_AUTOMATION_AUTO_PREPARE); dispatching this repository's own
-  # prepare-release.yml via `workflow_dispatch` is exempt from the usual
-  # GITHUB_TOKEN recursive-trigger restriction, so no cross-repo App token
-  # is needed for this same-repo dispatch.
-  actions: write
 
 env:
   ENVOY_TAG: ${{ github.event.client_payload.envoy_tag || format('v{0}', inputs.envoy_version) }}
@@ -133,6 +127,16 @@ jobs:
     needs: [classify, compatibility]
     if: always() && needs.classify.result == 'success'
     runs-on: ubuntu-24.04
+    # `classify` and `compatibility` check out and execute code from the
+    # candidate Envoy repository, so they stay on the read-only workflow
+    # defaults above. `actions: write` is needed only here, for this job's
+    # opt-in auto-cascade dispatch below (RELEASE_AUTOMATION_AUTO_PREPARE).
+    # Job-level `permissions` fully replaces the workflow defaults (it does
+    # not merge with them), so every scope this job needs must be repeated.
+    permissions:
+      contents: read
+      issues: write
+      actions: write
 
     steps:
       - name: Checkout Envoy Utils

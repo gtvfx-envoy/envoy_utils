@@ -81,6 +81,11 @@ site/
 .pybuilder/
 target/
 
+# engit dev-link state (rust/.engit-dev/) -- deliberately outside target/ so
+# `cargo clean` cannot silently delete the original envoy-core pin; kept
+# gitignored here instead so a dev-link can never be accidentally committed.
+.engit-dev/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 

@@ -41,5 +41,9 @@ Working on an unreleased Envoy change and want to test it here before either
 side is tagged? `engit dev link rust ..\envoy` points this workspace's
 `envoy-core` dependency at a local checkout (reversible with
 `engit dev unlink rust`); `engit dev link python ..\envoy` does the same for
-Envoy's Python API via an isolated dev bundle. See
+Envoy's Python API via an isolated dev bundle. If you have an Envoy Stack
+active, add the printed bundle path directly to it -- Envoy resolves
+bundles from the active Stack and does not consult `ENVOY_BNDL_ROOTS` while
+one is set; otherwise add its parent directory to `ENVOY_BNDL_ROOTS` (or
+reference it directly). See
 [the CLI reference](docs/cli-reference/engit.md#engit-dev) for details.

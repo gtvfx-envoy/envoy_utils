@@ -4,8 +4,10 @@
 //! a freshly built Envoy Python wheel, at an in-progress local Envoy
 //! checkout instead of a published release -- without a risky by-hand
 //! `Cargo.toml` edit. Every link is reversible via the matching `unlink`
-//! function, and all state lives under the already-gitignored
-//! `rust/target/` directory so a link can never be accidentally committed.
+//! function, and all state lives under the gitignored `rust/.engit-dev/`
+//! directory -- deliberately a sibling of Cargo's disposable `target/`, not
+//! inside it, so a link can never be accidentally committed nor silently
+//! lost to a `cargo clean`.
 
 use std::ffi::OsStr;
 use std::fs;
@@ -18,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{EngitError, Result};
 use crate::git::get_repo_root;
-use crate::publish::{is_bndlid, resolve_bndlid_to_path};
+use crate::publish::{is_bndlid, resolve_bndlid_to_path, BUNDLE_ENV_DIR, BUNDLE_MARKER_FILE};
 
 /// Bundle ID used to resolve a local Envoy checkout when none is given.
 pub const DEFAULT_ENVOY_BNDLID: &str = "gt:envoy";
@@ -58,11 +60,19 @@ pub struct DevStatus {
 }
 
 fn strip_windows_prefix(path: PathBuf) -> PathBuf {
-    match path.to_str() {
-        Some(text) => match text.strip_prefix(r"\\?\") {
-            Some(stripped) => PathBuf::from(stripped),
-            None => path,
-        },
+    let Some(text) = path.to_str() else {
+        return path;
+    };
+    // The extended-length UNC form (`\\?\UNC\server\share\...`) must be
+    // restored to a real UNC path (`\\server\share\...`), not treated as a
+    // local drive path: stripping only the generic `\\?\` prefix would
+    // leave `UNC\server\share\...`, a bogus relative path that silently
+    // drops the fact this was a network location.
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    match text.strip_prefix(r"\\?\") {
+        Some(stripped) => PathBuf::from(stripped),
         None => path,
     }
 }
@@ -76,7 +86,12 @@ fn rust_dir(repo_root: &Path) -> PathBuf {
 }
 
 fn dev_state_dir(rust_root: &Path) -> PathBuf {
-    rust_root.join("target").join("engit-dev")
+    // Deliberately a sibling of `target/`, not inside it: `cargo clean`
+    // wipes `target/` entirely, which would otherwise silently delete
+    // `rust-link.json` -- the only copy of the original `envoy-core` pin --
+    // while leaving `rust/Cargo.toml` still pointed at a local path, making
+    // `engit dev unlink rust` a no-op with the pin unrecoverable.
+    rust_root.join(".engit-dev")
 }
 
 fn rust_link_state_path(rust_root: &Path) -> PathBuf {
@@ -89,6 +104,10 @@ fn python_link_state_path(rust_root: &Path) -> PathBuf {
 
 fn python_bundle_dir(rust_root: &Path) -> PathBuf {
     dev_state_dir(rust_root).join("envoy-python")
+}
+
+fn python_staging_bundle_dir(rust_root: &Path) -> PathBuf {
+    dev_state_dir(rust_root).join("envoy-python.staging")
 }
 
 fn python_wheel_dir(rust_root: &Path) -> PathBuf {
@@ -327,16 +346,33 @@ pub fn run_dev_unlink_rust(cwd: Option<&Path>) -> Result<bool> {
     Ok(true)
 }
 
-/// Write the generated dev bundle's `.envoy/python_env.json`.
+/// Write the generated dev bundle's discovery marker and env files.
+///
+/// `ENVOY_BNDL_ROOTS` auto-discovery (`discovery::scan::find_bundle_roots`)
+/// only recognizes a directory as a candidate bundle root when it is a git
+/// checkout or carries a `.bundle` marker -- this generated directory is
+/// neither otherwise, so without the marker it is invisible to discovery
+/// regardless of what `.envoy/` contains. `global_env.json` is the one env
+/// file unconditionally merged from every bundle in the active set, so a
+/// minimal one is written alongside the actual `python_env.json` PYTHONPATH
+/// addition to keep this a well-formed bundle.
 fn write_dev_python_bundle_env(bundle_dir: &Path) -> Result<()> {
-    let envoy_dir = bundle_dir.join(".envoy");
+    let marker = bundle_dir.join(BUNDLE_MARKER_FILE);
+    fs::write(&marker, "").map_err(|source| EngitError::io(marker.clone(), source))?;
+
+    let envoy_dir = bundle_dir.join(BUNDLE_ENV_DIR);
     fs::create_dir_all(&envoy_dir).map_err(|source| EngitError::io(envoy_dir.clone(), source))?;
-    let env_json = envoy_dir.join("python_env.json");
+
+    let global_env_json = envoy_dir.join("global_env.json");
+    fs::write(&global_env_json, "{}\n")
+        .map_err(|source| EngitError::io(global_env_json.clone(), source))?;
+
+    let python_env_json = envoy_dir.join("python_env.json");
     fs::write(
-        &env_json,
+        &python_env_json,
         "{\n    \"+=PYTHONPATH\": \"${__BUNDLE__}/site-packages\"\n}\n",
     )
-    .map_err(|source| EngitError::io(env_json.clone(), source))
+    .map_err(|source| EngitError::io(python_env_json.clone(), source))
 }
 
 /// Parse `envoy --which python` output into an interpreter path.
@@ -367,12 +403,18 @@ fn parse_envoy_which_output(raw: &str) -> Option<PathBuf> {
 }
 
 /// Build a local Envoy Python wheel and install it into an isolated,
-/// self-contained Envoy bundle directory (a `.envoy/python_env.json`
-/// pointing `PYTHONPATH` at the installed wheel). No shared/global
-/// site-packages are ever touched.
+/// self-contained Envoy bundle directory (a `.bundle` marker plus
+/// `.envoy/global_env.json` and `.envoy/python_env.json` pointing
+/// `PYTHONPATH` at the installed wheel). No shared/global site-packages are
+/// ever touched.
 ///
-/// Returns the generated bundle directory. Add its parent directory to
-/// `ENVOY_BNDL_ROOTS`, or reference it directly, to use it.
+/// The bundle is built into a staging directory and only swapped into place
+/// after the build and install both succeed, so a failed rebuild leaves a
+/// previously-working bundle untouched instead of deleting it first.
+///
+/// Returns the generated bundle directory. If you have an active Stack, add
+/// this path to it; `ENVOY_BNDL_ROOTS` auto-discovery only applies when no
+/// Stack is set.
 pub fn run_dev_link_python(
     envoy_spec: Option<&str>,
     release: bool,
@@ -399,16 +441,21 @@ with a Python bundle active?",
     let python = python_path.to_string_lossy().into_owned();
 
     let bundle_dir = python_bundle_dir(&rust_root);
+    let staging_dir = python_staging_bundle_dir(&rust_root);
     let wheel_dir = python_wheel_dir(&rust_root);
-    let site_packages = bundle_dir.join("site-packages");
-    for stale in [&bundle_dir, &wheel_dir] {
+    // The wheel directory is just build output (never the active bundle),
+    // so it is always safe to clear upfront, along with any stale staging
+    // debris left by a previously interrupted rebuild. `bundle_dir` itself
+    // is deliberately left untouched until the new build fully succeeds.
+    for stale in [&staging_dir, &wheel_dir] {
         if stale.is_dir() {
             fs::remove_dir_all(stale).map_err(|source| EngitError::io(stale.clone(), source))?;
         }
     }
     fs::create_dir_all(&wheel_dir).map_err(|source| EngitError::io(wheel_dir.clone(), source))?;
-    fs::create_dir_all(&site_packages)
-        .map_err(|source| EngitError::io(site_packages.clone(), source))?;
+    let staging_site_packages = staging_dir.join("site-packages");
+    fs::create_dir_all(&staging_site_packages)
+        .map_err(|source| EngitError::io(staging_site_packages.clone(), source))?;
 
     let mut build_args = vec![
         String::from("build"),
@@ -444,12 +491,16 @@ with a Python bundle active?",
         String::from("--no-deps"),
         String::from("--force-reinstall"),
         String::from("--target"),
-        to_manifest_path(&site_packages),
+        to_manifest_path(&staging_site_packages),
         to_manifest_path(&wheel_path),
     ];
     run_tool(&python, install_args, &rust_root)?;
 
-    write_dev_python_bundle_env(&bundle_dir)?;
+    write_dev_python_bundle_env(&staging_dir)?;
+
+    // The build and install both succeeded: only now is it safe to replace
+    // any previously-working bundle with the newly staged one.
+    promote_staged_bundle(&staging_dir, &bundle_dir)?;
 
     write_json(
         &python_link_state_path(&rust_root),
@@ -462,12 +513,33 @@ with a Python bundle active?",
     Ok(bundle_dir)
 }
 
+/// Atomically replace `bundle_dir` with the fully staged contents of
+/// `staging_dir`. Callers must only invoke this after a complete, successful
+/// rebuild -- any previously-working bundle is preserved until this point,
+/// so a failure earlier in the rebuild leaves it untouched instead of
+/// deleting it upfront.
+fn promote_staged_bundle(staging_dir: &Path, bundle_dir: &Path) -> Result<()> {
+    if bundle_dir.is_dir() {
+        fs::remove_dir_all(bundle_dir)
+            .map_err(|source| EngitError::io(bundle_dir.to_path_buf(), source))?;
+    }
+    fs::rename(staging_dir, bundle_dir)
+        .map_err(|source| EngitError::io(bundle_dir.to_path_buf(), source))
+}
+
 /// Remove the generated local Python dev bundle. Returns `false` when
 /// Python was not currently dev-linked.
 pub fn run_dev_unlink_python(cwd: Option<&Path>) -> Result<bool> {
     let repo_root = get_repo_root(cwd)?;
     let rust_root = rust_dir(&repo_root);
     let state_path = python_link_state_path(&rust_root);
+    // Clean up any staging debris left by a previously interrupted rebuild,
+    // regardless of whether a bundle is currently linked.
+    let staging_dir = python_staging_bundle_dir(&rust_root);
+    if staging_dir.is_dir() {
+        fs::remove_dir_all(&staging_dir)
+            .map_err(|source| EngitError::io(staging_dir.clone(), source))?;
+    }
     if !state_path.is_file() {
         return Ok(false);
     }
@@ -560,9 +632,9 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        format_dev_status_lines, parse_envoy_which_output, read_json,
-        restore_dependency_from_state, swap_dependency_to_path, write_dev_python_bundle_env,
-        DevStatus, RustLinkState,
+        format_dev_status_lines, parse_envoy_which_output, promote_staged_bundle, read_json,
+        restore_dependency_from_state, strip_windows_prefix, swap_dependency_to_path,
+        write_dev_python_bundle_env, DevStatus, RustLinkState,
     };
 
     const SAMPLE_MANIFEST: &str = "[workspace]\n\
@@ -697,6 +769,27 @@ command python resolved to: V:\\repo\\gtvfx-envoy\\ext\\python\\prebuilt\\python
     }
 
     #[test]
+    fn strip_windows_prefix_restores_extended_length_unc_paths() {
+        let stripped = strip_windows_prefix(PathBuf::from(r"\\?\UNC\server\share\repo\envoy"));
+
+        assert_eq!(stripped, PathBuf::from(r"\\server\share\repo\envoy"));
+    }
+
+    #[test]
+    fn strip_windows_prefix_strips_extended_length_local_paths() {
+        let stripped = strip_windows_prefix(PathBuf::from(r"\\?\C:\repo\envoy"));
+
+        assert_eq!(stripped, PathBuf::from(r"C:\repo\envoy"));
+    }
+
+    #[test]
+    fn strip_windows_prefix_leaves_ordinary_paths_untouched() {
+        let stripped = strip_windows_prefix(PathBuf::from(r"C:\repo\envoy"));
+
+        assert_eq!(stripped, PathBuf::from(r"C:\repo\envoy"));
+    }
+
+    #[test]
     fn swap_rejects_uncommitted_state_when_manifest_already_local() {
         let dir = tempdir().expect("temp dir");
         let manifest_path = dir.path().join("Cargo.toml");
@@ -758,5 +851,53 @@ command python resolved to: V:\\repo\\gtvfx-envoy\\ext\\python\\prebuilt\\python
         let contents = fs::read_to_string(dir.path().join(".envoy").join("python_env.json"))
             .expect("read env json");
         assert!(contents.contains("${__BUNDLE__}/site-packages"));
+    }
+
+    #[test]
+    fn write_dev_python_bundle_env_writes_discovery_marker_and_global_env() {
+        // ENVOY_BNDL_ROOTS auto-discovery only recognizes a directory as a
+        // candidate bundle root when it has a `.bundle` marker (or is a git
+        // checkout); without it this generated directory would be
+        // invisible to discovery regardless of python_env.json's content.
+        let dir = tempdir().expect("temp dir");
+
+        write_dev_python_bundle_env(dir.path()).expect("write bundle env");
+
+        assert!(dir.path().join(".bundle").is_file());
+        let global_env = fs::read_to_string(dir.path().join(".envoy").join("global_env.json"))
+            .expect("read global_env.json");
+        assert_eq!(global_env.trim(), "{}");
+    }
+
+    #[test]
+    fn promote_staged_bundle_preserves_prior_bundle_until_promotion_succeeds() {
+        let dir = tempdir().expect("temp dir");
+        let bundle_dir = dir.path().join("bundle");
+        let staging_dir = dir.path().join("staging");
+        fs::create_dir_all(&bundle_dir).expect("create bundle dir");
+        fs::write(bundle_dir.join("marker.txt"), "old").expect("write old marker");
+
+        // Simulate a rebuild that stages a new bundle but has not yet been
+        // promoted (e.g. a later step is about to fail): the previously
+        // working bundle must remain exactly as it was, never deleted
+        // upfront.
+        fs::create_dir_all(&staging_dir).expect("create staging dir");
+        fs::write(staging_dir.join("marker.txt"), "new").expect("write new marker");
+        let old_marker =
+            fs::read_to_string(bundle_dir.join("marker.txt")).expect("read old marker");
+        assert_eq!(
+            old_marker, "old",
+            "prior bundle must survive an incomplete rebuild"
+        );
+
+        promote_staged_bundle(&staging_dir, &bundle_dir).expect("promotion should succeed");
+
+        let new_marker =
+            fs::read_to_string(bundle_dir.join("marker.txt")).expect("read new marker");
+        assert_eq!(new_marker, "new");
+        assert!(
+            !staging_dir.is_dir(),
+            "staging directory should be consumed by the rename"
+        );
     }
 }

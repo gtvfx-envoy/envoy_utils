@@ -377,8 +377,11 @@ engit dev link python [ENVOY] [--release]
 | `--release` | Build Envoy's Python wheel in release mode |
 
 The interpreter is resolved via `envoy --which python`, matching whatever
-Stack is currently active -- add the printed bundle directory's parent to
-`ENVOY_BNDL_ROOTS` (or reference it directly) to make it available.
+Stack is currently active. If you have an Envoy Stack active, add the
+printed bundle path directly to it -- Envoy resolves bundles from the
+active Stack and does not consult `ENVOY_BNDL_ROOTS` while one is set.
+Otherwise, add its parent directory to `ENVOY_BNDL_ROOTS` (or reference it
+directly) to make it available via no-Stack auto-discovery.
 
 ### `engit dev unlink`
 

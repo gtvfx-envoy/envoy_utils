@@ -941,8 +941,13 @@ fn run() -> Result<()> {
                         bundle.display()
                     );
                     println!(
-                        "Add its parent directory to ENVOY_BNDL_ROOTS (or reference it \
-directly) to make it available."
+                        "If you have an Envoy Stack active, add this path to it directly \
+-- Envoy resolves bundles from the active Stack and does not consult \
+ENVOY_BNDL_ROOTS while one is set."
+                    );
+                    println!(
+                        "Otherwise, add its parent directory to ENVOY_BNDL_ROOTS (or \
+reference it directly) to make it available via no-Stack auto-discovery."
                     );
                     println!("Run `engit dev unlink python` to remove it.");
                 }

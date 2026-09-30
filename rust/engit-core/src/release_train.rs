@@ -50,9 +50,9 @@ fn dependency_label(repo: &str) -> Option<&'static str> {
     }
 }
 
-fn latest_release_tag(owner: &str, repo: &str) -> Option<String> {
+fn latest_release_tag(owner: &str, repo: &str) -> Result<Option<String>> {
     let full = full_repo(owner, repo);
-    let output = run_gh(
+    let release_view_result = run_gh(
         &[
             "release",
             "view",
@@ -62,10 +62,44 @@ fn latest_release_tag(owner: &str, repo: &str) -> Option<String> {
             "tagName",
         ],
         None,
-    )
-    .ok()?;
-    let parsed: LatestReleaseTag = serde_json::from_str(&output).ok()?;
-    Some(parsed.tag_name)
+    );
+    classify_latest_release_lookup(release_view_result, || {
+        // `gh release view` reports the identical "release not found"
+        // message whether a repository genuinely has no releases yet, does
+        // not exist, or is inaccessible -- that text alone cannot
+        // distinguish them (verified against the real `gh` CLI). Confirm
+        // the repository itself is reachable before treating a failure as
+        // a genuine "no releases yet" rather than a missing repository or
+        // an auth/network problem.
+        run_gh(&["repo", "view", full.as_str(), "--json", "name"], None).is_ok()
+    })
+}
+
+/// Decide the outcome of a release lookup from its raw result, only
+/// consulting `repo_is_reachable` when the lookup itself failed. Split out
+/// from [`latest_release_tag`] so this decision is unit-testable without
+/// shelling out to `gh`.
+fn classify_latest_release_lookup(
+    release_view_result: Result<String>,
+    repo_is_reachable: impl FnOnce() -> bool,
+) -> Result<Option<String>> {
+    match release_view_result {
+        Ok(output) => {
+            let parsed: LatestReleaseTag = serde_json::from_str(&output).map_err(|source| {
+                EngitError::ReleaseTrain(format!(
+                    "Could not parse `gh release view` output: {source}"
+                ))
+            })?;
+            Ok(Some(parsed.tag_name))
+        }
+        Err(release_error) => {
+            if repo_is_reachable() {
+                Ok(None)
+            } else {
+                Err(release_error)
+            }
+        }
+    }
 }
 
 fn format_issue_summary(issue: &IssueSummary) -> String {
@@ -127,8 +161,9 @@ pub fn run_release_train_status(owner: &str, repos: &[String]) -> Result<()> {
     for repo in targets {
         println!("{repo}");
         match latest_release_tag(owner, repo) {
-            Some(tag) => println!("  Latest release: {tag}"),
-            None => println!("  Latest release: (none found)"),
+            Ok(Some(tag)) => println!("  Latest release: {tag}"),
+            Ok(None) => println!("  Latest release: (none found)"),
+            Err(error) => println!("  Latest release: (could not query: {error})"),
         }
         match open_impact_issues(owner, repo) {
             Ok(issues) if issues.is_empty() => println!("  Open impact issues: none"),
@@ -218,7 +253,7 @@ pub fn run_release_train_prepare_downstream(
 ) -> Result<String> {
     let envoy_version = SemVer::parse(envoy_version)?.to_string();
     let full = full_repo(owner, repo);
-    let latest_tag = latest_release_tag(owner, repo);
+    let latest_tag = latest_release_tag(owner, repo)?;
     let next_version =
         resolve_next_downstream_version(bump, explicit_version, latest_tag.as_deref())?.to_string();
 
@@ -242,9 +277,58 @@ pub fn run_release_train_prepare_downstream(
 #[cfg(test)]
 mod tests {
     use super::{
-        format_issue_summary, prepare_downstream_dispatch_args, resolve_next_downstream_version,
-        IssueLabel, IssueSummary,
+        classify_latest_release_lookup, format_issue_summary, prepare_downstream_dispatch_args,
+        resolve_next_downstream_version, IssueLabel, IssueSummary,
     };
+    use crate::error::EngitError;
+
+    #[test]
+    fn classify_latest_release_lookup_returns_tag_on_success() {
+        let result =
+            classify_latest_release_lookup(Ok(String::from(r#"{"tagName":"v1.2.3"}"#)), || {
+                panic!("reachability must not be checked when the lookup succeeded")
+            })
+            .expect("valid JSON should classify successfully");
+
+        assert_eq!(result, Some(String::from("v1.2.3")));
+    }
+
+    #[test]
+    fn classify_latest_release_lookup_surfaces_malformed_json_without_reachability_check() {
+        let error = classify_latest_release_lookup(Ok(String::from("not json")), || {
+            panic!("reachability must not be checked for a parse failure")
+        })
+        .expect_err("malformed JSON should be a real error, not None");
+
+        assert!(matches!(error, EngitError::ReleaseTrain(_)));
+    }
+
+    #[test]
+    fn classify_latest_release_lookup_treats_failure_as_no_releases_when_repo_is_reachable() {
+        let result = classify_latest_release_lookup(
+            Err(EngitError::GitHub(String::from("release not found"))),
+            || true,
+        )
+        .expect("a reachable repository with no releases should classify as None");
+
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn classify_latest_release_lookup_propagates_error_when_repo_is_unreachable() {
+        // Verified empirically: `gh release view` reports the identical
+        // "release not found" message for a repository with no releases
+        // and for one that does not exist at all, so this exact scenario
+        // (repo unreachable) must still surface as an error rather than
+        // silently becoming None.
+        let error = classify_latest_release_lookup(
+            Err(EngitError::GitHub(String::from("release not found"))),
+            || false,
+        )
+        .expect_err("an unreachable repository must propagate the original error");
+
+        assert!(error.to_string().contains("release not found"));
+    }
 
     #[test]
     fn resolve_next_downstream_version_defaults_to_patch_bump() {
