@@ -24,6 +24,8 @@ fn help_lists_all_subcommands() {
         "pull",
         "search",
         "publish",
+        "dev",
+        "release-train",
     ] {
         assert!(
             stdout.contains(subcommand),

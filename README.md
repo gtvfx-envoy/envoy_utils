@@ -6,8 +6,9 @@ Small command-line tools that operate on repositories and artifacts in the
 ## Engit
 
 `engit` provides semantic-version tagging, GitHub releases, changelog and
-repository maintenance, Envoy bundle publishing, bundle checkout updates, and
-named stack publishing.
+repository maintenance, Envoy bundle publishing, bundle checkout updates,
+named stack publishing, local cross-repo development links, and
+release-train orchestration.
 
 See the [Engit CLI reference](docs/cli-reference/engit.md) for commands and
 examples. Common failures are covered in the
@@ -35,3 +36,14 @@ cargo test --workspace
 ```
 
 Development launchers are available at `bin/engit` and `bin/engit.bat`.
+
+Working on an unreleased Envoy change and want to test it here before either
+side is tagged? `engit dev link rust ..\envoy` points this workspace's
+`envoy-core` dependency at a local checkout (reversible with
+`engit dev unlink rust`); `engit dev link python ..\envoy` does the same for
+Envoy's Python API via an isolated dev bundle. If you have an Envoy Stack
+active, add the printed bundle path directly to it -- Envoy resolves
+bundles from the active Stack and does not consult `ENVOY_BNDL_ROOTS` while
+one is set; otherwise add its parent directory to `ENVOY_BNDL_ROOTS` (or
+reference it directly). See
+[the CLI reference](docs/cli-reference/engit.md#engit-dev) for details.

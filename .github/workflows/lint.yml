@@ -44,6 +44,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Cheap, fast sanity check before the expensive fmt/clippy/test
+      # steps: catches an `engit dev link rust` accidentally left linked
+      # (a local `path =` dependency) instead of the published git+tag pin.
+      - name: Verify envoy-core is not a local dev-link
+        shell: bash
+        run: |
+          if grep -q 'envoy-core = { path' rust/Cargo.toml; then
+            echo "::error::rust/Cargo.toml's envoy-core dependency is a local path dependency (left over from 'engit dev link rust'). Run 'engit dev unlink rust' before committing." >&2
+            exit 1
+          fi
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
