@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -159,6 +161,34 @@ class ReleaseAutomationTests(unittest.TestCase):
         contents = manifest_path.read_text(encoding="utf-8")
         self.assertIn('envoy-core = { path = "', contents)
         self.assertNotIn("tag =", contents)
+
+    def testReplaceWithLocalEnvoyResolvesRelativePaths(self):
+        """A relative candidate path is made absolute before it is written.
+
+        Cargo resolves a relative ``path`` against the manifest that contains it,
+        and the compatibility test writes that manifest into a temporary copy. A
+        path relative to the caller's directory would therefore point nowhere.
+        """
+        temporary_directory = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (temporary_directory / "downstream" / "envoy").mkdir(parents=True)
+        manifest_path = temporary_directory / "Cargo.toml"
+        manifest_path.write_text(
+            'envoy-core = { git = "https://example.test", tag = "v0.5.1", '
+            'version = "=0.5.1" }\n',
+            encoding="utf-8",
+        )
+        with contextlib.chdir(temporary_directory):
+            release_automation.replaceWithLocalEnvoy(
+                manifest_path, Path("downstream/envoy")
+            )
+        match = re.search(r'path = "([^"]+)"', manifest_path.read_text(encoding="utf-8"))
+        self.assertIsNotNone(match)
+        written_path = Path(match.group(1))
+        self.assertTrue(written_path.is_absolute(), written_path)
+        self.assertEqual(
+            written_path,
+            (temporary_directory / "downstream/envoy/rust/envoy-core").resolve(),
+        )
 
 
 if __name__ == "__main__":

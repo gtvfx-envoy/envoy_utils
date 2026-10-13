@@ -248,9 +248,10 @@ def prepareRelease(repository_root: Path, version: str, envoy_version: str) -> N
 
 def replaceWithLocalEnvoy(manifest_path: Path, envoy_root: Path) -> None:
     """Replace the pinned Envoy dependency with a candidate local crate."""
-    replacement = (
-        f'envoy-core = {{ path = "{(envoy_root / "rust" / "envoy-core").as_posix()}" }}'
-    )
+    # Cargo resolves a relative path against the manifest it is written into,
+    # which is a copy in another directory, so the path must be absolute.
+    crate_path = (envoy_root.resolve() / "rust" / "envoy-core").as_posix()
+    replacement = f'envoy-core = {{ path = "{crate_path}" }}'
     replaceOne(
         manifest_path,
         re.compile(r"(?m)^envoy-core\s*=\s*\{[^\n]+\}$"),
