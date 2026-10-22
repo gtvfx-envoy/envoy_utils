@@ -118,6 +118,11 @@ engit publish bundle [PATH] [OPTIONS]
 
 Without `--output`, Engit uses `ENVOY_BUNDLE_PUBLISH_ROOT`.
 
+The published `.bundle` marker records the bundle ID as `<namespace>:<name>`. A
+bundle named without a namespace (a repository called `globals`) is recorded in
+Envoy's default namespace as `gt:globals`; it is still published to
+`<root>/globals/<version>`.
+
 The default runtime allowlist is:
 
 - Directories: `.envoy`, `py`, `bin`, `prebuilt`, `resources`, `resource`, and `docs`
