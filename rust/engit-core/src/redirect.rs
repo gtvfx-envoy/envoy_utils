@@ -9,16 +9,17 @@
 use std::collections::BTreeMap;
 use std::env;
 use std::fmt;
-use std::fs::{self, OpenOptions};
+use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use envoy_core::config::expand::expand_source;
 use envoy_core::config::locate::{CONFIG_ROOT_VAR, REDIRECT_FILE_NAME};
 use envoy_core::config::redirect::{normalize_user, Redirect, Severity};
+use envoy_core::config::ConfigError;
 
 use crate::error::{EngitError, Result};
 
@@ -33,13 +34,77 @@ const HISTORY_PREFIX: &str = "redirect-";
 const TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H%M%S";
 const TIMESTAMP_LENGTH: usize = 17;
 
+/// What a history entry is called for a file whose publisher is not known.
+const UNKNOWN_PUBLISHER: &str = "unknown";
+
 /// A redirect file is a few lines. Anything bigger is the wrong file.
 const MAX_FILE_BYTES: u64 = 1024 * 1024;
 
-/// What the launcher needs to find in a folder for it to be an Envoy version.
-const APP_EXECUTABLES: [&str; 2] = ["bin/envoy.exe", "bin/envoy"];
+/// The empty file publishers take turns on, kept beside the redirect file.
+const LOCK_FILE: &str = ".redirect.lock";
+
+/// How long a publish waits for another one into the same folder to finish.
+const LOCK_WAIT: Duration = Duration::from_secs(10);
 
 type Env<'a> = dyn Fn(&str) -> Option<String> + 'a;
+
+/// An operating system whose launchers read the redirect file.
+///
+/// What counts as an Envoy version depends on it: the launcher on each system
+/// looks for its own executable in a version's folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Platform {
+    /// `bin/envoy.exe`.
+    Windows,
+    /// `bin/envoy`.
+    Linux,
+    /// `bin/envoy`.
+    MacOs,
+}
+
+impl Platform {
+    /// Every system the launcher runs on.
+    pub const ALL: [Platform; 3] = [Platform::Windows, Platform::Linux, Platform::MacOs];
+
+    /// The system this program runs on, which is what a launcher started from
+    /// the same machine would check.
+    pub fn host() -> Self {
+        if cfg!(windows) {
+            Self::Windows
+        } else if cfg!(target_os = "macos") {
+            Self::MacOs
+        } else {
+            Self::Linux
+        }
+    }
+
+    /// What the launcher looks for in a version's folder on this system.
+    pub fn executable(self) -> &'static str {
+        match self {
+            Self::Windows => "bin/envoy.exe",
+            Self::Linux | Self::MacOs => "bin/envoy",
+        }
+    }
+}
+
+/// The executables to look for, without repeats: this system's when none is named.
+fn executables_for(platforms: &[Platform]) -> Vec<&'static str> {
+    let host = [Platform::host()];
+    let platforms = if platforms.is_empty() {
+        &host[..]
+    } else {
+        platforms
+    };
+
+    let mut executables = Vec::new();
+    for platform in platforms {
+        let executable = platform.executable();
+        if !executables.contains(&executable) {
+            executables.push(executable);
+        }
+    }
+    executables
+}
 
 /// What [`publish_redirect`] is asked to do.
 #[derive(Debug, Clone, Copy)]
@@ -52,6 +117,9 @@ pub struct PublishOptions<'a> {
     pub team: Option<&'a str>,
     /// Refuse a file that pins a version no source has.
     pub check_sources: bool,
+    /// The systems whose launchers must find each version, or this system's
+    /// when empty.
+    pub platforms: &'a [Platform],
     /// Check everything and say what would be written, without writing it.
     pub dry_run: bool,
 }
@@ -70,8 +138,9 @@ pub enum Outcome {
 /// Whether a pinned version can be found on a source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Availability {
-    /// The folder that holds it.
-    Found(PathBuf),
+    /// The folder that holds it, for each system asked about (once when they
+    /// share a folder).
+    Found(Vec<PathBuf>),
     /// Every place that was tried, and why it did not have the version.
     Missing(Vec<String>),
     /// The sources were not looked at.
@@ -98,8 +167,13 @@ pub struct PublishReport {
     pub live: PathBuf,
     /// The copy kept in the history, when there is one.
     pub history: Option<PathBuf>,
+    /// The file that was live before, kept in the history because nothing
+    /// there had it yet (a file put there by hand).
+    pub archived: Option<PathBuf>,
     /// Every group and the version it is pinned to.
     pub pins: Vec<PinnedVersion>,
+    /// What the person publishing should know that is not an error.
+    pub notes: Vec<String>,
 }
 
 impl fmt::Display for PublishReport {
@@ -114,8 +188,26 @@ impl fmt::Display for PublishReport {
         if let Some(history) = &self.history {
             writeln!(formatter, "  History:  {}", history.display())?;
         }
+        if let Some(archived) = &self.archived {
+            let (label, tense) = if self.outcome == Outcome::WouldPublish {
+                (
+                    "To keep:",
+                    "the file that is live now, which the history does not have",
+                )
+            } else {
+                (
+                    "Kept:",
+                    "the file that was live, which the history did not have",
+                )
+            };
+            writeln!(formatter, "  {label:<10}{} ({tense})", archived.display())?;
+        }
         writeln!(formatter, "  Versions:")?;
-        write_pins(formatter, &self.pins)
+        write_pins(formatter, &self.pins)?;
+        for note in &self.notes {
+            writeln!(formatter, "  Note: {note}")?;
+        }
+        Ok(())
     }
 }
 
@@ -124,10 +216,19 @@ fn write_pins(formatter: &mut fmt::Formatter<'_>, pins: &[PinnedVersion]) -> fmt
     for pin in pins {
         write!(formatter, "    {:<width$}  {}", pin.group, pin.version)?;
         match &pin.availability {
-            Availability::Found(folder) => {
-                writeln!(formatter, "  (found at {})", folder.display())?
+            Availability::Found(folders) => {
+                let folders: Vec<String> = folders
+                    .iter()
+                    .map(|folder| folder.display().to_string())
+                    .collect();
+                writeln!(formatter, "  (found at {})", folders.join(" and "))?
             }
-            Availability::Missing(_) => writeln!(formatter, "  (NOT FOUND on any source)")?,
+            Availability::Missing(tried) => {
+                writeln!(formatter, "  (NOT FOUND on any source)")?;
+                for reason in tried {
+                    writeln!(formatter, "        {reason}")?;
+                }
+            }
             Availability::NotChecked => writeln!(formatter, "  (sources not checked)")?,
         }
     }
@@ -140,32 +241,36 @@ fn write_pins(formatter: &mut fmt::Formatter<'_>, pins: &[PinnedVersion]) -> fmt
 /// told not to, every version it pins must be found on a source. Nothing is
 /// written when a check fails. A file that is already live is left alone.
 ///
-/// Otherwise a copy is kept in the history first, so that every file that was
-/// ever live can be put back, and then the live file is replaced in one step: a
+/// Otherwise, once it is this publisher's turn to publish into the folder, the
+/// file that is live now is kept in the history if nothing there has it, a copy
+/// of the new file is kept, and then the live file is replaced in one step: a
 /// launcher reading it sees the old file or the new one, never half of either.
+/// Every file that went live is in the history.
 pub fn publish_redirect(options: &PublishOptions<'_>) -> Result<PublishReport> {
     let stamp = Utc::now().format(TIMESTAMP_FORMAT).to_string();
     publish_with(options, &|name| env::var(name).ok(), &stamp)
 }
 
 fn publish_with(options: &PublishOptions<'_>, env: &Env, stamp: &str) -> Result<PublishReport> {
+    publish_waiting(options, env, stamp, LOCK_WAIT)
+}
+
+fn publish_waiting(
+    options: &PublishOptions<'_>,
+    env: &Env,
+    stamp: &str,
+    lock_wait: Duration,
+) -> Result<PublishReport> {
     let root = publish_root(options.output, env)?;
-    // A mistyped root must not become a new folder that no launcher reads.
-    if !root.is_dir() {
-        return Err(EngitError::Redirect(format!(
-            "{} is not a folder. The config root must already exist: check the path.",
-            root.display()
-        )));
-    }
+    require_folder(&root)?;
     let directory = redirect_directory(&root, options.team)?;
     let live = directory.join(REDIRECT_FILE_NAME);
 
     let (text, bytes) = read_source(options.source)?;
-    let redirect = Redirect::parse(&text)
-        .map_err(|error| EngitError::Redirect(format!("{}: {error}", options.source.display())))?;
+    let redirect = Redirect::parse(&text).map_err(|error| parse_error(options.source, error))?;
     check_problems(options.source, &redirect)?;
 
-    let pins = pinned_versions(&redirect, options.check_sources, env);
+    let pins = pinned_versions(&redirect, options.check_sources, options.platforms, env);
     if options.check_sources {
         check_found(&pins)?;
     }
@@ -177,46 +282,107 @@ fn publish_with(options: &PublishOptions<'_>, env: &Env, stamp: &str) -> Result<
         )));
     }
 
-    let history = directory
-        .join(HISTORY_DIR)
-        .join(history_name(stamp, &publisher(env)));
-    let unchanged = fs::read(&live).is_ok_and(|current| current == bytes);
-    let report = |outcome, history| PublishReport {
-        outcome,
+    let history_dir = directory.join(HISTORY_DIR);
+    let history = history_dir.join(history_name(stamp, &publisher(env)));
+    let mut report = PublishReport {
+        outcome: Outcome::Unchanged,
         live: live.clone(),
-        history,
-        pins: pins.clone(),
+        history: None,
+        archived: None,
+        pins,
+        notes: Vec::new(),
     };
 
-    if unchanged {
-        return Ok(report(Outcome::Unchanged, None));
+    let current = read_live(&live)?;
+    if current.as_deref() == Some(bytes.as_slice()) {
+        return Ok(report);
     }
     if options.dry_run {
-        return Ok(report(Outcome::WouldPublish, Some(history)));
+        if history.exists() {
+            return Err(history_taken(&history));
+        }
+        if let Some(current) = &current {
+            report.archived = previous_entry(&history_dir, &live, current)?;
+        }
+        report.outcome = Outcome::WouldPublish;
+        report.history = Some(history);
+        return Ok(report);
     }
 
-    write_files(&directory, &live, &history, &bytes)?;
-    Ok(report(Outcome::Published, Some(history)))
+    create_folder(&directory)?;
+    create_folder(&history_dir)?;
+    let turn = PublishLock::acquire(&directory.join(LOCK_FILE), lock_wait)?;
+    report.notes.extend(turn.note.clone());
+
+    // It is this publisher's turn now, so look again: the file may have changed
+    // while another publish was running.
+    let current = read_live(&live)?;
+    if current.as_deref() == Some(bytes.as_slice()) {
+        return Ok(report);
+    }
+    if let Some(current) = &current {
+        if let Some(path) = previous_entry(&history_dir, &live, current)? {
+            write_history(&path, current)?;
+            report.archived = Some(path);
+        }
+    }
+    put_in_place(&history, &bytes, || replace_live(&directory, &live, &bytes))?;
+    confirm_written(&live, &bytes)?;
+
+    report.outcome = Outcome::Published;
+    report.history = Some(history);
+    Ok(report)
+}
+
+/// The live file, or `None` when there is none yet.
+fn read_live(live: &Path) -> Result<Option<Vec<u8>>> {
+    match fs::read(live) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(source) if source.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(source) => Err(EngitError::io(live, source)),
+    }
+}
+
+/// A mistyped root must not become a new folder that no launcher reads.
+fn require_folder(root: &Path) -> Result<()> {
+    if root.is_dir() {
+        return Ok(());
+    }
+    Err(EngitError::Redirect(format!(
+        "{} is not a folder. The config root must already exist: check the path.",
+        root.display()
+    )))
+}
+
+fn parse_error(file: &Path, error: ConfigError) -> EngitError {
+    match error {
+        ConfigError::NewerSchema { found, supported } => EngitError::Redirect(format!(
+            "{} is written for schema {found}, but this engit understands up to schema \
+{supported}. Update engit.",
+            file.display()
+        )),
+        other => EngitError::Redirect(format!("{}: {other}", file.display())),
+    }
 }
 
 /// Keep the history copy, then replace the live file.
-fn write_files(directory: &Path, live: &Path, history: &Path, bytes: &[u8]) -> Result<()> {
-    let history_dir = directory.join(HISTORY_DIR);
-    fs::create_dir_all(&history_dir).map_err(|source| EngitError::io(&history_dir, source))?;
-    if history.exists() {
-        return Err(EngitError::Redirect(format!(
-            "{} already exists. Someone published at the same second: try again.",
-            history.display()
-        )));
-    }
-
-    stage_and_move(&history_dir, history, bytes, false)?;
-    if let Err(error) = stage_and_move(directory, live, bytes, true) {
-        // Every history entry was live once, so one that never was must go.
+///
+/// A copy of a file that never went live must not stay in the history, so it is
+/// removed when the replace fails.
+fn put_in_place(
+    history: &Path,
+    bytes: &[u8],
+    replace_live: impl FnOnce() -> Result<()>,
+) -> Result<()> {
+    write_history(history, bytes)?;
+    if let Err(error) = replace_live() {
         let _ = fs::remove_file(history);
         return Err(error);
     }
+    Ok(())
+}
 
+fn confirm_written(live: &Path, bytes: &[u8]) -> Result<()> {
     match fs::read(live) {
         Ok(found) if found == bytes => Ok(()),
         Ok(_) => Err(EngitError::Redirect(format!(
@@ -227,14 +393,220 @@ fn write_files(directory: &Path, live: &Path, history: &Path, bytes: &[u8]) -> R
     }
 }
 
-/// Write `bytes` beside `target` and move them into place.
-fn stage_and_move(directory: &Path, target: &Path, bytes: &[u8], replace: bool) -> Result<()> {
+/// The turn to publish into a folder, held until it is dropped.
+///
+/// It is an operating system lock on an empty file, so it is let go when the
+/// program ends however it ends, and a crashed publish never leaves a lock for
+/// someone to clear.
+struct PublishLock {
+    file: File,
+    /// Set when the folder cannot lock files, so there was nothing to wait for.
+    note: Option<String>,
+}
+
+impl PublishLock {
+    fn acquire(path: &Path, wait: Duration) -> Result<Self> {
+        let file = open_lock_file(path)?;
+        let give_up = Instant::now() + wait;
+        loop {
+            match file.try_lock() {
+                Ok(()) => return Ok(Self { file, note: None }),
+                Err(TryLockError::WouldBlock) if Instant::now() < give_up => {
+                    thread::sleep(Duration::from_millis(25));
+                }
+                Err(TryLockError::WouldBlock) => {
+                    let folder = path.parent().unwrap_or(path);
+                    return Err(EngitError::Redirect(format!(
+                        "Another publish into {} is still running after {:.1} seconds. Try again \
+in a moment.",
+                        folder.display(),
+                        wait.as_secs_f32()
+                    )));
+                }
+                // Some network locations cannot lock files. Publishing still works there.
+                Err(TryLockError::Error(error)) => {
+                    let folder = path.parent().unwrap_or(path);
+                    return Ok(Self {
+                        file,
+                        note: Some(format!(
+                            "{} cannot lock files ({error}), so nothing stopped another publish \
+into it from running at the same time.",
+                            folder.display()
+                        )),
+                    });
+                }
+            }
+        }
+    }
+}
+
+impl Drop for PublishLock {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
+    }
+}
+
+fn open_lock_file(path: &Path) -> Result<File> {
+    let opened = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path);
+    match opened {
+        Ok(file) => {
+            // Whoever publishes next, whatever their umask, must be able to open it.
+            let _ = make_open_to_all(&file);
+            Ok(file)
+        }
+        // A read-only handle holds the lock just as well.
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => OpenOptions::new()
+            .read(true)
+            .open(path)
+            .map_err(|source| EngitError::io(path, source)),
+        Err(source) => Err(EngitError::io(path, source)),
+    }
+}
+
+/// Create `path` when it is not there, open to the same people as its parent.
+fn create_folder(path: &Path) -> Result<()> {
+    match fs::create_dir(path) {
+        Ok(()) => {
+            match_parent_access(path);
+            Ok(())
+        }
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists && path.is_dir() => Ok(()),
+        Err(source) => Err(EngitError::io(path, source)),
+    }
+}
+
+/// Who can use a new folder follows the publisher's umask unless it is set, and
+/// another administrator could then not publish into it.
+#[cfg(unix)]
+fn match_parent_access(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let Some(parent) = path.parent() else { return };
+    if let Ok(metadata) = fs::metadata(parent) {
+        // The permission bits and the group bit, not the sticky bit.
+        let mode = metadata.permissions().mode() & 0o2777;
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(mode));
+    }
+}
+
+#[cfg(not(unix))]
+fn match_parent_access(_path: &Path) {}
+
+/// The launcher of every user reads the file, whoever published it and
+/// whatever their umask is.
+#[cfg(unix)]
+fn make_readable_by_all(file: &File) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    file.set_permissions(fs::Permissions::from_mode(0o644))
+}
+
+#[cfg(not(unix))]
+fn make_readable_by_all(_file: &File) -> io::Result<()> {
+    Ok(())
+}
+
+/// The lock file is opened by whoever publishes next.
+#[cfg(unix)]
+fn make_open_to_all(file: &File) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    file.set_permissions(fs::Permissions::from_mode(0o666))
+}
+
+#[cfg(not(unix))]
+fn make_open_to_all(_file: &File) -> io::Result<()> {
+    Ok(())
+}
+
+fn history_taken(history: &Path) -> EngitError {
+    EngitError::Redirect(format!(
+        "{} already exists. Someone published as the same user in the same second: try again.",
+        history.display()
+    ))
+}
+
+/// Create a history entry, which must not be there yet: an entry is never replaced.
+fn write_history(history: &Path, bytes: &[u8]) -> Result<()> {
+    let mut file = match OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(history)
+    {
+        Ok(file) => file,
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            return Err(history_taken(history));
+        }
+        Err(source) => return Err(EngitError::io(history, source)),
+    };
+
+    let written = file
+        .write_all(bytes)
+        .and_then(|()| make_readable_by_all(&file))
+        .and_then(|()| file.sync_all());
+    drop(file);
+    if let Err(source) = written {
+        let _ = fs::remove_file(history);
+        return Err(EngitError::io(history, source));
+    }
+    Ok(())
+}
+
+/// Where the file that is live now has to be kept, so that the history has
+/// every file that went live, or `None` when an entry already has it.
+///
+/// Nobody knows who published a file that was put there by hand, so it is named
+/// for the time it was last changed and for an unknown publisher.
+fn previous_entry(history_dir: &Path, live: &Path, current: &[u8]) -> Result<Option<PathBuf>> {
+    if history_holds(history_dir, current) {
+        return Ok(None);
+    }
+
+    let changed = fs::metadata(live)
+        .and_then(|metadata| metadata.modified())
+        .unwrap_or_else(|_| SystemTime::now());
+    let changed = DateTime::<Utc>::from(changed);
+    for earlier in 0..60 {
+        let stamp = (changed - chrono::Duration::seconds(earlier))
+            .format(TIMESTAMP_FORMAT)
+            .to_string();
+        let path = history_dir.join(history_name(&stamp, UNKNOWN_PUBLISHER));
+        if !path.exists() {
+            return Ok(Some(path));
+        }
+    }
+    Err(EngitError::Redirect(format!(
+        "{} has no free name for the file that is live now.",
+        history_dir.display()
+    )))
+}
+
+/// `true` when a history entry has exactly these bytes.
+fn history_holds(history_dir: &Path, bytes: &[u8]) -> bool {
+    let Ok(listing) = fs::read_dir(history_dir) else {
+        return false;
+    };
+    listing.flatten().any(|item| {
+        parse_history_name(&item.file_name().to_string_lossy()).is_some()
+            && item
+                .metadata()
+                .is_ok_and(|metadata| metadata.len() == bytes.len() as u64)
+            && fs::read(item.path()).is_ok_and(|found| found == bytes)
+    })
+}
+
+/// Write `bytes` beside the live file and move them over it.
+fn replace_live(directory: &Path, live: &Path, bytes: &[u8]) -> Result<()> {
     let unique = Utc::now().timestamp_nanos_opt().unwrap_or_default();
-    let name = target
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let staged = directory.join(format!(".{name}.{}-{unique}.tmp", std::process::id()));
+    let staged = directory.join(format!(
+        ".{REDIRECT_FILE_NAME}.{}-{unique}.tmp",
+        std::process::id()
+    ));
 
     let written = OpenOptions::new()
         .write(true)
@@ -242,6 +614,7 @@ fn stage_and_move(directory: &Path, target: &Path, bytes: &[u8], replace: bool) 
         .open(&staged)
         .and_then(|mut file| {
             file.write_all(bytes)?;
+            make_readable_by_all(&file)?;
             file.sync_all()
         });
     if let Err(source) = written {
@@ -249,23 +622,22 @@ fn stage_and_move(directory: &Path, target: &Path, bytes: &[u8], replace: bool) 
         return Err(EngitError::io(&staged, source));
     }
 
-    let moved = if replace {
-        rename_with_retry(&staged, target)
-    } else {
-        fs::rename(&staged, target)
-    };
-    moved.map_err(|source| {
+    rename_with_retry(&staged, live).map_err(|source| {
         let _ = fs::remove_file(&staged);
-        EngitError::io(target, source)
+        EngitError::io(live, source)
     })
 }
 
-/// Rename `from` over `to`, retrying while another program has `to` open.
+/// Rename `from` over `to`, retrying for a moment while another program has
+/// `to` open.
 ///
 /// The launcher reads the file each time it starts, so a publish can land while
-/// it is open.
+/// it is open. A program that opens a file without allowing it to be deleted
+/// makes the rename fail, and Windows reports that as a sharing violation or as
+/// "access is denied" depending on how it was opened. The wait is short because
+/// the same "access is denied" also means the publisher may not change the file.
 fn rename_with_retry(from: &Path, to: &Path) -> io::Result<()> {
-    const ATTEMPTS: u32 = 10;
+    const ATTEMPTS: u32 = 8;
 
     let mut attempt = 0;
     loop {
@@ -273,17 +645,17 @@ fn rename_with_retry(from: &Path, to: &Path) -> io::Result<()> {
             Ok(()) => return Ok(()),
             Err(error) if attempt + 1 < ATTEMPTS && is_busy(&error) => {
                 attempt += 1;
-                thread::sleep(Duration::from_millis(100 * u64::from(attempt)));
+                thread::sleep(Duration::from_millis(50 * u64::from(attempt)));
             }
             Err(error) => return Err(error),
         }
     }
 }
 
-/// `true` when another program has the file open (Windows).
+/// `true` when another program may have the file open for a moment (Windows).
 fn is_busy(error: &io::Error) -> bool {
-    // SHARING_VIOLATION, LOCK_VIOLATION
-    cfg!(windows) && matches!(error.raw_os_error(), Some(32 | 33))
+    // ACCESS_DENIED, SHARING_VIOLATION, LOCK_VIOLATION
+    cfg!(windows) && matches!(error.raw_os_error(), Some(5 | 32 | 33))
 }
 
 fn read_source(path: &Path) -> Result<(String, Vec<u8>)> {
@@ -330,7 +702,13 @@ fn check_problems(source: &Path, redirect: &Redirect) -> Result<()> {
     )))
 }
 
-fn pinned_versions(redirect: &Redirect, check_sources: bool, env: &Env) -> Vec<PinnedVersion> {
+fn pinned_versions(
+    redirect: &Redirect,
+    check_sources: bool,
+    platforms: &[Platform],
+    env: &Env,
+) -> Vec<PinnedVersion> {
+    let executables = executables_for(platforms);
     redirect
         .versions
         .iter()
@@ -338,7 +716,7 @@ fn pinned_versions(redirect: &Redirect, check_sources: bool, env: &Env) -> Vec<P
             group: group.clone(),
             version: version.clone(),
             availability: if check_sources {
-                find_app(version, &redirect.sources, env)
+                find_app(version, &redirect.sources, &executables, env)
             } else {
                 Availability::NotChecked
             },
@@ -371,28 +749,57 @@ Fix the file or the sources, or publish anyway with --no-check-sources.",
     )))
 }
 
-/// Look for a version the way the launcher does: the first source with the app in it.
-fn find_app(version: &str, sources: &[String], env: &Env) -> Availability {
+/// Look for a version the way the launcher does, for each executable asked
+/// about: the first source whose folder has it as a file.
+fn find_app(version: &str, sources: &[String], executables: &[&str], env: &Env) -> Availability {
+    let mut folders = Vec::new();
+    let mut tried = Vec::new();
+    for executable in executables {
+        match find_executable(version, sources, executable, env) {
+            Ok(folder) => {
+                if !folders.contains(&folder) {
+                    folders.push(folder);
+                }
+            }
+            Err(reasons) => {
+                for reason in reasons {
+                    if !tried.contains(&reason) {
+                        tried.push(reason);
+                    }
+                }
+            }
+        }
+    }
+
+    if tried.is_empty() {
+        Availability::Found(folders)
+    } else {
+        Availability::Missing(tried)
+    }
+}
+
+fn find_executable(
+    version: &str,
+    sources: &[String],
+    executable: &str,
+    env: &Env,
+) -> std::result::Result<PathBuf, Vec<String>> {
     let mut tried = Vec::new();
     for template in sources {
         match expand_source(template, version, env) {
             Ok(folder) => {
-                if APP_EXECUTABLES
-                    .iter()
-                    .any(|relative| folder.join(relative).is_file())
-                {
-                    return Availability::Found(folder);
+                if folder.join(executable).is_file() {
+                    return Ok(folder);
                 }
                 tried.push(format!(
-                    "{}: there is no {} there",
-                    folder.display(),
-                    APP_EXECUTABLES.join(" or ")
+                    "{}: there is no {executable} there",
+                    folder.display()
                 ));
             }
             Err(error) => tried.push(error.to_string()),
         }
     }
-    Availability::Missing(tried)
+    Err(tried)
 }
 
 fn is_same_file(first: &Path, second: &Path) -> bool {
@@ -443,18 +850,23 @@ fn redirect_directory(root: &Path, team: Option<&str>) -> Result<PathBuf> {
         None => Ok(root.to_path_buf()),
         Some(team) if is_safe_team(team) => Ok(root.join(team)),
         Some(team) => Err(EngitError::Redirect(format!(
-            "'{team}' cannot be a team name: use letters, digits, '.', '_' and '-'."
+            "'{team}' cannot be a team name: use letters, digits, '.', '_' and '-', and do not \
+end it with a '.'."
         ))),
     }
 }
 
 /// The launcher's rule for a team name, which becomes a folder name.
+///
+/// A name may not end with a dot either, which is stricter than the launcher:
+/// Windows drops trailing dots from a folder name, so such a name would publish
+/// into another folder than the one it names.
 fn is_safe_team(name: &str) -> bool {
     !name.is_empty()
         && name
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
-        && !name.chars().all(|c| c == '.')
+        && !name.ends_with('.')
 }
 
 /// Who is publishing, as the name in a history entry.
@@ -473,7 +885,7 @@ fn publisher(env: &Env) -> String {
         })
         .collect();
     if name.is_empty() {
-        "unknown".to_string()
+        UNKNOWN_PUBLISHER.to_string()
     } else {
         name
     }
@@ -492,6 +904,9 @@ pub struct ShowOptions<'a> {
     pub team: Option<&'a str>,
     /// Say which version this user gets.
     pub user: Option<&'a str>,
+    /// The systems whose launchers must find each version, or this system's
+    /// when empty.
+    pub platforms: &'a [Platform],
 }
 
 /// The live redirect file, read back.
@@ -550,10 +965,18 @@ pub fn show_redirect(options: &ShowOptions<'_>) -> Result<ShowReport> {
 
 fn show_with(options: &ShowOptions<'_>, env: &Env) -> Result<ShowReport> {
     let root = read_root(options.root, env)?;
-    let live = redirect_directory(&root, options.team)?.join(REDIRECT_FILE_NAME);
+    require_folder(&root)?;
+    let directory = redirect_directory(&root, options.team)?;
+    require_team_folder(&directory, options.team)?;
+    let live = directory.join(REDIRECT_FILE_NAME);
+    if !live.is_file() {
+        return Err(EngitError::Redirect(format!(
+            "No redirect file is published at {}.",
+            live.display()
+        )));
+    }
     let (text, _) = read_source(&live)?;
-    let redirect = Redirect::parse(&text)
-        .map_err(|error| EngitError::Redirect(format!("{}: {error}", live.display())))?;
+    let redirect = Redirect::parse(&text).map_err(|error| parse_error(&live, error))?;
 
     let resolution = options.user.map(|user| match redirect.resolve(user) {
         Ok(found) => format!(
@@ -573,24 +996,43 @@ fn show_with(options: &ShowOptions<'_>, env: &Env) -> Result<ShowReport> {
     Ok(ShowReport {
         schema: redirect.schema,
         sources: redirect.sources.clone(),
-        pins: pinned_versions(&redirect, true, env),
-        users: listed_users(&text),
+        pins: pinned_versions(&redirect, true, options.platforms, env),
+        users: listed_users(&text, &redirect),
         resolution,
         live,
     })
 }
 
-/// The users a file lists. The parsed file keeps them to itself, and this is
-/// only for display.
-fn listed_users(text: &str) -> BTreeMap<String, String> {
+/// A team's folder is made by the team's first publish, so a name with no
+/// folder is mistyped or has nothing published.
+fn require_team_folder(directory: &Path, team: Option<&str>) -> Result<()> {
+    match team {
+        Some(team) if !directory.is_dir() => Err(EngitError::Redirect(format!(
+            "{} does not exist, so nothing has been published for team '{team}'. Check the name.",
+            directory.display()
+        ))),
+        _ => Ok(()),
+    }
+}
+
+/// The users a file lists, with the group the launcher gives each.
+///
+/// The parsed file keeps its users to itself. The names are read from the text
+/// and the group is asked of the parsed file, so that what is shown is what the
+/// launcher does even when a user is listed twice.
+fn listed_users(text: &str, redirect: &Redirect) -> BTreeMap<String, String> {
     let value: serde_yaml::Value =
         serde_yaml::from_str(text.trim_start_matches('\u{feff}')).unwrap_or_default();
     let mut users = BTreeMap::new();
     if let Some(listed) = value.get("users").and_then(serde_yaml::Value::as_mapping) {
-        for (user, group) in listed {
-            if let (Some(user), Some(group)) = (user.as_str(), group.as_str()) {
-                users.insert(normalize_user(user), group.trim().to_string());
-            }
+        for (user, _) in listed {
+            let Some(user) = user.as_str() else { continue };
+            let user = normalize_user(user);
+            let group = match redirect.resolve(&user) {
+                Ok(found) => found.group,
+                Err(error) => format!("({error})"),
+            };
+            users.insert(user, group);
         }
     }
     users
@@ -619,7 +1061,10 @@ pub fn redirect_history(root: Option<&Path>, team: Option<&str>) -> Result<Vec<H
 }
 
 fn history_with(root: Option<&Path>, team: Option<&str>, env: &Env) -> Result<Vec<HistoryEntry>> {
-    let directory = redirect_directory(&read_root(root, env)?, team)?;
+    let root = read_root(root, env)?;
+    require_folder(&root)?;
+    let directory = redirect_directory(&root, team)?;
+    require_team_folder(&directory, team)?;
     let current = fs::read(directory.join(REDIRECT_FILE_NAME)).ok();
 
     let history_dir = directory.join(HISTORY_DIR);
@@ -675,12 +1120,16 @@ mod tests {
     use std::collections::HashMap;
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::{Arc, Barrier};
+    use std::thread;
+    use std::time::Duration;
 
     use tempfile::{tempdir, TempDir};
 
     use super::{
-        history_with, parse_history_name, publish_with, show_with, Availability, Outcome,
-        PublishOptions, ShowOptions, CONFIG_PUBLISH_ROOT_VAR,
+        confirm_written, history_with, parse_history_name, publish_waiting, publish_with,
+        put_in_place, show_with, Availability, Outcome, Platform, PublishLock, PublishOptions,
+        ShowOptions, CONFIG_PUBLISH_ROOT_VAR, LOCK_FILE,
     };
     use crate::error::EngitError;
 
@@ -723,9 +1172,19 @@ users:
     }
 
     fn make_app(studio: &Path, version: &str) {
-        let bin = studio.join("envoy").join(version).join("bin");
-        fs::create_dir_all(&bin).expect("bin is created");
-        fs::write(bin.join("envoy.exe"), "").expect("executable is written");
+        make_app_for(studio, version, &[Platform::host().executable()]);
+    }
+
+    /// An app folder that has exactly these executables, as an archive for each system adds.
+    fn make_app_for(studio: &Path, version: &str, executables: &[&str]) {
+        let folder = studio.join("envoy").join(version);
+        let _ = fs::remove_dir_all(&folder);
+        for executable in executables {
+            let path = folder.join(executable);
+            fs::create_dir_all(path.parent().expect("an executable has a folder"))
+                .expect("bin is created");
+            fs::write(&path, "").expect("executable is written");
+        }
     }
 
     fn env_for(setup: &Setup) -> impl Fn(&str) -> Option<String> {
@@ -742,6 +1201,7 @@ users:
             output: Some(&setup.root),
             team: None,
             check_sources: true,
+            platforms: &[],
             dry_run: false,
         }
     }
@@ -810,7 +1270,7 @@ users:
     }
 
     #[test]
-    fn nothing_but_the_two_files_is_left_behind() {
+    fn only_the_files_and_the_lock_are_left_behind() {
         let setup = setup();
 
         publish(&setup, &options(&setup), STAMP).expect("publishes");
@@ -818,6 +1278,7 @@ users:
         assert_eq!(
             files_under(&setup.root),
             [
+                LOCK_FILE,
                 "history/redirect-2026-11-02-171000-alice.yaml",
                 "redirect.yaml"
             ]
@@ -833,7 +1294,7 @@ users:
 
         assert_eq!(again.outcome, Outcome::Unchanged);
         assert!(again.history.is_none());
-        assert_eq!(files_under(&setup.root).len(), 2);
+        assert_eq!(files_under(&setup.root).len(), 3);
     }
 
     #[test]
@@ -852,7 +1313,7 @@ users:
         assert!(fs::read_to_string(&report.live)
             .expect("live reads")
             .contains("alice: default"));
-        assert_eq!(files_under(&setup.root).len(), 3);
+        assert_eq!(files_under(&setup.root).len(), 4);
         let first = setup
             .root
             .join("history")
@@ -899,7 +1360,8 @@ users: {alice: missing}\nteam: x\n",
 
         let text = message(publish(&setup, &options(&setup), STAMP));
 
-        assert!(text.contains("99"), "{text}");
+        assert!(text.contains("schema 99"), "{text}");
+        assert!(text.contains("Update engit"), "{text}");
         assert!(untouched(&setup.root));
     }
 
@@ -944,14 +1406,149 @@ users: {alice: missing}\nteam: x\n",
     #[test]
     fn a_folder_without_the_app_is_not_a_version() {
         let setup = setup();
-        fs::remove_file(setup.studio.join("envoy/v0.8.0/bin/envoy.exe")).expect("removed");
+        let executable = Platform::host().executable();
+        fs::remove_file(setup.studio.join("envoy/v0.8.0").join(executable)).expect("removed");
 
         let text = message(publish(&setup, &options(&setup), STAMP));
 
         assert!(
-            text.contains("there is no bin/envoy.exe or bin/envoy there"),
+            text.contains(&format!("there is no {executable} there")),
             "{text}"
         );
+    }
+
+    #[test]
+    fn a_directory_with_the_name_of_the_executable_is_not_a_version() {
+        let setup = setup();
+        let executable = setup
+            .studio
+            .join("envoy/v0.8.0")
+            .join(Platform::host().executable());
+        fs::remove_file(&executable).expect("removed");
+        fs::create_dir(&executable).expect("a directory takes its place");
+
+        let text = message(publish(&setup, &options(&setup), STAMP));
+
+        assert!(
+            text.contains("group 'default' is pinned to v0.8.0"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn each_system_is_held_to_the_executable_its_launcher_looks_for() {
+        let setup = setup();
+        let versions = ["v0.8.0", "v0.8.1-rc.1"];
+        let stock = |executables: &[&str]| {
+            for version in versions {
+                make_app_for(&setup.studio, version, executables);
+            }
+        };
+        let publishes_for = |platforms: &[Platform]| {
+            let mut wanted = options(&setup);
+            wanted.platforms = platforms;
+            wanted.dry_run = true;
+            publish(&setup, &wanted, STAMP)
+        };
+
+        // Only the Windows executable, as a Windows-only archive unpacks.
+        stock(&["bin/envoy.exe"]);
+        assert!(publishes_for(&[Platform::Windows]).is_ok());
+        for platform in [Platform::Linux, Platform::MacOs] {
+            let text = message(publishes_for(&[platform]));
+            assert!(text.contains("there is no bin/envoy there"), "{text}");
+        }
+        let text = message(publishes_for(&Platform::ALL));
+        assert!(text.contains("there is no bin/envoy there"), "{text}");
+        assert!(!text.contains("there is no bin/envoy.exe"), "{text}");
+
+        // Only the plain executable, as a Linux-only archive unpacks.
+        stock(&["bin/envoy"]);
+        assert!(publishes_for(&[Platform::Linux, Platform::MacOs]).is_ok());
+        let text = message(publishes_for(&[Platform::Windows]));
+        assert!(text.contains("there is no bin/envoy.exe there"), "{text}");
+
+        // Both, which is what a studio for every system needs.
+        stock(&["bin/envoy.exe", "bin/envoy"]);
+        let report = publishes_for(&Platform::ALL).expect("every system finds it");
+        assert!(report.pins.iter().all(|pin| matches!(
+            &pin.availability,
+            Availability::Found(folders) if folders.len() == 1
+        )));
+    }
+
+    #[test]
+    fn a_publish_that_names_no_system_is_held_to_this_one() {
+        let setup = setup();
+        let other = if cfg!(windows) {
+            "bin/envoy"
+        } else {
+            "bin/envoy.exe"
+        };
+        for version in ["v0.8.0", "v0.8.1-rc.1"] {
+            make_app_for(&setup.studio, version, &[other]);
+        }
+
+        let text = message(publish(&setup, &options(&setup), STAMP));
+
+        assert!(
+            text.contains(&format!(
+                "there is no {} there",
+                Platform::host().executable()
+            )),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn a_source_that_cannot_be_expanded_is_passed_over_for_the_next_one() {
+        let setup = setup();
+        fs::write(
+            &setup.source,
+            FILE.replace(
+                "  - ${STUDIO}/envoy/{version}",
+                "  - ${NOT_SET}/envoy/{version}\n  - ${STUDIO}/envoy/{version}",
+            ),
+        )
+        .expect("written");
+
+        let report = publish(&setup, &options(&setup), STAMP).expect("the second source has it");
+
+        assert!(report
+            .pins
+            .iter()
+            .all(|pin| matches!(pin.availability, Availability::Found(_))));
+    }
+
+    #[test]
+    fn the_first_source_that_has_a_version_is_the_one_that_is_reported() {
+        let setup = setup();
+        let second = setup.studio.with_file_name("second");
+        for version in ["v0.8.0", "v0.8.1-rc.1"] {
+            make_app(&second, version);
+        }
+        let variables: HashMap<String, String> = HashMap::from([
+            ("EMPTY".to_string(), setup.root.display().to_string()),
+            ("STUDIO".to_string(), second.display().to_string()),
+        ]);
+        fs::write(
+            &setup.source,
+            FILE.replace(
+                "  - ${STUDIO}/envoy/{version}",
+                "  - ${EMPTY}/envoy/{version}\n  - ${STUDIO}/envoy/{version}",
+            ),
+        )
+        .expect("written");
+
+        let report = publish_with(
+            &options(&setup),
+            &|name| variables.get(name).cloned(),
+            STAMP,
+        )
+        .expect("the second source has it");
+
+        assert!(report.pins.iter().all(|pin| pin.availability
+            == Availability::Found(vec![second.join("envoy").join(&pin.version)])));
     }
 
     #[test]
@@ -995,6 +1592,7 @@ users: {alice: missing}\nteam: x\n",
         assert_eq!(
             files_under(&setup.root),
             [
+                "rigging/.redirect.lock",
                 "rigging/history/redirect-2026-11-02-171000-alice.yaml",
                 "rigging/redirect.yaml"
             ]
@@ -1089,25 +1687,164 @@ users: {alice: missing}\nteam: x\n",
         assert!(fs::read_to_string(setup.root.join("redirect.yaml"))
             .expect("live reads")
             .contains("alice: preview"));
+        let first = setup
+            .root
+            .join("history")
+            .join("redirect-2026-11-02-171000-alice.yaml");
+        assert_eq!(fs::read_to_string(first).expect("first reads"), FILE);
     }
 
     #[test]
-    fn a_failed_replace_leaves_no_history_entry_behind() {
+    fn a_live_path_that_cannot_be_read_changes_nothing() {
         let setup = setup();
-        // A folder where the live file belongs makes the replace fail.
+        // A folder where the live file belongs.
         fs::create_dir_all(setup.root.join("redirect.yaml")).expect("blocker is created");
 
-        let error = publish(&setup, &options(&setup), STAMP).expect_err("the replace fails");
+        let error = publish(&setup, &options(&setup), STAMP).expect_err("it cannot be read");
 
         assert!(matches!(error, EngitError::Io { .. }), "{error}");
+        assert!(files_under(&setup.root).is_empty());
+        assert!(!setup.root.join("history").exists());
+    }
+
+    #[test]
+    fn a_history_copy_of_a_file_that_never_went_live_is_removed() {
+        let setup = setup();
         let history = setup.root.join("history");
-        let left = fs::read_dir(&history)
-            .map(|listing| listing.count())
-            .unwrap_or(0);
-        assert_eq!(
-            left, 0,
-            "a history entry that was never live must be removed"
+        fs::create_dir_all(&history).expect("history is created");
+        let entry = history.join("redirect-2026-11-02-171000-alice.yaml");
+
+        let error = put_in_place(&entry, b"new", || {
+            Err(EngitError::Redirect("the replace failed".to_string()))
+        })
+        .expect_err("the replace fails");
+
+        assert!(error.to_string().contains("the replace failed"), "{error}");
+        assert!(!entry.exists(), "the copy never went live, so it must go");
+
+        put_in_place(&entry, b"new", || Ok(())).expect("a replace that works keeps it");
+        assert_eq!(fs::read(&entry).expect("entry reads"), b"new");
+    }
+
+    #[test]
+    fn what_was_published_is_checked_by_reading_it_back() {
+        let setup = setup();
+        let live = setup.root.join("redirect.yaml");
+        fs::write(&live, "somebody else's file").expect("live is written");
+
+        let error = confirm_written(&live, b"what was published").expect_err("they differ");
+
+        assert!(
+            error.to_string().contains("does not have the content"),
+            "{error}"
         );
+        assert!(confirm_written(&live, b"somebody else's file").is_ok());
+        assert!(confirm_written(&setup.root.join("missing.yaml"), b"x").is_err());
+    }
+
+    #[test]
+    fn a_publish_waits_for_another_one_to_finish() {
+        let setup = setup();
+        let held = PublishLock::acquire(&setup.root.join(LOCK_FILE), Duration::from_secs(1))
+            .expect("the first publisher has its turn");
+        let finish = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            drop(held);
+        });
+
+        let report = publish_waiting(
+            &options(&setup),
+            &env_for(&setup),
+            STAMP,
+            Duration::from_secs(10),
+        )
+        .expect("it goes ahead once the other has finished");
+
+        finish.join().expect("the other publisher finishes");
+        assert_eq!(report.outcome, Outcome::Published);
+    }
+
+    #[test]
+    fn a_publish_that_never_gets_its_turn_says_so_and_changes_nothing() {
+        let setup = setup();
+        let _held = PublishLock::acquire(&setup.root.join(LOCK_FILE), Duration::from_secs(1))
+            .expect("the first publisher has its turn");
+
+        let error = publish_waiting(
+            &options(&setup),
+            &env_for(&setup),
+            STAMP,
+            Duration::from_millis(250),
+        )
+        .expect_err("it gives up");
+
+        assert!(error.to_string().contains("is still running"), "{error}");
+        assert_eq!(files_under(&setup.root), [LOCK_FILE]);
+    }
+
+    #[test]
+    fn a_turn_is_free_again_once_it_is_let_go() {
+        let setup = setup();
+        let path = setup.root.join(LOCK_FILE);
+
+        drop(PublishLock::acquire(&path, Duration::from_secs(1)).expect("the first turn"));
+
+        PublishLock::acquire(&path, Duration::from_millis(100)).expect("free again");
+    }
+
+    #[test]
+    fn a_dry_run_says_which_file_it_would_keep_and_writes_nothing() {
+        let setup = setup();
+        fs::write(setup.root.join("redirect.yaml"), "put there by hand\n").expect("by hand");
+        let mut dry = options(&setup);
+        dry.dry_run = true;
+
+        let report = publish(&setup, &dry, STAMP).expect("checks");
+
+        let kept = report.archived.clone().expect("the old file would be kept");
+        let name = kept
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("a name");
+        assert!(
+            name.starts_with("redirect-") && name.ends_with("-unknown.yaml"),
+            "{name}"
+        );
+        assert!(report.to_string().contains("To keep:"), "{report}");
+        assert_eq!(files_under(&setup.root), ["redirect.yaml"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_new_folder_is_open_to_the_same_people_as_the_one_it_is_in() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let setup = setup();
+        fs::set_permissions(&setup.root, fs::Permissions::from_mode(0o775)).expect("mode is set");
+        let mut team = options(&setup);
+        team.team = Some("rigging");
+
+        publish(&setup, &team, STAMP).expect("publishes");
+
+        let mode = |path: &Path| fs::metadata(path).expect("metadata").permissions().mode() & 0o777;
+        assert_eq!(mode(&setup.root.join("rigging")), 0o775);
+        assert_eq!(mode(&setup.root.join("rigging/history")), 0o775);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_lock_file_can_be_opened_by_whoever_publishes_next() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let setup = setup();
+
+        publish(&setup, &options(&setup), STAMP).expect("publishes");
+
+        let mode = fs::metadata(setup.root.join(LOCK_FILE))
+            .expect("metadata")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o666, 0o666, "{mode:o}");
     }
 
     #[test]
@@ -1200,11 +1937,18 @@ users: {alice: missing}\nteam: x\n",
     fn show_reports_the_file_and_what_one_user_gets() {
         let setup = setup();
         publish(&setup, &options(&setup), STAMP).expect("publishes");
-        fs::remove_file(setup.studio.join("envoy/v0.8.1-rc.1/bin/envoy.exe")).expect("removed");
+        fs::remove_file(
+            setup
+                .studio
+                .join("envoy/v0.8.1-rc.1")
+                .join(Platform::host().executable()),
+        )
+        .expect("removed");
         let wanted = ShowOptions {
             root: Some(&setup.root),
             team: None,
             user: Some("CORP\\ALICE"),
+            platforms: &[],
         };
 
         let report = show_with(&wanted, &env_for(&setup)).expect("shows");
@@ -1235,6 +1979,7 @@ users: {alice: missing}\nteam: x\n",
             root: Some(&setup.root),
             team: None,
             user: Some("bob"),
+            platforms: &[],
         };
 
         let report = show_with(&other, &env_for(&setup)).expect("shows");
@@ -1247,8 +1992,12 @@ users: {alice: missing}\nteam: x\n",
             root: Some(&setup.studio),
             team: None,
             user: None,
+            platforms: &[],
         };
-        assert!(show_with(&nowhere, &env_for(&setup)).is_err());
+        let text = show_with(&nowhere, &env_for(&setup))
+            .expect_err("there is no file there")
+            .to_string();
+        assert!(text.contains("No redirect file is published at"), "{text}");
     }
 
     #[test]
@@ -1266,10 +2015,280 @@ users: {alice: missing}\nteam: x\n",
             root: None,
             team: None,
             user: None,
+            platforms: &[],
         };
 
         let report = show_with(&wanted, &|name| variables.get(name).cloned()).expect("shows");
 
         assert_eq!(report.live, setup.root.join("redirect.yaml"));
+    }
+
+    #[test]
+    fn two_publishers_with_one_name_in_one_second_cannot_both_win() {
+        for round in 0..8 {
+            let setup = Arc::new(setup());
+            let barrier = Arc::new(Barrier::new(6));
+            let attempts: Vec<_> = (0..6)
+                .map(|number| {
+                    let (setup, barrier) = (Arc::clone(&setup), Arc::clone(&barrier));
+                    thread::spawn(move || {
+                        let source = setup.root.with_file_name(format!("redirect-{number}.yaml"));
+                        let text =
+                            FILE.replace("alice: preview", &format!("user{number}: preview"));
+                        fs::write(&source, text).expect("source is written");
+                        let mut wanted = options(&setup);
+                        wanted.source = &source;
+                        barrier.wait();
+                        publish(&setup, &wanted, STAMP).is_ok()
+                    })
+                })
+                .collect();
+
+            let won = attempts
+                .into_iter()
+                .map(|attempt| attempt.join().expect("the thread finishes"))
+                .filter(|published| *published)
+                .count();
+
+            assert_eq!(won, 1, "round {round}: only one may take the history name");
+            let entries = history_with(Some(&setup.root), None, &env_for(&setup)).expect("lists");
+            assert_eq!(entries.len(), 1, "round {round}");
+            assert!(
+                entries[0].live,
+                "round {round}: the entry is what went live"
+            );
+        }
+    }
+
+    #[test]
+    fn the_file_that_was_live_before_is_kept_in_the_history() {
+        let setup = setup();
+        let before = "schema: 1\nsources: ['${STUDIO}/envoy/{version}']\nversions: {default: v0.8.0}\n# by hand\n";
+        fs::write(setup.root.join("redirect.yaml"), before).expect("a file is put there by hand");
+
+        publish(&setup, &options(&setup), STAMP).expect("publishes");
+
+        let entries = history_with(Some(&setup.root), None, &env_for(&setup)).expect("lists");
+        let kept: Vec<String> = entries
+            .iter()
+            .map(|entry| fs::read_to_string(&entry.path).expect("entry reads"))
+            .collect();
+        assert!(kept.iter().any(|text| text == before), "{kept:?}");
+        assert!(kept.iter().any(|text| text == FILE), "{kept:?}");
+        assert_eq!(entries.iter().filter(|entry| entry.live).count(), 1);
+    }
+
+    #[test]
+    fn a_previous_file_that_is_in_the_history_already_is_not_copied_again() {
+        let setup = setup();
+        publish(&setup, &options(&setup), STAMP).expect("publishes");
+        fs::write(
+            &setup.source,
+            FILE.replace("alice: preview", "alice: default"),
+        )
+        .expect("source is changed");
+
+        publish(&setup, &options(&setup), "2026-11-02-171100").expect("publishes");
+
+        let entries = history_with(Some(&setup.root), None, &env_for(&setup)).expect("lists");
+        assert_eq!(entries.len(), 2, "{entries:?}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_live_file_another_program_holds_open_is_replaced_once_it_lets_go() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let setup = setup();
+        publish(&setup, &options(&setup), STAMP).expect("publishes");
+        fs::write(
+            &setup.source,
+            FILE.replace("alice: preview", "alice: default"),
+        )
+        .expect("source is changed");
+        let live = setup.root.join("redirect.yaml");
+        // Shared for reading and writing but not for deleting, the way an older program opens a file.
+        let held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(1 | 2)
+            .open(&live)
+            .expect("the live file is held");
+        let let_go = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(400));
+            drop(held);
+        });
+
+        let outcome = publish(&setup, &options(&setup), "2026-11-02-171100");
+
+        let_go.join().expect("the holder finishes");
+        outcome.expect("the publish waits for the file to be let go");
+        assert!(fs::read_to_string(&live)
+            .expect("live reads")
+            .contains("alice: default"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_live_file_that_stays_open_is_left_as_it_was() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let setup = setup();
+        publish(&setup, &options(&setup), STAMP).expect("publishes");
+        fs::write(
+            &setup.source,
+            FILE.replace("alice: preview", "alice: default"),
+        )
+        .expect("source is changed");
+        let live = setup.root.join("redirect.yaml");
+        let _held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(1 | 2)
+            .open(&live)
+            .expect("the live file is held");
+
+        let error = publish(&setup, &options(&setup), "2026-11-02-171100")
+            .expect_err("the file cannot be replaced while it is held");
+
+        assert!(matches!(error, EngitError::Io { .. }), "{error}");
+        assert_eq!(fs::read_to_string(&live).expect("live reads"), FILE);
+        assert_eq!(
+            files_under(&setup.root).len(),
+            3,
+            "no history entry or temporary file is left"
+        );
+    }
+
+    #[test]
+    fn show_lists_the_group_the_launcher_uses_when_a_user_is_listed_twice() {
+        let setup = setup();
+        fs::write(
+            setup.root.join("redirect.yaml"),
+            FILE.replace("alice: preview", "alice: default\n  ALICE: preview"),
+        )
+        .expect("a file is put there by hand");
+        let wanted = ShowOptions {
+            root: Some(&setup.root),
+            team: None,
+            user: Some("alice"),
+            platforms: &[],
+        };
+
+        let report = show_with(&wanted, &env_for(&setup)).expect("shows");
+
+        let listed = report.users.get("alice").expect("alice is listed").clone();
+        let answer = report.resolution.expect("alice is asked about");
+        assert!(
+            answer.contains(&format!("group '{listed}'")),
+            "the table says {listed}, the answer says {answer}"
+        );
+    }
+
+    #[test]
+    fn show_says_why_a_version_was_not_found() {
+        let setup = setup();
+        publish(&setup, &options(&setup), STAMP).expect("publishes");
+        let wanted = ShowOptions {
+            root: Some(&setup.root),
+            team: None,
+            user: None,
+            platforms: &[],
+        };
+
+        let report = show_with(&wanted, &|_: &str| None).expect("shows");
+
+        let text = report.to_string();
+        assert!(text.contains("NOT FOUND on any source"), "{text}");
+        assert!(text.contains("STUDIO is not set"), "{text}");
+    }
+
+    #[test]
+    fn history_of_a_root_or_a_team_that_does_not_exist_is_an_error() {
+        let setup = setup();
+        let mistyped = setup.root.with_file_name("confg");
+
+        let root = history_with(Some(&mistyped), None, &env_for(&setup))
+            .expect_err("a root that is not there is not an empty history");
+        let team = history_with(Some(&setup.root), Some("rigging"), &env_for(&setup))
+            .expect_err("a team with no folder is not an empty history");
+
+        assert!(root.to_string().contains("is not a folder"), "{root}");
+        assert!(team.to_string().contains("rigging"), "{team}");
+    }
+
+    #[test]
+    fn a_name_the_system_would_alter_is_not_a_team_name() {
+        let setup = setup();
+        for name in ["rigging.", "pre..", "a.", "a b", " a"] {
+            let mut team = options(&setup);
+            team.team = Some(name);
+
+            let text = message(publish(&setup, &team, STAMP));
+
+            assert!(text.contains("cannot be a team name"), "{name:?}: {text}");
+        }
+    }
+
+    #[test]
+    fn a_user_name_that_cannot_be_a_file_name_is_made_into_one() {
+        let setup = setup();
+        let variables: HashMap<String, String> = HashMap::from([
+            ("STUDIO".to_string(), setup.studio.display().to_string()),
+            ("USERNAME".to_string(), "CORP\\O'Brien <x>".to_string()),
+        ]);
+
+        let report = publish_with(
+            &options(&setup),
+            &|name| variables.get(name).cloned(),
+            STAMP,
+        )
+        .expect("publishes");
+
+        let history = report.history.expect("a history copy is kept");
+        assert_eq!(
+            history.file_name().and_then(|name| name.to_str()),
+            Some("redirect-2026-11-02-171000-o_brien__x_.yaml")
+        );
+    }
+
+    #[test]
+    fn a_history_file_with_a_name_that_is_not_ascii_is_ignored() {
+        let setup = setup();
+        publish(&setup, &options(&setup), STAMP).expect("publishes");
+        // A character that straddles the byte where the stamp ends.
+        fs::write(
+            setup
+                .root
+                .join("history")
+                .join("redirect-2026-11-02-17100é-alice.yaml"),
+            FILE,
+        )
+        .expect("stray file");
+
+        let entries = history_with(Some(&setup.root), None, &env_for(&setup)).expect("lists");
+
+        assert_eq!(entries.len(), 1);
+    }
+
+    #[test]
+    fn a_file_saved_with_a_byte_order_mark_publishes_and_shows_its_users() {
+        let setup = setup();
+        let with_mark = format!("\u{feff}{FILE}");
+        fs::write(&setup.source, &with_mark).expect("source is written");
+        publish(&setup, &options(&setup), STAMP).expect("publishes");
+        let wanted = ShowOptions {
+            root: Some(&setup.root),
+            team: None,
+            user: None,
+            platforms: &[],
+        };
+
+        let report = show_with(&wanted, &env_for(&setup)).expect("shows");
+
+        assert_eq!(
+            fs::read_to_string(setup.root.join("redirect.yaml")).expect("live reads"),
+            with_mark,
+            "the bytes are published as they are"
+        );
+        assert_eq!(report.users.len(), 1, "{:?}", report.users);
     }
 }

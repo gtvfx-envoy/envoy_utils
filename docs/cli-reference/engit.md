@@ -225,6 +225,7 @@ engit publish redirect FILE [OPTIONS]
 | `FILE` | The redirect file to publish |
 | `--output`, `-o DIR` | Config root to publish into. Defaults to `ENVOY_CONFIG_PUBLISH_ROOT` |
 | `--team TEAM` | Publish for one team: the file goes into `<root>/<team>/` |
+| `--platform PLATFORM` | A system whose launchers must find each pinned version: `windows` (`bin/envoy.exe`), `linux` or `macos` (`bin/envoy`), or `all`. Repeat it to name several. Defaults to the system `engit` runs on |
 | `--no-check-sources` | Do not check that every pinned version is on a source |
 | `--dry-run` | Check everything and show what would be written, without writing |
 
@@ -234,28 +235,65 @@ In order, it:
    the launcher's `--envoy-shim-validate-config` reports is an error here too:
    no `default` version, a user in a group with no version, an unsafe version
    name, a user listed twice, an unknown key, or a schema newer than this
-   `engit` understands.
+   `engit` understands (update `engit`).
 2. Looks for every version the file pins on its `sources`, the way the launcher
-   does: a folder that has `bin/envoy` or `bin/envoy.exe`. A version no source
-   has stops the publish, because every user pinned to it would fail to start.
-   `--no-check-sources` skips this, for example when the sources cannot be
-   reached from where you publish.
+   does: the first source whose folder has the executable as a file. A version
+   no source has stops the publish, because every user pinned to it would fail
+   to start. `--no-check-sources` skips this, for example when the sources
+   cannot be reached from where you publish.
 3. Stops with `Nothing to publish` when the live file already has exactly this
    content.
-4. Keeps a copy in the history, then replaces the live file in one step, so a
-   launcher that reads it sees the old file or the new one, never half of
-   either.
+4. Waits for its turn to publish into the folder (see
+   [Two people publishing](#two-people-publishing)), then keeps the file that
+   is live now in the history when the history does not have it, keeps a copy
+   of the new file, and replaces the live file in one step, so a launcher that
+   reads it sees the old file or the new one, never half of either.
+
+#### Which executable counts
+
+The launcher on each system looks for its own executable in a version's folder:
+`bin/envoy.exe` on Windows, `bin/envoy` on Linux and macOS. A version folder
+that has only one of them is a version for only the systems that use it, and
+every user of another system pinned to it would fail to start.
+
+By default `engit` holds each version to the executable of the system it runs
+on, which is exactly what the launcher's own `--envoy-shim-validate-config
+--check-sources` reports on the same machine. If the studio has other systems,
+name them:
+
+```powershell
+engit publish redirect redirect.yaml --platform all
+engit publish redirect redirect.yaml --platform windows --platform linux
+```
+
+A version folder that serves every system holds both executables, which you get
+by unpacking the release archive of each system into it.
+
+#### The config root
 
 ```text
 <root>/redirect.yaml                                    everyone
 <root>/<team>/redirect.yaml                             one team (--team)
-<root>/history/redirect-<UTC timestamp>-<user>.yaml     every file that was published
+<root>/history/redirect-<UTC timestamp>-<user>.yaml     every file that went live
+<root>/.redirect.lock                                   publishers take turns on it
 ```
 
-A team's history is `<root>/<team>/history/`. A history copy has exactly the
-content of the live file it came from, and its name says when and by whom (the
-user name is the launcher's own form: lower case, without the domain). Every
-file in the history was live once. To put an earlier one back, publish it again.
+A team's history is `<root>/<team>/history/`, and a team's folder has its own
+lock file. Leave `.redirect.lock` in place: it is empty and is how two people
+publishing at once take turns.
+
+A history copy has exactly the content of the live file it came from, and its
+name says when and by whom (the user name is the launcher's own form: lower
+case, without the domain). Every file that went live is in the history, so to
+put an earlier one back, publish it again.
+
+- A file that was put there by hand, before `engit` first published, is kept
+  too, the first time it is replaced. Nobody knows who published it, so it is
+  named for the time it was last changed and for `unknown`:
+  `redirect-2026-10-30-094512-unknown.yaml`.
+- A publish that is cut off between keeping the copy and replacing the live
+  file can leave a copy of a file that never went live. `redirect history`
+  marks the one that is live.
 
 Without `--output`, Engit uses `ENVOY_CONFIG_PUBLISH_ROOT`. It never uses
 `ENVOY_CONFIG_PROD`, the variable the launcher reads, so a machine that only
@@ -263,7 +301,30 @@ consumes the file cannot publish by accident.
 
 The config root must already exist. `engit` does not create it, so a mistyped
 `--output` is an error rather than a new folder that no launcher reads. A
-team's folder is created by the team's first publish.
+team's folder is created by the team's first publish, and a team name may use
+letters, digits, `.`, `_` and `-`, and may not end with a `.`, which Windows
+drops from a folder name.
+
+#### Two people publishing
+
+Publishing into a folder is one person at a time. A second publish waits for
+the first for up to ten seconds, then stops with an error and changes nothing.
+The turn is an operating system lock on `.redirect.lock`, so it is let go when
+the program ends, however it ends: there is never a stale lock to clear.
+
+A location that cannot lock files (some network mounts) cannot make anyone wait,
+and `engit` says so in a note under the result. Publishing still works there.
+
+A history name is created as a new file and never replaces one, so two people
+publishing as the same user in the same second cannot lose an entry: the second
+gets an error and tries again.
+
+#### Permissions on Linux and macOS
+
+The launcher of every user must read the file, so the live file and each history
+copy are made readable by everyone (mode `644`) whatever the publisher's umask
+is. A folder `engit` creates, such as a team's, is given the same permissions as
+the folder it is in, so that another administrator can publish into it.
 
 ```text
 Published the redirect file.
@@ -274,18 +335,30 @@ Published the redirect file.
     preview  v0.8.1-rc.1  (found at R:\studio\envoy\bndl\envoy\v0.8.1-rc.1)
 ```
 
+The first publish over a file that was put there by hand also says what it kept:
+
+```text
+Published the redirect file.
+  Live:     R:\studio\envoy\config\redirect.yaml
+  History:  R:\studio\envoy\config\history\redirect-2026-11-02-171100-alice.yaml
+  Kept:     R:\studio\envoy\config\history\redirect-2026-10-30-094512-unknown.yaml (the file that was live, which the history did not have)
+  Versions:
+    default  v0.8.0  (found at R:\studio\envoy\bndl\envoy\v0.8.0)
+```
+
 A file that pins a version no source has is refused, and nothing is written:
 
 ```text
 Error: 1 pinned version(s) cannot be found on any source, so the file was not published:
   group 'default' is pinned to v0.9.9, which was not found. Looked in:
-    R:\studio\envoy\bndl\envoy\v0.9.9: there is no bin/envoy.exe or bin/envoy there
+    R:\studio\envoy\bndl\envoy\v0.9.9: there is no bin/envoy.exe there
 Fix the file or the sources, or publish anyway with --no-check-sources.
 ```
 
 ```powershell
 engit publish redirect redirect.yaml --dry-run
 engit publish redirect redirect.yaml --output R:/studio/envoy/config
+engit publish redirect redirect.yaml --platform all
 engit publish redirect rigging.yaml --team rigging
 engit publish redirect R:/studio/envoy/config/history/redirect-2026-11-02-171000-alice.yaml
 ```
@@ -297,7 +370,7 @@ Look at the redirect file that is published.
 ### `engit redirect show`
 
 ```text
-engit redirect show [--root DIR] [--team TEAM] [--user USER]
+engit redirect show [--root DIR] [--team TEAM] [--user USER] [--platform PLATFORM]
 ```
 
 | Flag | Description |
@@ -305,10 +378,12 @@ engit redirect show [--root DIR] [--team TEAM] [--user USER]
 | `--root DIR` | Config root to read. Defaults to `ENVOY_CONFIG_PUBLISH_ROOT`, then `ENVOY_CONFIG_PROD` |
 | `--team TEAM` | Show a team's file instead of everyone's |
 | `--user USER` | Also say which version this user gets |
+| `--platform PLATFORM` | The systems whose launchers must find each version, as for `publish redirect` |
 
 It prints the sources, the version each group is pinned to and whether a source
-has it, and the users the file lists. A version no source has is shown rather
-than refused: this is for looking at what is already published.
+has it, and the users the file lists with the group the launcher gives each. A
+version no source has is shown, with where it was looked for and why it was not
+found, rather than refused: this is for looking at what is already published.
 
 ```text
 Redirect file: R:\studio\envoy\config\redirect.yaml
@@ -317,11 +392,15 @@ Redirect file: R:\studio\envoy\config\redirect.yaml
     ${ENVOY_STUDIO_BNDLS}/envoy/{version}
   Versions:
     default  v0.8.0  (found at R:\studio\envoy\bndl\envoy\v0.8.0)
-    preview  v0.8.1-rc.1  (found at R:\studio\envoy\bndl\envoy\v0.8.1-rc.1)
+    preview  v0.9.0  (NOT FOUND on any source)
+        R:\studio\envoy\bndl\envoy\v0.9.0: there is no bin/envoy.exe there
   Users:
     alice  preview
-  alice: group 'preview' (listed) -> v0.8.1-rc.1
+  alice: group 'preview' (listed) -> v0.9.0
 ```
+
+A root or a team that does not exist is an error, as is a root with no redirect
+file in it.
 
 ### `engit redirect history`
 
@@ -335,7 +414,11 @@ copy of the file the launcher reads now.
 ```text
 2026-11-02-171100  alice     412 bytes  (live)  R:\studio\envoy\config\history\redirect-2026-11-02-171100-alice.yaml
 2026-11-02-171000  alice     398 bytes          R:\studio\envoy\config\history\redirect-2026-11-02-171000-alice.yaml
+2026-10-30-094512  unknown   361 bytes          R:\studio\envoy\config\history\redirect-2026-10-30-094512-unknown.yaml
 ```
+
+A root or a team that does not exist is an error. A root where nothing has been
+published says so and is not an error.
 
 ## `engit status`
 

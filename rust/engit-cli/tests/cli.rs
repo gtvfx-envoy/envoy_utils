@@ -112,7 +112,9 @@ fn redirect_fixture() -> (tempfile::TempDir, std::path::PathBuf, std::path::Path
     let studio = temp.path().join("bndl");
     let bin = studio.join("envoy").join("v0.8.0").join("bin");
     std::fs::create_dir_all(&bin).expect("bin is created");
-    std::fs::write(bin.join("envoy.exe"), "").expect("executable is written");
+    // What the launcher on this system looks for.
+    let executable = if cfg!(windows) { "envoy.exe" } else { "envoy" };
+    std::fs::write(bin.join(executable), "").expect("executable is written");
     let source = temp.path().join("redirect.yaml");
     std::fs::write(&source, REDIRECT_FILE).expect("source is written");
     std::fs::create_dir_all(temp.path().join("config")).expect("config root is created");
@@ -216,6 +218,90 @@ fn a_redirect_file_that_pins_a_missing_version_is_refused() {
         0,
         "nothing may be written"
     );
+}
+
+#[test]
+fn a_version_is_held_to_the_systems_the_publisher_names() {
+    let (temp, studio, source) = redirect_fixture();
+    let root = temp.path().join("config");
+    // The fixture has the executable of the system running the test, and no other.
+    let (this_system, other_executable) = if cfg!(windows) {
+        ("windows", "bin/envoy there")
+    } else {
+        ("linux", "bin/envoy.exe there")
+    };
+    let publish = |platform: &str| {
+        Command::cargo_bin("engit")
+            .expect("engit binary should build")
+            .args(["publish", "redirect"])
+            .arg(&source)
+            .arg("--output")
+            .arg(&root)
+            .args(["--platform", platform])
+            .env("ENGIT_TEST_STUDIO", &studio)
+            .env_remove("ENVOY_CONFIG_PUBLISH_ROOT")
+            .assert()
+    };
+
+    let refused = publish("all").failure();
+    let stderr = stderr_text(&refused);
+    assert!(stderr.contains(other_executable), "stderr was:\n{stderr}");
+    assert_eq!(
+        std::fs::read_dir(&root).expect("root reads").count(),
+        0,
+        "nothing may be written"
+    );
+
+    let accepted = publish(this_system).success();
+    assert!(
+        stdout_text(&accepted).contains("Published the redirect file."),
+        "stdout was:\n{}",
+        stdout_text(&accepted)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_published_file_is_readable_by_everyone_whatever_the_publishers_umask() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (temp, studio, source) = redirect_fixture();
+    let root = temp.path().join("config");
+
+    // Started through the shell so that the publisher's umask is the strictest common one.
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("umask 077; exec \"$0\" \"$@\"")
+        .arg(env!("CARGO_BIN_EXE_engit"))
+        .args(["publish", "redirect"])
+        .arg(&source)
+        .arg("--output")
+        .arg(&root)
+        .env("ENGIT_TEST_STUDIO", &studio)
+        .env_remove("ENVOY_CONFIG_PUBLISH_ROOT")
+        .output()
+        .expect("engit runs");
+    assert!(
+        output.status.success(),
+        "stderr was:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let mode = |path: &std::path::Path| {
+        std::fs::metadata(path)
+            .expect("metadata reads")
+            .permissions()
+            .mode()
+            & 0o777
+    };
+    assert_eq!(mode(&root.join("redirect.yaml")), 0o644);
+    let history = std::fs::read_dir(root.join("history"))
+        .expect("history reads")
+        .next()
+        .expect("there is a history entry")
+        .expect("entry reads")
+        .path();
+    assert_eq!(mode(&history), 0o644);
 }
 
 #[test]

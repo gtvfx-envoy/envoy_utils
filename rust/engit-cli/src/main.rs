@@ -24,7 +24,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Duration;
 
-use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand};
+use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand, ValueEnum};
 use engit_core::cache::{default_cache_dir, run_cache_prune, run_cache_validate, PruneSelector};
 use engit_core::changelog::run_changelog;
 use engit_core::cleanup::run_cleanup;
@@ -40,7 +40,8 @@ use engit_core::publish::{
 };
 use engit_core::pull::run_pull;
 use engit_core::redirect::{
-    publish_redirect, redirect_history, show_redirect, HistoryEntry, PublishOptions, ShowOptions,
+    publish_redirect, redirect_history, show_redirect, HistoryEntry, Platform, PublishOptions,
+    ShowOptions,
 };
 use engit_core::release::run_release;
 use engit_core::release_train::{run_release_train_prepare_downstream, run_release_train_status};
@@ -391,7 +392,8 @@ under a stack publish root."
     #[command(
         about = "Publish the redirect file that pins an Envoy version for each user.",
         long_about = "Check a redirect file with the launcher's own validator, \
-check that every version it pins exists on a source, keep a copy in the history, \
+check that every version it pins exists on a source (with the executable each \
+system's launcher looks for; see --platform), keep a copy in the history, \
 and replace the live file in one step. Nothing is written when a check fails. \
 Without --team the file applies to everyone; with --team it goes into that \
 team's folder under the config root."
@@ -516,11 +518,48 @@ this, a version no source has stops the publish."
     no_check_sources: bool,
 
     #[arg(
+        long = "platform",
+        value_enum,
+        value_name = "PLATFORM",
+        help = "A system whose launchers must find each pinned version: windows \
+(bin/envoy.exe), linux or macos (bin/envoy), or all. Repeat it to name several. \
+Defaults to the system this runs on."
+    )]
+    platforms: Vec<PlatformArg>,
+
+    #[arg(
         long,
         help = "Check everything and show what would be written without \
 writing anything."
     )]
     dry_run: bool,
+}
+
+/// A system whose launcher reads the redirect file.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum PlatformArg {
+    Windows,
+    Linux,
+    Macos,
+    All,
+}
+
+fn platforms_from(args: &[PlatformArg]) -> Vec<Platform> {
+    let mut platforms = Vec::new();
+    for arg in args {
+        let named: &[Platform] = match arg {
+            PlatformArg::Windows => &[Platform::Windows],
+            PlatformArg::Linux => &[Platform::Linux],
+            PlatformArg::Macos => &[Platform::MacOs],
+            PlatformArg::All => &Platform::ALL,
+        };
+        for platform in named {
+            if !platforms.contains(platform) {
+                platforms.push(*platform);
+            }
+        }
+    }
+    platforms
 }
 
 #[derive(Debug, Args)]
@@ -571,6 +610,16 @@ then ENVOY_CONFIG_PROD."
         help = "Also say which version this user gets."
     )]
     user: Option<String>,
+
+    #[arg(
+        long = "platform",
+        value_enum,
+        value_name = "PLATFORM",
+        help = "A system whose launchers must find each pinned version: windows \
+(bin/envoy.exe), linux or macos (bin/envoy), or all. Repeat it to name several. \
+Defaults to the system this runs on."
+    )]
+    platforms: Vec<PlatformArg>,
 }
 
 #[derive(Debug, Args)]
@@ -1042,11 +1091,13 @@ fn run() -> Result<()> {
                 }
             }
             PublishCommands::Redirect(args) => {
+                let platforms = platforms_from(&args.platforms);
                 let options = PublishOptions {
                     source: &args.source,
                     output: args.output.as_deref(),
                     team: args.team.as_deref(),
                     check_sources: !args.no_check_sources,
+                    platforms: &platforms,
                     dry_run: args.dry_run,
                 };
                 print!("{}", publish_redirect(&options)?);
@@ -1054,10 +1105,12 @@ fn run() -> Result<()> {
         },
         Commands::Redirect(args) => match args.command {
             RedirectCommands::Show(args) => {
+                let platforms = platforms_from(&args.platforms);
                 let options = ShowOptions {
                     root: args.root.as_deref(),
                     team: args.team.as_deref(),
                     user: args.user.as_deref(),
+                    platforms: &platforms,
                 };
                 print!("{}", show_redirect(&options)?);
             }
