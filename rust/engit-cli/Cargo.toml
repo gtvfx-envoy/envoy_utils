@@ -2,6 +2,7 @@
 name = "engit-cli"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Native engit CLI (git/GitHub tooling for envoy bundles). No Python API."
@@ -17,3 +18,4 @@ clap.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2"
+tempfile = "3"
