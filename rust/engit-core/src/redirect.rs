@@ -571,7 +571,9 @@ fn make_readable_by_all(_file: &File) -> io::Result<()> {
 ///
 /// A filesystem that refuses to set modes leaves the file as the publisher's
 /// umask made it, and with a strict one the launcher of every other user cannot
-/// read it, while the publisher's own read-back passes.
+/// read it, while the publisher's own read-back passes. A network mount can also
+/// show a mode of its own that is not what the server allows, so the note asks
+/// the publisher to check, and offers the command only where modes are kept.
 #[cfg(unix)]
 fn unreadable_by_others(live: &Path) -> Option<String> {
     use std::os::unix::fs::PermissionsExt;
@@ -580,7 +582,7 @@ fn unreadable_by_others(live: &Path) -> Option<String> {
     (mode & 0o044 != 0o044).then(|| {
         format!(
             "{} has mode {:o}, so the launchers of other users may not be able to read it. \
-Set it with: chmod 644 {}",
+Check that they can; on a disk that keeps modes, chmod 644 {} makes it readable.",
             live.display(),
             mode & 0o777,
             live.display()
@@ -2234,6 +2236,7 @@ users: {alice: missing}\nteam: x\n",
         assert_eq!(report.outcome, Outcome::Published);
         let note = report.notes.join("\n");
         assert!(note.contains("has mode 600"), "{note}");
+        assert!(note.contains("Check that they can"), "{note}");
         assert!(note.contains("chmod 644"), "{note}");
         assert!(report.to_string().contains("Note: "), "{report}");
     }

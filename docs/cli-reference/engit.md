@@ -347,8 +347,11 @@ folder.
 
 Where a filesystem keeps no modes (vfat, exFAT, some network mounts) and refuses
 to set them, `engit` goes on and the files are as readable as that filesystem
-makes them. If the live file is then not readable by everyone, which a strict
-umask can cause, the result says so in a note with the command that fixes it.
+makes them. If the live file then shows a mode that others cannot read, which a
+strict umask can cause, the result says so in a note. A network mount can show a
+mode of its own that is not what the server allows, so the note asks you to
+check that another user's launcher can read the file, and gives the `chmod` that
+sets the mode only for a disk that keeps modes.
 
 #### Examples
 
