@@ -6,6 +6,7 @@ use std::fs::{self, File};
 use std::path::{Component, Path, PathBuf};
 
 use chrono::Utc;
+use envoy_core::discovery::BUNDLE_DEFAULT_NAMESPACE;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -173,6 +174,19 @@ tag' or use --version dev.",
 /// Convert a bundle directory name to a bundle ID.
 pub fn bndlid_from_name(bundle_name: &str) -> String {
     bundle_name.replace('-', ":")
+}
+
+/// Return the ID written to a published bundle's `.bundle` marker.
+///
+/// Always `<namespace>:<name>`. A bundle named without a namespace (a
+/// repository called `globals`) takes envoy's default namespace, so the marker
+/// matches how envoy identifies the bundle instead of holding a bare name.
+fn marker_bndlid(bndlid: &str) -> String {
+    if bndlid.contains(':') {
+        bndlid.to_string()
+    } else {
+        format!("{BUNDLE_DEFAULT_NAMESPACE}:{bndlid}")
+    }
 }
 
 /// Convert a bundle name to its publish directory path.
@@ -688,7 +702,7 @@ pub fn bundle_publish(
     }
 
     let bundle_name = repo_name_from(&bundle_path);
-    let bndlid = bndlid_from_name(&bundle_name);
+    let bndlid = marker_bndlid(&bndlid_from_name(&bundle_name));
     let bndl_name = bndlid
         .split_once(':')
         .map_or_else(|| bndlid.clone(), |(_, value)| value.to_string());
@@ -1231,6 +1245,53 @@ mod tests {
         let error =
             list_publish_files(&bundle, "dev", &[], &[]).expect_err("collision should fail");
         assert!(error.to_string().contains("destination collision"));
+    }
+
+    #[test]
+    fn marker_identifies_a_namespace_less_bundle_in_the_default_namespace() {
+        let (_temp, bundle) = create_bundle("globals");
+        let output = bundle
+            .parent()
+            .expect("bundle should have parent")
+            .join("out");
+        write_manifest(&bundle, "{}\n");
+
+        let result = publish_bundle(&bundle, &output, "0.3.0", false, false, false)
+            .expect("publish should succeed");
+
+        let marker: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(result.directory.join(BUNDLE_MARKER_FILE))
+                .expect("marker should be written"),
+        )
+        .expect("marker should be JSON");
+        assert_eq!(marker["bndlid"], "gt:globals");
+        assert_eq!(marker["name"], "globals");
+        // Where the bundle is published does not change: namespace-less bundles
+        // stay under <root>/<name>/<version>.
+        assert!(result
+            .directory
+            .ends_with(Path::new("globals").join("0.3.0")));
+    }
+
+    #[test]
+    fn marker_keeps_the_namespace_of_a_namespaced_bundle() {
+        let (_temp, bundle) = create_bundle("ext-python");
+        let output = bundle
+            .parent()
+            .expect("bundle should have parent")
+            .join("out");
+        write_manifest(&bundle, "{}\n");
+
+        let result = publish_bundle(&bundle, &output, "3.11.9", false, false, false)
+            .expect("publish should succeed");
+
+        let marker: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(result.directory.join(BUNDLE_MARKER_FILE))
+                .expect("marker should be written"),
+        )
+        .expect("marker should be JSON");
+        assert_eq!(marker["bndlid"], "ext:python");
+        assert_eq!(marker["name"], "python");
     }
 
     #[test]
