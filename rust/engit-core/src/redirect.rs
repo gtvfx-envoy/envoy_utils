@@ -518,15 +518,26 @@ fn new_folder_mode(parent_mode: u32, in_parents_group: bool) -> u32 {
 /// of it, and where they are not it keeps its group and the group gets nothing.
 #[cfg(unix)]
 fn match_parent_access(path: &Path) {
-    use std::os::unix::fs::{chown, MetadataExt, PermissionsExt};
+    use std::os::unix::fs::chown;
+
+    match_parent_access_with(path, |folder, group| chown(folder, None, Some(group)));
+}
+
+/// [`match_parent_access`], with the way a folder is handed to a group passed in.
+#[cfg(unix)]
+fn match_parent_access_with(path: &Path, hand_to: impl FnOnce(&Path, u32) -> io::Result<()>) {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
     let Some(parent) = path.parent() else { return };
     let (Ok(parent), Ok(own)) = (fs::metadata(parent), fs::metadata(path)) else {
         return;
     };
 
-    let in_parents_group =
-        own.gid() == parent.gid() || chown(path, None, Some(parent.gid())).is_ok();
+    // Some filesystems report a change of group as done and change nothing (a
+    // network mount that keeps no owners), so look at the group afterwards.
+    let in_parents_group = own.gid() == parent.gid()
+        || (hand_to(path, parent.gid()).is_ok()
+            && fs::metadata(path).is_ok_and(|now| now.gid() == parent.gid()));
     let mode = new_folder_mode(parent.permissions().mode(), in_parents_group);
     let _ = fs::set_permissions(path, fs::Permissions::from_mode(mode));
 }
@@ -2123,6 +2134,43 @@ users: {alice: missing}\nteam: x\n",
                 metadata.permissions().mode() & 0o777,
                 0o775,
                 "{folder} does not have the root's group access"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_hand_over_that_changes_nothing_is_not_taken_for_one() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        // A folder in a shared temp folder, which belongs to root, so that the
+        // folder and its parent are in different groups (unless the publisher is
+        // root, and then there is nothing to show).
+        let parent = Path::new("/tmp");
+        let folder = parent.join(format!(
+            "engit-redirect-lie-{}-{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+        if !parent.is_dir() || fs::create_dir(&folder).is_err() {
+            return;
+        }
+        let same_group = fs::metadata(&folder).expect("metadata").gid()
+            == fs::metadata(parent).expect("metadata").gid();
+
+        // A filesystem that says the group was changed and leaves it as it was.
+        super::match_parent_access_with(&folder, |_, _| Ok(()));
+
+        let mode = fs::metadata(&folder)
+            .expect("metadata")
+            .permissions()
+            .mode();
+        let _ = fs::remove_dir(&folder);
+        if !same_group {
+            assert_eq!(
+                mode & 0o777,
+                0o755,
+                "{mode:o} took group access it has no right to"
             );
         }
     }
