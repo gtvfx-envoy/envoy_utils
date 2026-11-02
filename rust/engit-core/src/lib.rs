@@ -16,6 +16,7 @@ pub mod git;
 pub mod github;
 pub mod publish;
 pub mod pull;
+pub mod redirect;
 pub mod release;
 pub mod release_train;
 pub mod search;

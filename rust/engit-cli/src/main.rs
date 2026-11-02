@@ -6,6 +6,9 @@
 //! release         Create a GitHub release from a tag.
 //! publish bundle  Publish a versioned runtime bundle.
 //! publish stack   Publish a stack file to a named stack slot.
+//! publish redirect  Publish the redirect file that pins an Envoy version per user.
+//! redirect show     Show the published redirect file.
+//! redirect history  List the redirect files that were published.
 //! search          Search GitHub repositories.
 //! cache validate  Validate cached bundle content against its manifest.
 //! cache prune     Remove cached bundle entries by ID, pattern, or age.
@@ -36,6 +39,9 @@ use engit_core::publish::{
     BundlePublishOptions,
 };
 use engit_core::pull::run_pull;
+use engit_core::redirect::{
+    publish_redirect, redirect_history, show_redirect, HistoryEntry, PublishOptions, ShowOptions,
+};
 use engit_core::release::run_release;
 use engit_core::release_train::{run_release_train_prepare_downstream, run_release_train_status};
 use engit_core::search::run_search;
@@ -119,11 +125,20 @@ Default organisations are read from the ENVOY_GITHUB_ORGS environment variable \
     Search(SearchArgs),
 
     #[command(
-        about = "Publish bundle or stack runtime artifacts.",
-        long_about = "Publish runtime-minimal bundle data or a named Envoy stack \
-to its canonical studio location."
+        about = "Publish bundle, stack, or redirect-file artifacts.",
+        long_about = "Publish runtime-minimal bundle data, a named Envoy stack, or \
+the redirect file that pins an Envoy version for each user, to its canonical \
+studio location."
     )]
     Publish(PublishArgs),
+
+    #[command(
+        about = "Show or list the published redirect file.",
+        long_about = "Read back the redirect file the launcher uses to pin an \
+Envoy version for each user: what it says, which version a user gets, and the \
+files that were published before it."
+    )]
+    Redirect(RedirectArgs),
 
     #[command(
         about = "Inspect or clean up the local bundle cache.",
@@ -372,6 +387,16 @@ containing the same runtime dataset."
 under a stack publish root."
     )]
     Stack(PublishStackArgs),
+
+    #[command(
+        about = "Publish the redirect file that pins an Envoy version for each user.",
+        long_about = "Check a redirect file with the launcher's own validator, \
+check that every version it pins exists on a source, keep a copy in the history, \
+and replace the live file in one step. Nothing is written when a check fails. \
+Without --team the file applies to everyone; with --team it goes into that \
+team's folder under the config root."
+    )]
+    Redirect(PublishRedirectArgs),
 }
 
 #[derive(Debug, Args)]
@@ -459,6 +484,111 @@ ENVOY_STACK_PUBLISH_ROOT."
 
     #[arg(long, help = "Show what would be written without writing anything.")]
     dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct PublishRedirectArgs {
+    #[arg(value_name = "FILE", help = "The redirect file to publish.")]
+    source: PathBuf,
+
+    #[arg(
+        long = "output",
+        short = 'o',
+        value_name = "DIR",
+        help = "Config root to publish into. Defaults to \
+ENVOY_CONFIG_PUBLISH_ROOT."
+    )]
+    output: Option<PathBuf>,
+
+    #[arg(
+        long,
+        value_name = "TEAM",
+        help = "Publish for one team: the file goes into that team's folder \
+under the config root."
+    )]
+    team: Option<String>,
+
+    #[arg(
+        long,
+        help = "Do not check that every pinned version is on a source. Without \
+this, a version no source has stops the publish."
+    )]
+    no_check_sources: bool,
+
+    #[arg(
+        long,
+        help = "Check everything and show what would be written without \
+writing anything."
+    )]
+    dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct RedirectArgs {
+    #[command(subcommand)]
+    command: RedirectCommands,
+}
+
+#[derive(Debug, Subcommand)]
+enum RedirectCommands {
+    #[command(
+        about = "Show the published redirect file and what it gives a user.",
+        long_about = "Print the live redirect file's sources, the version each \
+group is pinned to (and whether a source has it), and the users it lists. \
+--user also says which version that user gets."
+    )]
+    Show(RedirectShowArgs),
+
+    #[command(
+        about = "List the redirect files that were published, newest first.",
+        long_about = "Every file that was published is kept in the history, and \
+the one the launcher reads now is marked. To put one back, publish it again \
+with `engit publish redirect`."
+    )]
+    History(RedirectHistoryArgs),
+}
+
+#[derive(Debug, Args)]
+struct RedirectShowArgs {
+    #[arg(
+        long,
+        value_name = "DIR",
+        help = "Config root to read. Defaults to ENVOY_CONFIG_PUBLISH_ROOT, \
+then ENVOY_CONFIG_PROD."
+    )]
+    root: Option<PathBuf>,
+
+    #[arg(
+        long,
+        value_name = "TEAM",
+        help = "Show a team's file instead of everyone's."
+    )]
+    team: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "USER",
+        help = "Also say which version this user gets."
+    )]
+    user: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct RedirectHistoryArgs {
+    #[arg(
+        long,
+        value_name = "DIR",
+        help = "Config root to read. Defaults to ENVOY_CONFIG_PUBLISH_ROOT, \
+then ENVOY_CONFIG_PROD."
+    )]
+    root: Option<PathBuf>,
+
+    #[arg(
+        long,
+        value_name = "TEAM",
+        help = "List a team's history instead of everyone's."
+    )]
+    team: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -803,6 +933,29 @@ fn print_published_stack(path: &Path) {
     println!("  Path:    {}", path.display());
 }
 
+fn print_redirect_history(entries: &[HistoryEntry]) {
+    if entries.is_empty() {
+        println!("No redirect file has been published here.");
+        return;
+    }
+
+    let width = entries
+        .iter()
+        .map(|entry| entry.user.len())
+        .max()
+        .unwrap_or(0);
+    for entry in entries {
+        println!(
+            "{}  {:<width$}  {:>6} bytes  {:6}  {}",
+            entry.stamp,
+            entry.user,
+            entry.bytes,
+            if entry.live { "(live)" } else { "" },
+            entry.path.display()
+        );
+    }
+}
+
 fn run() -> Result<()> {
     let cli = Cli::parse();
 
@@ -887,6 +1040,30 @@ fn run() -> Result<()> {
                 if !args.dry_run {
                     print_published_stack(&result);
                 }
+            }
+            PublishCommands::Redirect(args) => {
+                let options = PublishOptions {
+                    source: &args.source,
+                    output: args.output.as_deref(),
+                    team: args.team.as_deref(),
+                    check_sources: !args.no_check_sources,
+                    dry_run: args.dry_run,
+                };
+                print!("{}", publish_redirect(&options)?);
+            }
+        },
+        Commands::Redirect(args) => match args.command {
+            RedirectCommands::Show(args) => {
+                let options = ShowOptions {
+                    root: args.root.as_deref(),
+                    team: args.team.as_deref(),
+                    user: args.user.as_deref(),
+                };
+                print!("{}", show_redirect(&options)?);
+            }
+            RedirectCommands::History(args) => {
+                let entries = redirect_history(args.root.as_deref(), args.team.as_deref())?;
+                print_redirect_history(&entries);
             }
         },
         Commands::Cache(args) => match args.command {

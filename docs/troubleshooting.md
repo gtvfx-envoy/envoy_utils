@@ -27,8 +27,10 @@ engit publish bundle --output dist --version dev --zip
 
 ## Missing canonical publish root
 
-Set `ENVOY_BUNDLE_PUBLISH_ROOT` for bundles and
-`ENVOY_STACK_PUBLISH_ROOT` for stacks, or pass `--output` explicitly.
+Set `ENVOY_BUNDLE_PUBLISH_ROOT` for bundles,
+`ENVOY_STACK_PUBLISH_ROOT` for stacks, and `ENVOY_CONFIG_PUBLISH_ROOT` for the
+redirect file, or pass `--output` explicitly. `ENVOY_CONFIG_PROD` is the
+launcher's variable for reading the redirect file and is never used to publish.
 
 ## Stack publish symlink errors on network shares
 

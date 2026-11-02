@@ -24,6 +24,9 @@ DIRECT_ENVOY_APIS = (
     "envoy_core::discovery::{discover_bundles_auto, Bundle}",
     "envoy_core::stack::Stack",
     "envoy_core::stack_registry::is_stack_name",
+    "envoy_core::config::redirect::{Redirect, Severity, normalize_user}",
+    "envoy_core::config::expand::expand_source",
+    "envoy_core::config::locate::{CONFIG_ROOT_VAR, REDIRECT_FILE_NAME}",
 )
 ENVOY_MANIFEST_URL = (
     "https://raw.githubusercontent.com/gtvfx-envoy/envoy/{tag}/rust/Cargo.toml"

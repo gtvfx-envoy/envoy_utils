@@ -21,6 +21,10 @@ mindmap
       publish
         bundle
         stack
+        redirect
+    redirect
+      show
+      history
     cache
       validate
       prune
@@ -203,6 +207,134 @@ engit publish stack SOURCE [OPTIONS]
 engit publish stack V:/repo/gtvfx-envoy/stacks/studio/studio.estack
 engit publish stack V:/repo/gtvfx-envoy/stacks/studio/studio.estack --output R:/studio/envoy/stack
 engit publish stack V:/repo/gtvfx-envoy/stacks/studio/studio.estack --dry-run
+```
+
+### `engit publish redirect`
+
+Publish the redirect file: the file that pins an Envoy version for each user,
+which the launcher reads from the config root before it starts Envoy. A bad
+file stops everyone it covers from starting Envoy, so the file is checked first
+and nothing is written when a check fails.
+
+```text
+engit publish redirect FILE [OPTIONS]
+```
+
+| Argument/Flag | Description |
+|---|---|
+| `FILE` | The redirect file to publish |
+| `--output`, `-o DIR` | Config root to publish into. Defaults to `ENVOY_CONFIG_PUBLISH_ROOT` |
+| `--team TEAM` | Publish for one team: the file goes into `<root>/<team>/` |
+| `--no-check-sources` | Do not check that every pinned version is on a source |
+| `--dry-run` | Check everything and show what would be written, without writing |
+
+In order, it:
+
+1. Parses and validates the file with the launcher's own code, so everything
+   the launcher's `--envoy-shim-validate-config` reports is an error here too:
+   no `default` version, a user in a group with no version, an unsafe version
+   name, a user listed twice, an unknown key, or a schema newer than this
+   `engit` understands.
+2. Looks for every version the file pins on its `sources`, the way the launcher
+   does: a folder that has `bin/envoy` or `bin/envoy.exe`. A version no source
+   has stops the publish, because every user pinned to it would fail to start.
+   `--no-check-sources` skips this, for example when the sources cannot be
+   reached from where you publish.
+3. Stops with `Nothing to publish` when the live file already has exactly this
+   content.
+4. Keeps a copy in the history, then replaces the live file in one step, so a
+   launcher that reads it sees the old file or the new one, never half of
+   either.
+
+```text
+<root>/redirect.yaml                                    everyone
+<root>/<team>/redirect.yaml                             one team (--team)
+<root>/history/redirect-<UTC timestamp>-<user>.yaml     every file that was published
+```
+
+A team's history is `<root>/<team>/history/`. A history copy has exactly the
+content of the live file it came from, and its name says when and by whom (the
+user name is the launcher's own form: lower case, without the domain). Every
+file in the history was live once. To put an earlier one back, publish it again.
+
+Without `--output`, Engit uses `ENVOY_CONFIG_PUBLISH_ROOT`. It never uses
+`ENVOY_CONFIG_PROD`, the variable the launcher reads, so a machine that only
+consumes the file cannot publish by accident.
+
+The config root must already exist. `engit` does not create it, so a mistyped
+`--output` is an error rather than a new folder that no launcher reads. A
+team's folder is created by the team's first publish.
+
+```text
+Published the redirect file.
+  Live:     R:\studio\envoy\config\redirect.yaml
+  History:  R:\studio\envoy\config\history\redirect-2026-11-02-171100-alice.yaml
+  Versions:
+    default  v0.8.0  (found at R:\studio\envoy\bndl\envoy\v0.8.0)
+    preview  v0.8.1-rc.1  (found at R:\studio\envoy\bndl\envoy\v0.8.1-rc.1)
+```
+
+A file that pins a version no source has is refused, and nothing is written:
+
+```text
+Error: 1 pinned version(s) cannot be found on any source, so the file was not published:
+  group 'default' is pinned to v0.9.9, which was not found. Looked in:
+    R:\studio\envoy\bndl\envoy\v0.9.9: there is no bin/envoy.exe or bin/envoy there
+Fix the file or the sources, or publish anyway with --no-check-sources.
+```
+
+```powershell
+engit publish redirect redirect.yaml --dry-run
+engit publish redirect redirect.yaml --output R:/studio/envoy/config
+engit publish redirect rigging.yaml --team rigging
+engit publish redirect R:/studio/envoy/config/history/redirect-2026-11-02-171000-alice.yaml
+```
+
+## `engit redirect`
+
+Look at the redirect file that is published.
+
+### `engit redirect show`
+
+```text
+engit redirect show [--root DIR] [--team TEAM] [--user USER]
+```
+
+| Flag | Description |
+|---|---|
+| `--root DIR` | Config root to read. Defaults to `ENVOY_CONFIG_PUBLISH_ROOT`, then `ENVOY_CONFIG_PROD` |
+| `--team TEAM` | Show a team's file instead of everyone's |
+| `--user USER` | Also say which version this user gets |
+
+It prints the sources, the version each group is pinned to and whether a source
+has it, and the users the file lists. A version no source has is shown rather
+than refused: this is for looking at what is already published.
+
+```text
+Redirect file: R:\studio\envoy\config\redirect.yaml
+  Schema:   1
+  Sources:
+    ${ENVOY_STUDIO_BNDLS}/envoy/{version}
+  Versions:
+    default  v0.8.0  (found at R:\studio\envoy\bndl\envoy\v0.8.0)
+    preview  v0.8.1-rc.1  (found at R:\studio\envoy\bndl\envoy\v0.8.1-rc.1)
+  Users:
+    alice  preview
+  alice: group 'preview' (listed) -> v0.8.1-rc.1
+```
+
+### `engit redirect history`
+
+```text
+engit redirect history [--root DIR] [--team TEAM]
+```
+
+Lists every file that was published, newest first. `(live)` marks the newest
+copy of the file the launcher reads now.
+
+```text
+2026-11-02-171100  alice     412 bytes  (live)  R:\studio\envoy\config\history\redirect-2026-11-02-171100-alice.yaml
+2026-11-02-171000  alice     398 bytes          R:\studio\envoy\config\history\redirect-2026-11-02-171000-alice.yaml
 ```
 
 ## `engit status`

@@ -605,6 +605,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "engit-core",
+ "tempfile",
 ]
 
 [[package]]
@@ -624,13 +625,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "envoy-config"
+version = "0.8.0-alpha.2"
+source = "git+https://github.com/gtvfx-envoy/envoy?tag=v0.8.0-alpha.2#026901ba79dc4734329d9fa481feb85b832fb58c"
+dependencies = [
+ "serde",
+ "serde_yaml",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "envoy-core"
-version = "0.7.0"
-source = "git+https://github.com/gtvfx-envoy/envoy?tag=v0.7.0#6363e86afdcc39c92c512f23ae3e172a088744b0"
+version = "0.8.0-alpha.2"
+source = "git+https://github.com/gtvfx-envoy/envoy?tag=v0.8.0-alpha.2#026901ba79dc4734329d9fa481feb85b832fb58c"
 dependencies = [
  "age",
  "base64 0.22.1",
  "ctrlc",
+ "envoy-config",
+ "envoy-store",
  "fs4",
  "hex",
  "json_comments",
@@ -646,6 +659,20 @@ dependencies = [
  "thiserror 1.0.69",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "envoy-store"
+version = "0.8.0-alpha.2"
+source = "git+https://github.com/gtvfx-envoy/envoy?tag=v0.8.0-alpha.2#026901ba79dc4734329d9fa481feb85b832fb58c"
+dependencies = [
+ "fs4",
+ "json_comments",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]
