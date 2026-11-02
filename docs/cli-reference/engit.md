@@ -331,13 +331,24 @@ gets an error and tries again.
 
 The launcher of every user must read the file, so the live file and each history
 copy are made readable by everyone (mode `644`) whatever the publisher's umask
-is. A folder `engit` creates, such as a team's, is readable by everyone (`755`)
-and takes from the folder it is in the group's write access and its group bit
-(`setgid`), so that another administrator in that group can publish into it.
-Nothing is taken from what the folder it is in gives everyone else, so a
-world-writable root does not make a world-writable folder. Where a filesystem
-keeps no modes (vfat, exFAT, some network mounts) and refuses to set them,
-`engit` goes on and the files are as readable as that filesystem makes them.
+is. A folder `engit` creates, such as a team's, is readable by everyone (`755`).
+When it is in the same group as the folder it is in, it also takes that
+folder's group access and its group bit (`setgid`), so that another
+administrator in that group can publish into it. A new folder is in its
+parent's group on macOS, and on Linux when the parent has the group bit.
+Otherwise it would take the publisher's own group, which can be a broad one, so
+`engit` hands it to the parent's group when the publisher is a member of it.
+Where the publisher is not a member, the folder keeps the publisher's group and
+the group gets nothing from it: only its creator can publish into it until an
+administrator changes its group, or gives the root the group bit so that new
+folders take the root's group. Nothing is taken from what the folder it is in
+gives everyone else, so a world-writable root does not make a world-writable
+folder.
+
+Where a filesystem keeps no modes (vfat, exFAT, some network mounts) and refuses
+to set them, `engit` goes on and the files are as readable as that filesystem
+makes them. If the live file is then not readable by everyone, which a strict
+umask can cause, the result says so in a note with the command that fixes it.
 
 #### Examples
 

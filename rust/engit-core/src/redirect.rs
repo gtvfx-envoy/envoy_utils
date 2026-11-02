@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use envoy_core::config::expand::expand_source;
 use envoy_core::config::locate::{CONFIG_ROOT_VAR, REDIRECT_FILE_NAME};
 use envoy_core::config::redirect::{normalize_user, Redirect, Severity};
@@ -302,7 +302,7 @@ fn publish_waiting(
             return Err(history_taken(&history));
         }
         if let Some(current) = &current {
-            report.archived = previous_entry(&history_dir, &live, current)?;
+            report.archived = previous_entry(&history_dir, &live, current, stamp)?;
         }
         report.outcome = Outcome::WouldPublish;
         report.history = Some(history);
@@ -321,7 +321,7 @@ fn publish_waiting(
         return Ok(report);
     }
     if let Some(current) = &current {
-        if let Some(path) = previous_entry(&history_dir, &live, current)? {
+        if let Some(path) = previous_entry(&history_dir, &live, current, stamp)? {
             write_history(&path, current)?;
             report.archived = Some(path);
         }
@@ -330,6 +330,7 @@ fn publish_waiting(
     #[cfg(test)]
     tests::another_publisher_acts(&live);
     confirm_written(&live, &bytes)?;
+    report.notes.extend(unreadable_by_others(&live));
 
     report.outcome = Outcome::Published;
     report.history = Some(history);
@@ -492,19 +493,42 @@ fn create_folder(path: &Path) -> Result<()> {
 /// it.
 ///
 /// Everyone can read and enter it, as in a folder made under the usual umask.
-/// From the folder it is in, it takes the group's access and the group bit, so
-/// that the administrators who can publish there can publish here. It takes
-/// nothing of what the parent gives everyone else, and not its sticky bit: a
-/// world-writable root must not make a world-writable folder.
+/// When it is in the group of the folder it is in, it takes that group's access
+/// and the group bit too, so that the administrators who can publish there can
+/// publish here. It takes nothing of what the parent gives everyone else, and
+/// not its sticky bit: a world-writable root must not make a world-writable
+/// folder.
+#[cfg(any(unix, test))]
+fn new_folder_mode(parent_mode: u32, in_parents_group: bool) -> u32 {
+    let group = if in_parents_group {
+        parent_mode & 0o2070
+    } else {
+        0
+    };
+    0o755 | group
+}
+
+/// Give a new folder the access of the folder it is in, as [`new_folder_mode`] says.
+///
+/// What the parent gives its group means something here only if the new folder
+/// is in that group. It is on macOS, and on Linux when the parent has the group
+/// bit. Otherwise the new folder takes the publisher's own group, which can be a
+/// broad one, and copying the parent's group access would hand that group the
+/// folder. So it is handed to the parent's group when the publisher is a member
+/// of it, and where they are not it keeps its group and the group gets nothing.
 #[cfg(unix)]
 fn match_parent_access(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::fs::{chown, MetadataExt, PermissionsExt};
 
     let Some(parent) = path.parent() else { return };
-    if let Ok(metadata) = fs::metadata(parent) {
-        let mode = 0o755 | (metadata.permissions().mode() & 0o2070);
-        let _ = fs::set_permissions(path, fs::Permissions::from_mode(mode));
-    }
+    let (Ok(parent), Ok(own)) = (fs::metadata(parent), fs::metadata(path)) else {
+        return;
+    };
+
+    let in_parents_group =
+        own.gid() == parent.gid() || chown(path, None, Some(parent.gid())).is_ok();
+    let mode = new_folder_mode(parent.permissions().mode(), in_parents_group);
+    let _ = fs::set_permissions(path, fs::Permissions::from_mode(mode));
 }
 
 #[cfg(not(unix))]
@@ -530,6 +554,32 @@ fn make_readable_by_all(file: &File) -> io::Result<()> {
 #[cfg(not(unix))]
 fn make_readable_by_all(_file: &File) -> io::Result<()> {
     Ok(())
+}
+
+/// What to tell the publisher when the live file is not readable by everyone.
+///
+/// A filesystem that refuses to set modes leaves the file as the publisher's
+/// umask made it, and with a strict one the launcher of every other user cannot
+/// read it, while the publisher's own read-back passes.
+#[cfg(unix)]
+fn unreadable_by_others(live: &Path) -> Option<String> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mode = fs::metadata(live).ok()?.permissions().mode();
+    (mode & 0o044 != 0o044).then(|| {
+        format!(
+            "{} has mode {:o}, so the launchers of other users may not be able to read it. \
+Set it with: chmod 644 {}",
+            live.display(),
+            mode & 0o777,
+            live.display()
+        )
+    })
+}
+
+#[cfg(not(unix))]
+fn unreadable_by_others(_live: &Path) -> Option<String> {
+    None
 }
 
 /// The lock file is opened by whoever publishes next.
@@ -582,8 +632,17 @@ fn write_history(history: &Path, bytes: &[u8]) -> Result<()> {
 /// every file that went live, or `None` when an entry already has it.
 ///
 /// Nobody knows who published a file that was put there by hand, so it is named
-/// for the time it was last changed and for an unknown publisher.
-fn previous_entry(history_dir: &Path, live: &Path, current: &[u8]) -> Result<Option<PathBuf>> {
+/// for the time it was last changed and for an unknown publisher. The listing
+/// reads newest first, and this file was live before the one that replaces it,
+/// so it is never filed under a time as late as `published_at`, the time of the
+/// new entry. That matters for a file dated in the future by a clock that was
+/// ahead, and for one that was changed while this publish waited for its turn.
+fn previous_entry(
+    history_dir: &Path,
+    live: &Path,
+    current: &[u8],
+    published_at: &str,
+) -> Result<Option<PathBuf>> {
     if history_holds(history_dir, current) {
         return Ok(None);
     }
@@ -592,9 +651,10 @@ fn previous_entry(history_dir: &Path, live: &Path, current: &[u8]) -> Result<Opt
     let changed = fs::metadata(live)
         .and_then(|metadata| metadata.modified())
         .unwrap_or(now);
-    // A file dated in the future, from a clock that was ahead, must not be filed
-    // under a time that has not come: it would look newer than what replaces it.
-    let changed = DateTime::<Utc>::from(changed.min(now));
+    let mut changed = DateTime::<Utc>::from(changed.min(now));
+    if let Some(published) = stamp_time(published_at) {
+        changed = changed.min(published - chrono::Duration::seconds(1));
+    }
     for earlier in 0..60 {
         let stamp = (changed - chrono::Duration::seconds(earlier))
             .format(TIMESTAMP_FORMAT)
@@ -934,6 +994,13 @@ fn history_name(stamp: &str, user: &str) -> String {
     format!("{HISTORY_PREFIX}{stamp}-{user}.yaml")
 }
 
+/// The time a history stamp names, or `None` for text that is not a stamp.
+fn stamp_time(stamp: &str) -> Option<DateTime<Utc>> {
+    NaiveDateTime::parse_from_str(stamp, TIMESTAMP_FORMAT)
+        .ok()
+        .map(|time| time.and_utc())
+}
+
 /// What [`show_redirect`] is asked to show.
 #[derive(Debug, Clone, Copy)]
 pub struct ShowOptions<'a> {
@@ -1165,7 +1232,6 @@ mod tests {
     use std::thread;
     use std::time::{Duration, SystemTime};
 
-    use chrono::Utc;
     use tempfile::{tempdir, TempDir};
 
     use super::{
@@ -1882,6 +1948,13 @@ users: {alice: missing}\nteam: x\n",
             .map(|entry| fs::read_to_string(&entry.path).expect("entry reads"))
             .collect();
         assert!(kept.iter().any(|text| text == by_hand), "{kept:?}");
+        // It was changed after this publish began, but it was live before what
+        // replaced it, so it is filed before it.
+        let archived = entries
+            .iter()
+            .find(|entry| fs::read_to_string(&entry.path).is_ok_and(|text| text == by_hand))
+            .expect("the file put there by hand is kept");
+        assert!(archived.stamp.as_str() < STAMP, "{entries:?}");
     }
 
     #[test]
@@ -1989,6 +2062,167 @@ users: {alice: missing}\nteam: x\n",
             assert_eq!(mode & 0o1002, 0, "{folder} is {mode:o}");
             assert_eq!(mode & 0o755, 0o755, "{folder} is {mode:o}");
         }
+    }
+
+    #[test]
+    fn a_new_folder_has_the_group_access_of_its_parent_only_in_the_parents_group() {
+        // The mode of a folder that is in the group of the folder it is in.
+        assert_eq!(super::new_folder_mode(0o775, true), 0o775);
+        assert_eq!(super::new_folder_mode(0o2775, true), 0o2775);
+        assert_eq!(super::new_folder_mode(0o1777, true), 0o775);
+        assert_eq!(super::new_folder_mode(0o777, true), 0o775);
+        assert_eq!(super::new_folder_mode(0o750, true), 0o755);
+        assert_eq!(super::new_folder_mode(0o700, true), 0o755);
+        // In another group, what the parent gives its group is nothing to this one.
+        for parent in [0o775, 0o2775, 0o1777, 0o777, 0o770] {
+            assert_eq!(super::new_folder_mode(parent, false), 0o755, "{parent:o}");
+        }
+    }
+
+    /// The groups the process belongs to, from `id -G`.
+    #[cfg(unix)]
+    fn member_groups() -> Vec<u32> {
+        std::process::Command::new("id")
+            .arg("-G")
+            .output()
+            .ok()
+            .map(|output| {
+                String::from_utf8_lossy(&output.stdout)
+                    .split_whitespace()
+                    .filter_map(|group| group.parse().ok())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_new_folder_is_handed_to_the_parents_group_when_the_publisher_is_in_it() {
+        use std::os::unix::fs::{chown, MetadataExt, PermissionsExt};
+
+        let setup = setup();
+        let own = fs::metadata(&setup.root).expect("metadata").gid();
+        // A group the publisher belongs to besides their own. A publisher with
+        // only one has nothing to hand a folder to, and the test has nothing to show.
+        let Some(other) = member_groups().into_iter().find(|group| *group != own) else {
+            return;
+        };
+        if chown(&setup.root, None, Some(other)).is_err() {
+            return;
+        }
+        fs::set_permissions(&setup.root, fs::Permissions::from_mode(0o775)).expect("mode is set");
+        let mut team = options(&setup);
+        team.team = Some("rigging");
+
+        publish(&setup, &team, STAMP).expect("publishes");
+
+        for folder in ["rigging", "rigging/history"] {
+            let metadata = fs::metadata(setup.root.join(folder)).expect("metadata");
+            assert_eq!(metadata.gid(), other, "{folder} is not in the root's group");
+            assert_eq!(
+                metadata.permissions().mode() & 0o777,
+                0o775,
+                "{folder} does not have the root's group access"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_new_folder_in_another_group_does_not_get_that_groups_access() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        // A shared temp folder belongs to root, not to the publisher's group
+        // (unless the publisher is root, when the two are the same and the check
+        // below holds trivially).
+        let parent = Path::new("/tmp");
+        if !parent.is_dir() {
+            return;
+        }
+        let folder = parent.join(format!(
+            "engit-redirect-test-{}-{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+
+        create_folder(&folder).expect("the folder is created");
+
+        let (child, parent) = (
+            fs::metadata(&folder).expect("metadata"),
+            fs::metadata(parent).expect("metadata"),
+        );
+        let _ = fs::remove_dir(&folder);
+        let mode = child.permissions().mode();
+        assert_eq!(
+            mode & 0o1002,
+            0,
+            "{mode:o} is writable by everyone or sticky"
+        );
+        if mode & 0o020 != 0 {
+            assert_eq!(
+                child.gid(),
+                parent.gid(),
+                "{mode:o} gives group access to a group that is not the parent's"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_live_file_other_users_cannot_read_is_reported() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let setup = setup();
+        let _faults = FaultGuard;
+        // As if the filesystem had refused to set the mode under a strict umask.
+        FAULTS.with(|faults| {
+            faults.borrow_mut().after_replace = Some(Box::new(|live| {
+                fs::set_permissions(live, fs::Permissions::from_mode(0o600)).expect("mode is set");
+            }));
+        });
+
+        let report = publish(&setup, &options(&setup), STAMP).expect("publishes");
+
+        assert_eq!(report.outcome, Outcome::Published);
+        let note = report.notes.join("\n");
+        assert!(note.contains("has mode 600"), "{note}");
+        assert!(note.contains("chmod 644"), "{note}");
+        assert!(report.to_string().contains("Note: "), "{report}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_a_file_that_everyone_can_read_goes_unremarked() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let setup = setup();
+        let live = setup.root.join("redirect.yaml");
+        fs::write(&live, FILE).expect("live is written");
+        let remark = |mode: u32| {
+            fs::set_permissions(&live, fs::Permissions::from_mode(mode)).expect("mode is set");
+            super::unreadable_by_others(&live)
+        };
+
+        for readable in [0o644, 0o664, 0o666, 0o755] {
+            assert_eq!(remark(readable), None, "{readable:o}");
+        }
+        for unreadable in [0o600, 0o640, 0o604, 0o400] {
+            assert!(remark(unreadable).is_some(), "{unreadable:o}");
+        }
+        assert_eq!(
+            super::unreadable_by_others(&setup.root.join("missing.yaml")),
+            None
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_normal_publish_has_nothing_to_remark_on() {
+        let setup = setup();
+
+        let report = publish(&setup, &options(&setup), STAMP).expect("publishes");
+
+        assert!(report.notes.is_empty(), "{:?}", report.notes);
     }
 
     #[cfg(unix)]
@@ -2106,8 +2340,18 @@ users: {alice: missing}\nteam: x\n",
         );
     }
 
+    /// The stamp in the name of a history entry.
+    fn stamp_of(path: &Path) -> String {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("a name")
+            .to_string();
+        name["redirect-".len()..][..super::TIMESTAMP_LENGTH].to_string()
+    }
+
     #[test]
-    fn a_file_dated_in_the_future_is_filed_under_the_time_it_is_now() {
+    fn a_file_dated_in_the_future_is_filed_before_the_entry_that_replaces_it() {
         let setup = setup();
         put_by_hand(
             &setup,
@@ -2117,14 +2361,26 @@ users: {alice: missing}\nteam: x\n",
         let report = publish(&setup, &options(&setup), STAMP).expect("publishes");
 
         let kept = report.archived.expect("the old file is kept");
-        let name = kept
-            .file_name()
-            .and_then(|name| name.to_str())
-            .expect("a name")
-            .to_string();
-        let stamp = &name["redirect-".len()..][..super::TIMESTAMP_LENGTH];
-        let now = Utc::now().format(TIMESTAMP_FORMAT).to_string();
-        assert!(stamp <= now.as_str(), "{stamp} has not come yet: {now}");
+        assert!(
+            stamp_of(&kept).as_str() < STAMP,
+            "{} is not before {STAMP}",
+            kept.display()
+        );
+        // The listing reads newest first, so what was live comes after what replaced it.
+        let entries = history_with(Some(&setup.root), None, &env_for(&setup)).expect("lists");
+        assert_eq!(entries[0].stamp, STAMP, "{entries:?}");
+        assert!(entries[0].live, "{entries:?}");
+    }
+
+    #[test]
+    fn a_stamp_is_read_back_into_the_time_it_names() {
+        let time = super::stamp_time("2026-11-02-171000").expect("a stamp");
+
+        assert_eq!(
+            time.format(TIMESTAMP_FORMAT).to_string(),
+            "2026-11-02-171000"
+        );
+        assert!(super::stamp_time("yesterday").is_none());
     }
 
     #[cfg(unix)]
