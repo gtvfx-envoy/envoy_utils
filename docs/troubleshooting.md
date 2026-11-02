@@ -61,7 +61,11 @@ ten seconds for the first. Try again in a moment. The turn is an operating
 system lock that is let go when a program ends however it ends, so a crashed
 publish does not leave one behind. If the message keeps coming back, look for
 an `engit` that is stuck on a slow share (for example in Task Manager).
-`.redirect.lock` is an empty file that is meant to stay in the folder.
+`.redirect.lock` is an empty file that is meant to stay in the folder. Two
+administrators who publish from different machines, or one from Windows and one
+from WSL, may not see each other's turn on some locations (see [Two people
+publishing](cli-reference/engit.md#two-people-publishing)); publish from one
+place there.
 
 ## `publish redirect`: "Access is denied" when replacing the file
 
@@ -71,7 +75,9 @@ allows the file to be replaced makes the replace fail while it is reading.
 `engit` tries again for about a second and a half, which covers a launcher's
 read. A message that stays means the program keeps the file open (close the
 editor) or that you may not change the file: check your write access to the
-config root. Nothing was changed and no history entry was left behind.
+config root. The live file was not changed and the history copy of the new file
+was removed. If the publish had first kept the file that was live (because the
+history did not have it), that copy stays: that file did go live.
 
 ## `publish redirect`: "already exists ... try again"
 

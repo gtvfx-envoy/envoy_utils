@@ -327,6 +327,8 @@ fn publish_waiting(
         }
     }
     put_in_place(&history, &bytes, || replace_live(&directory, &live, &bytes))?;
+    #[cfg(test)]
+    tests::another_publisher_acts(&live);
     confirm_written(&live, &bytes)?;
 
     report.outcome = Outcome::Published;
@@ -468,8 +470,13 @@ fn open_lock_file(path: &Path) -> Result<File> {
     }
 }
 
-/// Create `path` when it is not there, open to the same people as its parent.
+/// Create `path` when it is not there, open to the people who can use its parent.
 fn create_folder(path: &Path) -> Result<()> {
+    // A drive or a share root cannot be created again, and Windows says "access
+    // is denied" for it rather than "already exists".
+    if path.is_dir() {
+        return Ok(());
+    }
     match fs::create_dir(path) {
         Ok(()) => {
             match_parent_access(path);
@@ -481,15 +488,21 @@ fn create_folder(path: &Path) -> Result<()> {
 }
 
 /// Who can use a new folder follows the publisher's umask unless it is set, and
-/// another administrator could then not publish into it.
+/// another administrator could then not publish into it, or a launcher not read
+/// it.
+///
+/// Everyone can read and enter it, as in a folder made under the usual umask.
+/// From the folder it is in, it takes the group's access and the group bit, so
+/// that the administrators who can publish there can publish here. It takes
+/// nothing of what the parent gives everyone else, and not its sticky bit: a
+/// world-writable root must not make a world-writable folder.
 #[cfg(unix)]
 fn match_parent_access(path: &Path) {
     use std::os::unix::fs::PermissionsExt;
 
     let Some(parent) = path.parent() else { return };
     if let Ok(metadata) = fs::metadata(parent) {
-        // The permission bits and the group bit, not the sticky bit.
-        let mode = metadata.permissions().mode() & 0o2777;
+        let mode = 0o755 | (metadata.permissions().mode() & 0o2070);
         let _ = fs::set_permissions(path, fs::Permissions::from_mode(mode));
     }
 }
@@ -499,10 +512,18 @@ fn match_parent_access(_path: &Path) {}
 
 /// The launcher of every user reads the file, whoever published it and
 /// whatever their umask is.
+///
+/// Callers take no notice of a failure: a filesystem that keeps no modes (vfat,
+/// exFAT, some network mounts) refuses, and the file there is as readable as the
+/// filesystem makes anything.
 #[cfg(unix)]
 fn make_readable_by_all(file: &File) -> io::Result<()> {
     use std::os::unix::fs::PermissionsExt;
 
+    #[cfg(test)]
+    if tests::modes_are_refused() {
+        return Err(io::Error::from(io::ErrorKind::PermissionDenied));
+    }
     file.set_permissions(fs::Permissions::from_mode(0o644))
 }
 
@@ -545,10 +566,10 @@ fn write_history(history: &Path, bytes: &[u8]) -> Result<()> {
         Err(source) => return Err(EngitError::io(history, source)),
     };
 
-    let written = file
-        .write_all(bytes)
-        .and_then(|()| make_readable_by_all(&file))
-        .and_then(|()| file.sync_all());
+    let written = file.write_all(bytes).and_then(|()| {
+        let _ = make_readable_by_all(&file);
+        file.sync_all()
+    });
     drop(file);
     if let Err(source) = written {
         let _ = fs::remove_file(history);
@@ -567,10 +588,13 @@ fn previous_entry(history_dir: &Path, live: &Path, current: &[u8]) -> Result<Opt
         return Ok(None);
     }
 
+    let now = SystemTime::now();
     let changed = fs::metadata(live)
         .and_then(|metadata| metadata.modified())
-        .unwrap_or_else(|_| SystemTime::now());
-    let changed = DateTime::<Utc>::from(changed);
+        .unwrap_or(now);
+    // A file dated in the future, from a clock that was ahead, must not be filed
+    // under a time that has not come: it would look newer than what replaces it.
+    let changed = DateTime::<Utc>::from(changed.min(now));
     for earlier in 0..60 {
         let stamp = (changed - chrono::Duration::seconds(earlier))
             .format(TIMESTAMP_FORMAT)
@@ -586,17 +610,32 @@ fn previous_entry(history_dir: &Path, live: &Path, current: &[u8]) -> Result<Opt
     )))
 }
 
-/// `true` when a history entry has exactly these bytes.
-fn history_holds(history_dir: &Path, bytes: &[u8]) -> bool {
+/// The history entries in `history_dir`, newest first.
+///
+/// A name starts with the time the entry was published, in a form that sorts
+/// the way time does.
+fn entries_newest_first(history_dir: &Path) -> Vec<PathBuf> {
     let Ok(listing) = fs::read_dir(history_dir) else {
-        return false;
+        return Vec::new();
     };
-    listing.flatten().any(|item| {
-        parse_history_name(&item.file_name().to_string_lossy()).is_some()
-            && item
-                .metadata()
-                .is_ok_and(|metadata| metadata.len() == bytes.len() as u64)
-            && fs::read(item.path()).is_ok_and(|found| found == bytes)
+    let mut entries: Vec<PathBuf> = listing
+        .flatten()
+        .filter(|item| parse_history_name(&item.file_name().to_string_lossy()).is_some())
+        .map(|item| item.path())
+        .collect();
+    entries.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+    entries
+}
+
+/// `true` when a history entry has exactly these bytes.
+///
+/// The file that is live is nearly always the newest entry, so the search ends
+/// at the first read. It matters because it runs while holding the turn to
+/// publish, and a history grows for years.
+fn history_holds(history_dir: &Path, bytes: &[u8]) -> bool {
+    entries_newest_first(history_dir).iter().any(|path| {
+        fs::metadata(path).is_ok_and(|metadata| metadata.len() == bytes.len() as u64)
+            && fs::read(path).is_ok_and(|found| found == bytes)
     })
 }
 
@@ -614,7 +653,7 @@ fn replace_live(directory: &Path, live: &Path, bytes: &[u8]) -> Result<()> {
         .open(&staged)
         .and_then(|mut file| {
             file.write_all(bytes)?;
-            make_readable_by_all(&file)?;
+            let _ = make_readable_by_all(&file);
             file.sync_all()
         });
     if let Err(source) = written {
@@ -1117,21 +1156,64 @@ fn parse_history_name(name: &str) -> Option<(String, String)> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
     use std::collections::HashMap;
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Barrier};
     use std::thread;
-    use std::time::Duration;
+    use std::time::{Duration, SystemTime};
 
+    use chrono::Utc;
     use tempfile::{tempdir, TempDir};
 
     use super::{
-        confirm_written, history_with, parse_history_name, publish_waiting, publish_with,
-        put_in_place, show_with, Availability, Outcome, Platform, PublishLock, PublishOptions,
-        ShowOptions, CONFIG_PUBLISH_ROOT_VAR, LOCK_FILE,
+        confirm_written, create_folder, entries_newest_first, history_with, parse_history_name,
+        publish_waiting, publish_with, put_in_place, show_with, Availability, Outcome, Platform,
+        PublishLock, PublishOptions, ShowOptions, CONFIG_PUBLISH_ROOT_VAR, LOCK_FILE,
+        TIMESTAMP_FORMAT,
     };
     use crate::error::EngitError;
+
+    /// What a test does to the live file after it was replaced.
+    type Act = Box<dyn Fn(&Path)>;
+
+    /// What a test makes go wrong, on the thread it runs on.
+    #[derive(Default)]
+    struct Faults {
+        /// Done to the live file just after it was replaced, as another publisher could.
+        after_replace: Option<Act>,
+        /// The filesystem refuses to change modes.
+        #[cfg_attr(not(unix), allow(dead_code))]
+        refuse_modes: bool,
+    }
+
+    thread_local! {
+        static FAULTS: RefCell<Faults> = RefCell::new(Faults::default());
+    }
+
+    /// Takes the faults away when it is dropped, even if the test panics.
+    struct FaultGuard;
+
+    impl Drop for FaultGuard {
+        fn drop(&mut self) {
+            FAULTS.with(|faults| *faults.borrow_mut() = Faults::default());
+        }
+    }
+
+    pub(super) fn another_publisher_acts(live: &Path) {
+        FAULTS.with(|faults| {
+            if let Some(act) = &faults.borrow().after_replace {
+                act(live);
+            }
+        });
+    }
+
+    #[cfg(unix)]
+    pub(super) fn modes_are_refused() -> bool {
+        FAULTS.with(|faults| faults.borrow().refuse_modes)
+    }
 
     const STAMP: &str = "2026-11-02-171000";
 
@@ -1747,8 +1829,11 @@ users: {alice: missing}\nteam: x\n",
         let setup = setup();
         let held = PublishLock::acquire(&setup.root.join(LOCK_FILE), Duration::from_secs(1))
             .expect("the first publisher has its turn");
+        let released = Arc::new(AtomicBool::new(false));
+        let flag = Arc::clone(&released);
         let finish = thread::spawn(move || {
             thread::sleep(Duration::from_millis(300));
+            flag.store(true, Ordering::SeqCst);
             drop(held);
         });
 
@@ -1760,8 +1845,62 @@ users: {alice: missing}\nteam: x\n",
         )
         .expect("it goes ahead once the other has finished");
 
+        assert!(
+            released.load(Ordering::SeqCst),
+            "the publish went ahead while the other still had its turn"
+        );
         finish.join().expect("the other publisher finishes");
         assert_eq!(report.outcome, Outcome::Published);
+    }
+
+    #[test]
+    fn a_file_put_there_while_waiting_for_the_turn_is_kept() {
+        let setup = setup();
+        let held = PublishLock::acquire(&setup.root.join(LOCK_FILE), Duration::from_secs(1))
+            .expect("the first publisher has its turn");
+        let live = setup.root.join("redirect.yaml");
+        let by_hand = "schema: 1\nsources: ['${STUDIO}/envoy/{version}']\nversions: {default: v0.8.0}\n# by hand\n";
+        let other = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            // Somebody changes the live file while this publish is waiting for its turn.
+            fs::write(&live, by_hand).expect("a file is put there by hand");
+            drop(held);
+        });
+
+        publish_waiting(
+            &options(&setup),
+            &env_for(&setup),
+            STAMP,
+            Duration::from_secs(10),
+        )
+        .expect("it goes ahead once the other has finished");
+
+        other.join().expect("the other finishes");
+        let entries = history_with(Some(&setup.root), None, &env_for(&setup)).expect("lists");
+        let kept: Vec<String> = entries
+            .iter()
+            .map(|entry| fs::read_to_string(&entry.path).expect("entry reads"))
+            .collect();
+        assert!(kept.iter().any(|text| text == by_hand), "{kept:?}");
+    }
+
+    #[test]
+    fn a_publish_whose_file_was_changed_underneath_it_says_so() {
+        let setup = setup();
+        let _faults = FaultGuard;
+        FAULTS.with(|faults| {
+            faults.borrow_mut().after_replace = Some(Box::new(|live| {
+                fs::write(live, "somebody else's file").expect("another publisher writes");
+            }));
+        });
+
+        let error =
+            publish(&setup, &options(&setup), STAMP).expect_err("the read-back finds another file");
+
+        assert!(
+            error.to_string().contains("does not have the content"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -1829,6 +1968,163 @@ users: {alice: missing}\nteam: x\n",
         let mode = |path: &Path| fs::metadata(path).expect("metadata").permissions().mode() & 0o777;
         assert_eq!(mode(&setup.root.join("rigging")), 0o775);
         assert_eq!(mode(&setup.root.join("rigging/history")), 0o775);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_new_folder_takes_nothing_from_what_its_parent_gives_everyone() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let setup = setup();
+        // A world-writable folder with the sticky bit, like a shared temp folder.
+        fs::set_permissions(&setup.root, fs::Permissions::from_mode(0o1777)).expect("mode is set");
+        let mut team = options(&setup);
+        team.team = Some("rigging");
+
+        publish(&setup, &team, STAMP).expect("publishes");
+
+        let mode = |path: &Path| fs::metadata(path).expect("metadata").permissions().mode();
+        for folder in ["rigging", "rigging/history"] {
+            let mode = mode(&setup.root.join(folder));
+            assert_eq!(mode & 0o1002, 0, "{folder} is {mode:o}");
+            assert_eq!(mode & 0o755, 0o755, "{folder} is {mode:o}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_filesystem_that_refuses_to_change_modes_can_still_be_published_to() {
+        let setup = setup();
+        let _faults = FaultGuard;
+        FAULTS.with(|faults| faults.borrow_mut().refuse_modes = true);
+
+        let report = publish(&setup, &options(&setup), STAMP).expect("publishes anyway");
+
+        assert_eq!(report.outcome, Outcome::Published);
+        assert_eq!(fs::read_to_string(&report.live).expect("live reads"), FILE);
+        assert!(report.history.is_some_and(|history| history.is_file()));
+    }
+
+    #[test]
+    fn a_folder_that_is_there_is_left_alone() {
+        let setup = setup();
+        fs::write(setup.root.join("a.txt"), "x").expect("a file is written");
+
+        create_folder(&setup.root).expect("it is a folder already");
+
+        assert_eq!(files_under(&setup.root), ["a.txt"]);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_drive_root_is_a_folder_that_is_already_there() {
+        // Windows refuses to create a drive root with "access is denied", not "already exists".
+        let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
+
+        create_folder(Path::new(&format!("{drive}\\"))).expect("a drive root is a folder");
+    }
+
+    #[test]
+    fn history_entries_are_searched_newest_first() {
+        let setup = setup();
+        let history = setup.root.join("history");
+        fs::create_dir_all(&history).expect("history is created");
+        for name in [
+            "redirect-2026-11-02-171000-alice.yaml",
+            "redirect-2026-11-02-171200-bob.yaml",
+            "redirect-2026-10-30-094512-unknown.yaml",
+            "redirect-bad.yaml",
+            "notes.txt",
+        ] {
+            fs::write(history.join(name), "x").expect("a file is written");
+        }
+
+        let names: Vec<String> = entries_newest_first(&history)
+            .iter()
+            .map(|path| {
+                path.file_name()
+                    .expect("a name")
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+
+        assert_eq!(
+            names,
+            [
+                "redirect-2026-11-02-171200-bob.yaml",
+                "redirect-2026-11-02-171000-alice.yaml",
+                "redirect-2026-10-30-094512-unknown.yaml",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_dry_run_refuses_a_history_name_that_is_taken_as_the_real_publish_would() {
+        let setup = setup();
+        let history = setup.root.join("history");
+        fs::create_dir_all(&history).expect("history is created");
+        fs::write(
+            history.join("redirect-2026-11-02-171000-alice.yaml"),
+            "taken",
+        )
+        .expect("the name is taken");
+        let mut dry = options(&setup);
+        dry.dry_run = true;
+
+        let error = publish(&setup, &dry, STAMP).expect_err("the name is taken");
+
+        assert!(error.to_string().contains("already exists"), "{error}");
+    }
+
+    /// Put a file there by hand, last changed at `changed`.
+    fn put_by_hand(setup: &Setup, changed: SystemTime) {
+        let live = setup.root.join("redirect.yaml");
+        fs::write(&live, "put there by hand\n").expect("by hand");
+        fs::File::options()
+            .write(true)
+            .open(&live)
+            .and_then(|file| file.set_modified(changed))
+            .expect("the time is set");
+    }
+
+    #[test]
+    fn a_file_that_was_live_is_filed_under_the_time_it_was_last_changed() {
+        let setup = setup();
+        // 2023-11-14 22:13:20 UTC
+        put_by_hand(
+            &setup,
+            SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000),
+        );
+
+        let report = publish(&setup, &options(&setup), STAMP).expect("publishes");
+
+        let kept = report.archived.expect("the old file is kept");
+        assert_eq!(
+            kept.file_name().and_then(|name| name.to_str()),
+            Some("redirect-2023-11-14-221320-unknown.yaml")
+        );
+    }
+
+    #[test]
+    fn a_file_dated_in_the_future_is_filed_under_the_time_it_is_now() {
+        let setup = setup();
+        put_by_hand(
+            &setup,
+            SystemTime::now() + Duration::from_secs(2 * 24 * 60 * 60),
+        );
+
+        let report = publish(&setup, &options(&setup), STAMP).expect("publishes");
+
+        let kept = report.archived.expect("the old file is kept");
+        let name = kept
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("a name")
+            .to_string();
+        let stamp = &name["redirect-".len()..][..super::TIMESTAMP_LENGTH];
+        let now = Utc::now().format(TIMESTAMP_FORMAT).to_string();
+        assert!(stamp <= now.as_str(), "{stamp} has not come yet: {now}");
     }
 
     #[cfg(unix)]

@@ -292,8 +292,10 @@ put an earlier one back, publish it again.
   named for the time it was last changed and for `unknown`:
   `redirect-2026-10-30-094512-unknown.yaml`.
 - A publish that is cut off between keeping the copy and replacing the live
-  file can leave a copy of a file that never went live. `redirect history`
-  marks the one that is live.
+  file can leave a copy of a file that never went live, and one that is cut off
+  while the copy is being written can leave an empty one (`redirect history`
+  shows its size, `0 bytes`). `redirect history` marks the one that is live;
+  delete the others by hand if they bother you.
 
 Without `--output`, Engit uses `ENVOY_CONFIG_PUBLISH_ROOT`. It never uses
 `ENVOY_CONFIG_PROD`, the variable the launcher reads, so a machine that only
@@ -315,6 +317,12 @@ the program ends, however it ends: there is never a stale lock to clear.
 A location that cannot lock files (some network mounts) cannot make anyone wait,
 and `engit` says so in a note under the result. Publishing still works there.
 
+A lock is only seen by programs that share a lock manager, and some locations
+look as if they lock files while not sharing the locks across a boundary: an NFS
+mount with `nolock`, an SMB mount with `nobrl`, and a Windows drive seen from
+WSL, which shares no locks with Windows programs. `engit` cannot tell, and says
+nothing there. Publish from one place, or one person at a time.
+
 A history name is created as a new file and never replaces one, so two people
 publishing as the same user in the same second cannot lose an entry: the second
 gets an error and tries again.
@@ -323,8 +331,15 @@ gets an error and tries again.
 
 The launcher of every user must read the file, so the live file and each history
 copy are made readable by everyone (mode `644`) whatever the publisher's umask
-is. A folder `engit` creates, such as a team's, is given the same permissions as
-the folder it is in, so that another administrator can publish into it.
+is. A folder `engit` creates, such as a team's, is readable by everyone (`755`)
+and takes from the folder it is in the group's write access and its group bit
+(`setgid`), so that another administrator in that group can publish into it.
+Nothing is taken from what the folder it is in gives everyone else, so a
+world-writable root does not make a world-writable folder. Where a filesystem
+keeps no modes (vfat, exFAT, some network mounts) and refuses to set them,
+`engit` goes on and the files are as readable as that filesystem makes them.
+
+#### Examples
 
 ```text
 Published the redirect file.
