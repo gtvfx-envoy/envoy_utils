@@ -129,7 +129,10 @@ the limits for what is not one are far above that (they are listed under
 names the file and what is wrong with it. Download it again from the release;
 if it is one you built yourself, check what went into it: a stray folder of
 build output, a link, or a ZIP file made by adding the same file twice are the
-usual causes.
+usual causes. A ZIP file that "lists a name more than once, or more entries than
+it says it has" is one that tools read differently: one unpacks the first file
+of a name or only the entries its end counts, and another the last or all of
+them. That is why it is refused and not guessed at.
 
 ## `publish shim`: "is written for schema ..."
 
@@ -154,9 +157,11 @@ and has to say it is the version being published. If the message says it does
 not run, a virus scanner may have blocked the unpacked program: the message
 gives the reason. The launcher is run from a file in the temporary folder, so
 where programs may not run from there (a mount that does not allow it, a
-policy), set `TMPDIR` (`TEMP` on Windows) to a folder where they may and
-publish again. If it reports another version, or more than one line, the
-archive is not the one its name says, so it was not published.
+policy), set `TMPDIR` to a folder where they may and publish again. On Windows
+the variable is `TMP`: it is read before `TEMP`, which counts only when `TMP`
+is not set, so changing `TEMP` alone changes nothing. If it reports another
+version, or more than one line, the archive is not the one its name says, so it
+was not published.
 
 ## `publish shim`: "None on the share for ..."
 

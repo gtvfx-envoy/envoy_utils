@@ -20,7 +20,7 @@ use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::rc::Rc;
 use std::sync::{mpsc, Arc, Mutex, PoisonError};
 use std::thread;
@@ -72,8 +72,13 @@ const RUN_TIMEOUT: Duration = Duration::from_secs(15);
 /// longer than that.
 const REPORT_GRACE: Duration = Duration::from_secs(2);
 
-/// What a launcher says about its version is one short line.
+/// What a launcher gets to say about its version is one short line.
 const MAX_REPORT_BYTES: usize = 64 * 1024;
+
+/// The variable that says where a program puts its temporary files, as the system
+/// reads it: Windows looks at `TMP` first and at `TEMP` only when `TMP` is not
+/// set, so changing `TEMP` alone changes nothing there.
+const TEMP_VARIABLE: &str = if cfg!(windows) { "TMP" } else { "TMPDIR" };
 
 /// What an archive may hold before it is not a launcher archive.
 #[derive(Debug, Clone, Copy)]
@@ -1076,38 +1081,67 @@ fn unpack(archive: &Found, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
     Ok(unpacked)
 }
 
-/// The number of entries a ZIP file says it holds, from the record at its end,
-/// or `None` when there is no such record. A file with more than 65534 entries
-/// says 65535, which is far more than a launcher archive has.
-fn declared_zip_entries(bytes: &[u8]) -> Option<usize> {
-    const SIGNATURE: [u8; 4] = *b"PK\x05\x06";
-    const RECORD: usize = 22;
+/// The signature that starts every record of a ZIP file's central directory.
+const CENTRAL_RECORD: [u8; 4] = *b"PK\x01\x02";
 
-    // The record is the last thing in the file, except for a comment of at most 65535 bytes.
-    let last = bytes.len().checked_sub(RECORD)?;
-    let first = last.saturating_sub(usize::from(u16::MAX));
-    (first..=last)
-        .rev()
-        .find(|&at| bytes[at..at + 4] == SIGNATURE)
-        .map(|at| usize::from(u16::from_le_bytes([bytes[at + 10], bytes[at + 11]])))
+/// How many places in a ZIP file start with the signature of a central directory
+/// record, counted no further than `most` + 1.
+///
+/// Every entry the library can read has such a record in the file, wherever the
+/// file says its directory is, so the count bounds what reading the directory
+/// can cost before it is read. The end of the file is no place to ask: the
+/// library tries every record there that looks like an end, however much
+/// follows it and whatever a comment holds, so a count taken from one of them
+/// is not the count it reads.
+fn central_signatures(bytes: &[u8], most: usize) -> usize {
+    let mut found = 0;
+    for window in bytes.windows(CENTRAL_RECORD.len()) {
+        if window == CENTRAL_RECORD {
+            found += 1;
+            if found > most {
+                break;
+            }
+        }
+    }
+    found
+}
+
+/// How many records the central directory holds, counted from `start`, where the
+/// library began to read it. A record is a block of 46 bytes, then a name, an
+/// extra field and a comment, whose lengths the block gives.
+fn central_records(bytes: &[u8], start: u64) -> usize {
+    const BLOCK: usize = 46;
+    let length =
+        |block: &[u8], at: usize| usize::from(u16::from_le_bytes([block[at], block[at + 1]]));
+
+    let mut at = usize::try_from(start).unwrap_or(usize::MAX);
+    let mut records = 0;
+    while let Some(block) = at.checked_add(BLOCK).and_then(|end| bytes.get(at..end)) {
+        if block[..CENTRAL_RECORD.len()] != CENTRAL_RECORD {
+            break;
+        }
+        at = at.saturating_add(BLOCK + length(block, 28) + length(block, 30) + length(block, 32));
+        records += 1;
+    }
+    records
 }
 
 fn unpack_zip(archive: &str, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
     let broken = |error: &dyn fmt::Display| {
         EngitError::Shim(format!("{archive} cannot be read as a ZIP file: {error}"))
     };
-    // What the end of the file says it holds, before the directory of it is read.
-    let declared = declared_zip_entries(bytes);
-    if declared.is_some_and(|declared| declared > limits.entries) {
+    if central_signatures(bytes, limits.entries) > limits.entries {
         return Err(too_big(archive, "the number of entries in it"));
     }
     let mut zip = zip::ZipArchive::new(io::Cursor::new(bytes)).map_err(|error| broken(&error))?;
     // A name that is listed twice is read as one entry, the later, as many tools
-    // do, so which file is meant is not clear. The count shows it.
-    if declared.is_some_and(|declared| declared != zip.len()) {
+    // do, so which file is meant is not clear. So are records beyond the number
+    // the file declares, which some tools read and others do not. Counting the
+    // records of the directory the library read shows both.
+    if central_records(bytes, zip.central_directory_start()) != zip.len() {
         return Err(EngitError::Shim(format!(
-            "{archive} lists a name more than once, so which file it holds under that name is \
-not clear."
+            "{archive} lists a name more than once, or more entries than it says it has, so \
+which file it holds under a name is not clear."
         )));
     }
     let mut budget = Budget::new(archive, limits);
@@ -1275,11 +1309,13 @@ fn check_by_running(
 
     let said = run(&path).map_err(|error| {
         let hint = if could_not_start(&error) {
-            " The launcher is run from the temporary folder. If programs may not run there (a \
-mount that does not allow it, a virus scanner, a policy), set TMPDIR (TEMP on Windows) to a \
-folder where they may and publish again."
+            format!(
+                " The launcher is run from the temporary folder. If programs may not run there \
+(a mount that does not allow it, a virus scanner, a policy), set {TEMP_VARIABLE} to a folder where \
+they may and publish again."
+            )
         } else {
-            ""
+            String::new()
         };
         EngitError::Shim(format!(
             "The launcher in {} does not run here: {error}. It was not published.{hint}",
@@ -1342,27 +1378,34 @@ fn report_of(mut command: Command, run: Duration, grace: Duration) -> io::Result
         });
     }
 
+    let status = wait_for(&mut child, run)?;
+    if !status.success() {
+        return Err(io::Error::other(format!("it exited with {status}")));
+    }
+    // Everything it printed is there once its output is closed, and a program it
+    // started and left running can hold that open, so only `grace` is given.
+    let _ = finished_rx.recv_timeout(grace);
+    let text = text.lock().unwrap_or_else(PoisonError::into_inner);
+    Ok(String::from_utf8_lossy(&text).into_owned())
+}
+
+/// Wait for a program to end, for no longer than `run`. One that is still running
+/// then is killed, so that nothing a publish started is left running.
+fn wait_for(child: &mut Child, run: Duration) -> io::Result<ExitStatus> {
     let give_up = Instant::now() + run;
     loop {
-        match child.try_wait()? {
-            Some(status) if status.success() => {
-                let _ = finished_rx.recv_timeout(grace);
-                let text = text.lock().unwrap_or_else(PoisonError::into_inner);
-                return Ok(String::from_utf8_lossy(&text).into_owned());
-            }
-            Some(status) => {
-                return Err(io::Error::other(format!("it exited with {status}")));
-            }
-            None if Instant::now() >= give_up => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(io::Error::new(
-                    io::ErrorKind::TimedOut,
-                    format!("it did not answer within {} seconds", run.as_secs_f32()),
-                ));
-            }
-            None => thread::sleep(Duration::from_millis(20)),
+        if let Some(status) = child.try_wait()? {
+            return Ok(status);
         }
+        if Instant::now() >= give_up {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("it did not answer within {} seconds", run.as_secs_f32()),
+            ));
+        }
+        thread::sleep(Duration::from_millis(20));
     }
 }
 
@@ -1735,8 +1778,8 @@ mod tests {
         writer.finish().expect("zip finishes").into_inner()
     }
 
-    /// A ZIP archive with a comment, and folders as well as files.
-    fn zip_with_folders(folders: usize, comment: &[u8]) -> Vec<u8> {
+    /// A ZIP archive with folders as well as a file.
+    fn zip_with_folders(folders: usize) -> Vec<u8> {
         let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
         let options = zip::write::SimpleFileOptions::default();
         writer
@@ -1748,7 +1791,6 @@ mod tests {
                 .add_directory(format!("folder{number}/"), options)
                 .expect("folder is added");
         }
-        writer.set_raw_comment(comment.to_vec().into_boxed_slice());
         writer.finish().expect("zip finishes").into_inner()
     }
 
@@ -2946,60 +2988,252 @@ mod tests {
         let error = message_of(unpack_tar("f.tar.gz", &tar_with(&folders), limits));
         assert!(error.contains("far bigger"), "{error}");
 
-        let error = message_of(unpack_zip("f.zip", &zip_with_folders(20, b""), limits));
+        let error = message_of(unpack_zip("f.zip", &zip_with_folders(20), limits));
         assert!(error.contains("far bigger"), "{error}");
         // A few are fine.
-        assert!(unpack_zip("f.zip", &zip_with_folders(3, b""), limits).is_ok());
+        assert!(unpack_zip("f.zip", &zip_with_folders(3), limits).is_ok());
     }
 
     #[test]
-    fn a_zip_that_says_it_holds_many_entries_is_refused_before_its_directory_is_read() {
-        // Only the record at the end of the file, saying 5000 entries, and no directory
-        // for it: reading the directory would fail, so the refusal is what came first.
-        let mut record = b"PK\x05\x06".to_vec();
-        record.extend_from_slice(&[0; 4]);
-        record.extend_from_slice(&5000u16.to_le_bytes());
-        record.extend_from_slice(&5000u16.to_le_bytes());
-        record.extend_from_slice(&[0; 10]);
+    fn signatures_are_counted_up_to_one_past_the_most() {
+        let one = b"xxPK\x01\x02yy";
+        let five = [&one[..], &one[..], &one[..], &one[..], &one[..]].concat();
 
-        let error = message_of(unpack_zip("big.zip", &record, LIMITS));
+        assert_eq!(central_signatures(&five, 100), 5);
+        assert_eq!(central_signatures(&five, 5), 5);
+        assert_eq!(central_signatures(&five, 4), 5, "one past the most");
+        assert_eq!(central_signatures(&five, 2), 3, "and no further");
+        assert_eq!(
+            central_signatures(b"xPK\x01", 5),
+            0,
+            "a part of one is not one"
+        );
+        assert_eq!(central_signatures(b"", 5), 0);
+    }
 
+    /// A record of a ZIP file's central directory: its block, then the name, the
+    /// extra field and the comment.
+    fn directory_record(name: &str, extra: usize, comment: usize) -> Vec<u8> {
+        let length = |value: usize| u16::try_from(value).expect("fits").to_le_bytes();
+        let mut record = vec![0u8; 46];
+        record[..4].copy_from_slice(b"PK\x01\x02");
+        record[28..30].copy_from_slice(&length(name.len()));
+        record[30..32].copy_from_slice(&length(extra));
+        record[32..34].copy_from_slice(&length(comment));
+        record.extend_from_slice(name.as_bytes());
+        record.extend(vec![b'e'; extra]);
+        record.extend(vec![b'c'; comment]);
+        record
+    }
+
+    #[test]
+    fn the_records_of_a_directory_are_counted_by_the_lengths_they_give() {
+        let records = [
+            directory_record("a", 0, 0),
+            directory_record("bb", 7, 0),
+            directory_record("ccc", 0, 5),
+            directory_record("d", 3, 2),
+        ];
+        let directory = records.concat();
+        // Some file data before the directory, and the start of its end after it.
+        let mut file = vec![0u8; 10];
+        file.extend_from_slice(&directory);
+        file.extend_from_slice(b"PK\x05\x06 and the rest of the end");
+
+        assert_eq!(central_records(&file, 10), 4);
+        assert_eq!(central_records(&file, 10 + records[0].len() as u64), 3);
+        assert_eq!(central_records(&file, 11), 0, "not at a record");
+        assert_eq!(central_records(&file, u64::MAX), 0);
+        assert_eq!(central_records(&file, file.len() as u64), 0);
+        let cut = &file[..10 + directory.len() - 20];
+        assert_eq!(
+            central_records(cut, 10),
+            3,
+            "a record that is cut short is not one"
+        );
+    }
+
+    #[test]
+    fn a_zip_with_more_records_than_the_limit_is_refused_before_its_directory_is_read() {
+        let limits = Limits {
+            entries: 8,
+            ..LIMITS
+        };
+        // Nothing but records, and no end for them: read as a ZIP file it would fail, so
+        // that it is refused for its size means the count was taken before it was read.
+        let many = [&b"PK\x01\x02"[..]; 9].concat();
+        let error = message_of(unpack_zip("big.zip", &many, limits));
         assert!(error.contains("far bigger"), "{error}");
         assert!(error.contains("the number of entries"), "{error}");
+
+        let few = [&b"PK\x01\x02"[..]; 8].concat();
+        let error = message_of(unpack_zip("few.zip", &few, limits));
+        assert!(error.contains("cannot be read as a ZIP file"), "{error}");
     }
 
-    #[test]
-    fn the_record_at_the_end_of_a_zip_is_found_whatever_its_comment() {
-        for comment in [0, 1, 1000, usize::from(u16::MAX)] {
-            let zip = zip_with_folders(2, &vec![b'c'; comment]);
-            assert_eq!(
-                declared_zip_entries(&zip),
-                Some(3),
-                "a {comment} byte comment"
-            );
+    /// What looks like the end of a ZIP file and says it holds `entries` entries.
+    fn end_record(entries: u16) -> Vec<u8> {
+        let mut record = b"PK\x05\x06".to_vec();
+        record.extend_from_slice(&[0; 4]);
+        record.extend_from_slice(&entries.to_le_bytes());
+        record.extend_from_slice(&entries.to_le_bytes());
+        record.extend_from_slice(&[0; 10]);
+        record
+    }
+
+    /// `zip`, which has no comment, with one.
+    fn with_comment(zip: &[u8], comment: &[u8]) -> Vec<u8> {
+        let end = zip.len() - 22;
+        let mut out = zip.to_vec();
+        let length = u16::try_from(comment.len()).expect("a comment fits");
+        out[end + 20..end + 22].copy_from_slice(&length.to_le_bytes());
+        out.extend_from_slice(comment);
+        out
+    }
+
+    /// `zip`, which has no comment, as a writer makes it when the counts and the offset
+    /// are in a ZIP64 record: its end holds markers in their place, however small it is.
+    fn with_zip64_markers(zip: &[u8]) -> Vec<u8> {
+        let end = zip.len() - 22;
+        let count = u64::from(u16::from_le_bytes([zip[end + 10], zip[end + 11]]));
+        let word = |from: usize| {
+            u32::from_le_bytes(
+                zip[end + from..end + from + 4]
+                    .try_into()
+                    .expect("four bytes"),
+            )
+        };
+        let (size, offset) = (u64::from(word(12)), u64::from(word(16)));
+
+        let mut out = zip[..end].to_vec();
+        out.extend_from_slice(b"PK\x06\x06");
+        out.extend_from_slice(&44u64.to_le_bytes());
+        out.extend_from_slice(&[45, 0, 45, 0]);
+        out.extend_from_slice(&[0; 8]);
+        for value in [count, count, size, offset] {
+            out.extend_from_slice(&value.to_le_bytes());
         }
-        assert_eq!(declared_zip_entries(b"not a zip"), None);
-        assert_eq!(declared_zip_entries(&[]), None);
+        out.extend_from_slice(b"PK\x06\x07");
+        out.extend_from_slice(&0u32.to_le_bytes());
+        out.extend_from_slice(&(end as u64).to_le_bytes());
+        out.extend_from_slice(&1u32.to_le_bytes());
+        out.extend_from_slice(b"PK\x05\x06");
+        out.extend_from_slice(&[0; 4]);
+        out.extend_from_slice(&[0xFF; 12]);
+        out.extend_from_slice(&[0; 2]);
+        out
     }
 
-    #[test]
-    fn a_zip_that_lists_a_name_twice_is_refused() {
-        // The archive library keeps only the later of two entries with one name, so the
-        // count the file declares is the only sign. A ZIP writer refuses to write the
-        // same name twice: the second name is written as another, and changed.
-        let zip = zip_with(&[
+    /// Five entries, and each of the launcher's names once.
+    fn five_names() -> Vec<u8> {
+        zip_with(&[
             ("envoy.exe", b"launcher", 0o755),
             ("install-envoy.ps1", b"i", 0o755),
             ("uninstall-envoy.ps1", b"u", 0o755),
             ("LICENSE", b"one", 0o644),
-            ("LICENSX", b"two", 0o644),
-        ]);
-        let twice = rewritten(&zip, b"LICENSX", b"LICENSE");
+            ("NOTICES", b"two", 0o644),
+        ])
+    }
 
-        let error = message_of(unpack_zip("twice.zip", &twice, LIMITS));
+    /// The same, with `NOTICES` written as `LICENSE`: the directory lists that name
+    /// twice, and the archive library keeps only the later.
+    ///
+    /// A ZIP writer refuses to write the same name twice, so the second is written
+    /// as another, and changed.
+    fn a_name_listed_twice() -> Vec<u8> {
+        rewritten(&five_names(), b"NOTICES", b"LICENSE")
+    }
 
-        assert!(error.contains("lists a name more than once"), "{error}");
-        assert!(unpack_zip("once.zip", &zip, LIMITS).is_ok());
+    #[test]
+    fn a_zip_that_lists_a_name_twice_is_refused_whatever_is_around_its_end() {
+        let junk = vec![0u8; 70_000];
+        let cases = [
+            ("a plain end", a_name_listed_twice()),
+            (
+                "more than 64 KiB after the end, which the library still finds",
+                [a_name_listed_twice(), junk].concat(),
+            ),
+            (
+                // The real end says there are 5 entries, and this one says 4, as many as the
+                // library keeps: a count taken from whatever looks like the end is 4.
+                "a comment that holds what looks like an end that says how many are unique",
+                with_comment(&a_name_listed_twice(), &end_record(4)),
+            ),
+        ];
+        for (what, zip) in cases {
+            let error = message_of(unpack_zip("twice.zip", &zip, LIMITS));
+
+            assert!(
+                error.contains("lists a name more than once"),
+                "{what}: {error}"
+            );
+        }
+        assert!(unpack_zip("once.zip", &five_names(), LIMITS).is_ok());
+    }
+
+    #[test]
+    fn a_zip_that_has_more_records_than_it_declares_is_refused() {
+        // The end says 4 entries and the directory has 5: a tool that reads all the
+        // records sees a file that one that reads 4 does not.
+        let mut zip = five_names();
+        let end = zip.len() - 22;
+        zip[end + 8..end + 12].copy_from_slice(&[4, 0, 4, 0]);
+
+        let error = message_of(unpack_zip("more.zip", &zip, LIMITS));
+
+        assert!(
+            error.contains("more entries than it says it has"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn a_zip_that_is_not_made_the_usual_way_is_still_read() {
+        let comment = [
+            &b"see also: "[..],
+            &end_record(5000),
+            &b" and "[..],
+            &end_record(4),
+            &b" (a nested archive)"[..],
+        ]
+        .concat();
+        let prefixed = [vec![b'x'; 100], five_names()].concat();
+        let cases = [
+            (
+                "a ZIP64 record and markers in the end",
+                with_zip64_markers(&five_names()),
+            ),
+            (
+                "a comment with what looks like ends in it",
+                with_comment(&five_names(), &comment),
+            ),
+            (
+                "both",
+                with_comment(&with_zip64_markers(&five_names()), b"a tool"),
+            ),
+            ("data before it, as a self-extracting archive has", prefixed),
+        ];
+        for (what, zip) in cases {
+            let unpacked = unpack_zip("legit.zip", &zip, LIMITS)
+                .unwrap_or_else(|error| panic!("{what}: {error}"));
+
+            let names: Vec<&str> = unpacked
+                .files
+                .iter()
+                .map(|file| file.name.as_str())
+                .collect();
+            assert_eq!(
+                names,
+                [
+                    "envoy.exe",
+                    "install-envoy.ps1",
+                    "uninstall-envoy.ps1",
+                    "LICENSE",
+                    "NOTICES"
+                ],
+                "{what}"
+            );
+        }
     }
 
     #[test]
@@ -3192,7 +3426,7 @@ mod tests {
         assert!(!shim(&other).exists());
 
         // What the launcher did says nothing about the folder it was run from.
-        assert!(!error.contains("TMPDIR"), "{error}");
+        assert!(!error.contains("temporary folder"), "{error}");
         let slow = |_: &Path| -> io::Result<String> {
             Err(io::Error::new(
                 io::ErrorKind::TimedOut,
@@ -3203,11 +3437,13 @@ mod tests {
             .expect_err("a launcher that does not answer")
             .to_string();
         assert!(error.contains("did not answer"), "{error}");
-        assert!(!error.contains("TMPDIR"), "{error}");
+        assert!(!error.contains("temporary folder"), "{error}");
 
         // An error from the system means it could not be started, and the folder it was
         // run from may be the reason. So may a file that is gone, which is what a virus
-        // scanner leaves on Windows.
+        // scanner leaves on Windows. The variable is the one the system reads: on Windows
+        // that is TMP, and TEMP is looked at only when TMP is not set.
+        let variable = if cfg!(windows) { "TMP" } else { "TMPDIR" };
         let denied = |_: &Path| -> io::Result<String> {
             Err(io::Error::from_raw_os_error(if cfg!(windows) {
                 5
@@ -3227,9 +3463,10 @@ mod tests {
                 .to_string();
             assert!(error.contains("does not run here"), "{what}: {error}");
             assert!(
-                error.contains("TMPDIR (TEMP on Windows)"),
+                error.contains(&format!("set {variable} to a folder where")),
                 "{what}: {error}"
             );
+            assert!(!error.contains("TEMP"), "{what}: {error}");
             assert!(!shim(&other).exists(), "{what}");
         }
 
@@ -3284,12 +3521,84 @@ mod tests {
         assert!(could_not_start(&error), "{error}");
     }
 
+    /// A program that only waits, started as itself and not through a shell, so that
+    /// stopping it stops all of it.
+    fn sleeping(seconds: u32) -> Command {
+        if cfg!(windows) {
+            // One more ping than seconds: the first answers at once.
+            let mut command = Command::new("ping");
+            command.args(["-n", &(seconds + 1).to_string(), "127.0.0.1"]);
+            command
+        } else {
+            let mut command = Command::new("sleep");
+            command.arg(seconds.to_string());
+            command
+        }
+    }
+
+    /// Stops a program a test started when the test ends, however it ends.
+    struct Reaper(Child);
+
+    impl Drop for Reaper {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
+    #[test]
+    fn a_program_that_does_not_end_in_time_is_killed_and_not_left_running() {
+        let mut waiting = sleeping(30);
+        let mut child = Reaper(
+            waiting
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("a program starts"),
+        );
+
+        let error = wait_for(&mut child.0, Duration::from_millis(300))
+            .expect_err("it does not end in time");
+
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut, "{error}");
+        assert!(
+            error
+                .to_string()
+                .contains("did not answer within 0.3 seconds"),
+            "{error}"
+        );
+        let status = child
+            .0
+            .try_wait()
+            .expect("the program can be asked")
+            .expect("it was killed, so it has ended");
+        assert!(!status.success());
+    }
+
+    #[test]
+    fn a_program_that_ends_in_time_gives_its_status() {
+        let mut quick = in_shell("exit 3", "exit 3");
+        let mut child = Reaper(
+            quick
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("a program starts"),
+        );
+
+        let status = wait_for(&mut child.0, Duration::from_secs(60)).expect("it ends");
+
+        assert_eq!(status.code(), Some(3));
+    }
+
     #[test]
     fn a_program_that_does_not_answer_is_stopped() {
         let started = Instant::now();
 
         let error = report_of(
-            in_shell("exec sleep 20", "ping -n 9 127.0.0.1 > nul"),
+            sleeping(30),
             Duration::from_millis(300),
             Duration::from_secs(1),
         )
@@ -3298,7 +3607,7 @@ mod tests {
         assert_eq!(error.kind(), io::ErrorKind::TimedOut, "{error}");
         assert!(error.to_string().contains("did not answer"), "{error}");
         assert!(
-            started.elapsed() < Duration::from_secs(5),
+            started.elapsed() < Duration::from_secs(10),
             "it was stopped and not waited for: {:?}",
             started.elapsed()
         );
@@ -3307,13 +3616,14 @@ mod tests {
     #[test]
     fn a_program_left_running_by_the_launcher_does_not_hold_the_publish_up() {
         // The launcher ends, and what it started goes on holding its output open, so
-        // the end of the output never comes.
+        // the end of the output never comes. That goes on for 6 seconds on Windows and
+        // for 8 elsewhere, far longer than the 300 ms the publish gives it.
         let started = Instant::now();
 
         let said = report_of(
             in_shell(
-                "echo envoy-shim v1; sleep 20 &",
-                "echo envoy-shim v1 & start /b ping -n 21 127.0.0.1 > nul",
+                "echo envoy-shim v1; sleep 8 &",
+                "echo envoy-shim v1 & start /b ping -n 7 127.0.0.1 > nul",
             ),
             Duration::from_secs(30),
             Duration::from_millis(300),
@@ -3322,7 +3632,7 @@ mod tests {
 
         assert_eq!(said.trim(), "envoy-shim v1");
         assert!(
-            started.elapsed() < Duration::from_secs(10),
+            started.elapsed() < Duration::from_secs(4),
             "{:?}",
             started.elapsed()
         );

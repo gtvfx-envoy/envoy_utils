@@ -435,7 +435,8 @@ In order, it:
    its platform. No name in it may reach outside the folder it is unpacked
    into, hold a control character, end with a dot or a space, be one Windows
    keeps for a device (`NUL`, `COM1`), or differ from another name only in
-   case, and a ZIP file may not list one name twice. It may hold files and
+   case, and a ZIP file may not list one name twice, or hold more entries in
+   its directory than it says it has. It may hold files and
    folders, and in a tar the symbolic link `en`: a hard link, a device or a
    fifo is refused. A link is left out: a ZIP file may not hold one, and the
    Linux and macOS archives hold `en`, a link to `envoy`, which the installer
@@ -444,13 +445,16 @@ In order, it:
    the size of one: 256 MiB for the archive file, 128 MiB for a file in it,
    512 MiB for all of them, 1000 entries (files, folders and links), and 1024
    bytes for a name. A bigger archive is refused and is not read to the end.
+   The entries of a ZIP file are counted before its directory is read, and a
+   ZIP file that has more than the limit is refused whatever its end says.
 4. Runs the launcher for the system `engit` runs on, if the folder has it, and
    checks that it reports the version being published. An installed launcher
    does the same to a launcher it is about to install, and refuses one that
    does not run or reports another version, so a launcher that failed this
    would be one nobody could take. The launcher is run from a file in the
    temporary folder and has 15 seconds to answer. Where programs may not run
-   from there, set `TMPDIR` (`TEMP` on Windows) to a folder where they may.
+   from there, set `TMPDIR` (on Windows `TMP`, which is read before `TEMP`) to
+   a folder where they may.
 5. Takes its turn on the shim folder (see [Two people
    publishing](#two-people-publishing)) and looks at what is on the share. A
    version that is there already must have exactly these files: the same files
