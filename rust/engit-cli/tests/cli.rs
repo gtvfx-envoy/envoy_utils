@@ -365,24 +365,12 @@ fn tar_gz_of(files: &[(&str, &[u8])]) -> Vec<u8> {
         .expect("gzip finishes")
 }
 
-/// A folder with a release's launcher archive and its sums, and a config root.
+/// Add a version's launcher archive to a release folder, and write `SHA256SUMS`
+/// for every launcher archive in it. Returns the platform of the archive.
 ///
 /// The archive is for a platform other than this machine's, so that publishing
 /// has no launcher to run: the files in it are not programs.
-fn shim_fixture(
-    version: &str,
-) -> (
-    tempfile::TempDir,
-    std::path::PathBuf,
-    std::path::PathBuf,
-    &'static str,
-) {
-    let temp = tempfile::tempdir().expect("tempdir is created");
-    let release = temp.path().join("release");
-    let root = temp.path().join("config");
-    std::fs::create_dir_all(&release).expect("release is created");
-    std::fs::create_dir_all(&root).expect("root is created");
-
+fn add_shim_archive(release: &std::path::Path, version: &str) -> &'static str {
     let (name, bytes, label) = if cfg!(windows) {
         (
             format!("envoy-shim-{version}-linux-x86_64-musl.tar.gz"),
@@ -405,11 +393,44 @@ fn shim_fixture(
         )
     };
     std::fs::write(release.join(&name), &bytes).expect("archive is written");
-    std::fs::write(
-        release.join("SHA256SUMS"),
-        format!("{}  {name}\n", sha256_hex(&bytes)),
-    )
-    .expect("sums are written");
+
+    let mut names: Vec<String> = std::fs::read_dir(release)
+        .expect("release lists")
+        .map(|item| {
+            item.expect("entry reads")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .filter(|name| name.starts_with("envoy-shim-"))
+        .collect();
+    names.sort();
+    let sums: String = names
+        .iter()
+        .map(|name| {
+            let bytes = std::fs::read(release.join(name)).expect("archive reads");
+            format!("{}  {name}\n", sha256_hex(&bytes))
+        })
+        .collect();
+    std::fs::write(release.join("SHA256SUMS"), sums).expect("sums are written");
+    label
+}
+
+/// A folder with a release's launcher archive and its sums, and a config root.
+fn shim_fixture(
+    version: &str,
+) -> (
+    tempfile::TempDir,
+    std::path::PathBuf,
+    std::path::PathBuf,
+    &'static str,
+) {
+    let temp = tempfile::tempdir().expect("tempdir is created");
+    let release = temp.path().join("release");
+    let root = temp.path().join("config");
+    std::fs::create_dir_all(&release).expect("release is created");
+    std::fs::create_dir_all(&root).expect("root is created");
+    let label = add_shim_archive(&release, version);
     (temp, release, root, label)
 }
 
@@ -543,6 +564,31 @@ fn a_release_whose_archive_does_not_match_its_sums_is_refused() {
             .is_none(),
         "something was written"
     );
+}
+
+#[test]
+fn a_folder_with_two_versions_needs_the_version_flag() {
+    let (_temp, release, root, label) = shim_fixture("v0.8.0");
+    add_shim_archive(&release, "v0.7.0");
+
+    let refused = publish_shim_command(&release, &root).assert().failure();
+    assert!(
+        stderr_text(&refused).contains("--version"),
+        "stderr was:\n{}",
+        stderr_text(&refused)
+    );
+
+    let chosen = publish_shim_command(&release, &root)
+        .args(["--version", "0.7.0"])
+        .assert()
+        .success();
+    assert!(
+        stdout_text(&chosen).starts_with("Published the launcher v0.7.0."),
+        "stdout was:\n{}",
+        stdout_text(&chosen)
+    );
+    assert!(root.join("shim").join("v0.7.0").join(label).is_dir());
+    assert!(!root.join("shim").join("v0.8.0").exists());
 }
 
 #[test]

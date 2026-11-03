@@ -922,14 +922,27 @@ fn safe_name(archive: &str, raw: &str) -> Result<String> {
             && *part != ".."
             && !part.contains(':')
             && !part.chars().any(char::is_control)
+            // Windows drops a trailing dot or space, so such a name is another file's.
+            && !part.ends_with(['.', ' '])
+            && !is_device_name(part)
     });
     if !safe {
         return Err(EngitError::Shim(format!(
-            "{archive} holds {raw:?}, a name that could land outside the folder it is unpacked \
-into."
+            "{archive} holds {raw:?}, a name that cannot be unpacked safely: it could land \
+outside the folder, or a system could read it as another file or as a device."
         )));
     }
     Ok(parts.join("/"))
+}
+
+/// A name Windows keeps for a device, with or without an extension.
+fn is_device_name(part: &str) -> bool {
+    let stem = part.split('.').next().unwrap_or(part).to_ascii_uppercase();
+    let numbered = |prefix: &str| {
+        stem.strip_prefix(prefix)
+            .is_some_and(|number| matches!(number.as_bytes(), [b'1'..=b'9']))
+    };
+    matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL") || numbered("COM") || numbered("LPT")
 }
 
 fn unpack(archive: &Found, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
@@ -938,11 +951,12 @@ fn unpack(archive: &Found, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
     } else {
         unpack_tar(&archive.name, bytes, limits)?
     };
+    // Windows and macOS keep one file for names that differ only in case.
     let mut seen = BTreeSet::new();
     for file in &unpacked.files {
-        if !seen.insert(file.name.as_str()) {
+        if !seen.insert(file.name.to_lowercase()) {
             return Err(EngitError::Shim(format!(
-                "{} holds {} twice.",
+                "{} holds {} twice, or two names that differ only in case.",
                 archive.name, file.name
             )));
         }
@@ -2264,6 +2278,65 @@ mod tests {
         write_sums(&setup.release);
         let error = message(publish(&setup, &options(&setup)));
         assert!(error.contains("outside the folder"), "{error}");
+        assert!(!shim(&setup).exists());
+    }
+
+    #[test]
+    fn a_name_windows_would_alter_or_keep_for_a_device_is_refused() {
+        for bad in [
+            "nul",
+            "NUL.txt",
+            "con",
+            "Com1.dat",
+            "lpt9",
+            "aux.",
+            "prn.exe",
+            "name.",
+            "name ",
+            "dir/CON/file",
+            "dir./file",
+            "stream:evil",
+        ] {
+            assert!(safe_name("x", bad).is_err(), "{bad:?}");
+        }
+        // Names that only look like those.
+        for good in [
+            "console.txt",
+            "com10",
+            "com0",
+            "nullable",
+            "auxiliary",
+            "lpt",
+            ".hidden",
+            "a.b.c",
+            "licenses/NOTICE",
+        ] {
+            assert!(safe_name("x", good).is_ok(), "{good:?}");
+        }
+    }
+
+    #[test]
+    fn two_names_that_differ_only_in_case_are_refused_as_one_file_twice() {
+        let setup = setup();
+        let zip = zip_with(&[
+            ("envoy.exe", b"launcher", 0o755),
+            ("install-envoy.ps1", b"i", 0o755),
+            ("uninstall-envoy.ps1", b"u", 0o755),
+            ("LICENSE", b"one", 0o644),
+            ("license", b"two", 0o644),
+        ]);
+        fs::write(
+            setup
+                .release
+                .join(archive_name(Target::WindowsX64, VERSION)),
+            zip,
+        )
+        .expect("archive is written");
+        write_sums(&setup.release);
+
+        let error = message(publish(&setup, &options(&setup)));
+
+        assert!(error.contains("differ only in case"), "{error}");
         assert!(!shim(&setup).exists());
     }
 

@@ -430,10 +430,11 @@ In order, it:
 2. Checks every archive against `SHA256SUMS`. An archive that is not listed, or
    does not match, stops the publish.
 3. Looks inside each archive. It must hold the launcher and the installers of
-   its platform, and no name in it may reach outside the folder it is unpacked
-   into. A link is left out: a ZIP file may not hold one, and the Linux and
-   macOS archives hold `en`, a link to `envoy`, which the installer makes
-   itself on each machine.
+   its platform. No name in it may reach outside the folder it is unpacked
+   into, end with a dot or a space, be one Windows keeps for a device (`NUL`,
+   `COM1`), or differ from another name only in case. A link is left out: a ZIP
+   file may not hold one, and the Linux and macOS archives hold `en`, a link to
+   `envoy`, which the installer makes itself on each machine.
 4. Runs the launcher for the system `engit` runs on, if the folder has it, and
    checks that it reports the version being published. An installed launcher
    does the same to a launcher it is about to install, and refuses one that
