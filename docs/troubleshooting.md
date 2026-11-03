@@ -90,7 +90,55 @@ again.
 The config root must already exist, and a team's folder is made by that team's
 first publish, so a mistyped `--output` or `--team` is an error instead of a new
 folder that no launcher reads. `redirect show` and `redirect history` give the
-same errors for a root or team that is not there.
+same errors for a root or team that is not there. `publish shim` also needs the
+root to exist, and makes `shim/` in it itself.
+
+## `publish shim`: "is a pre-release, and publishing moves the pointer"
+
+Installed launchers follow `shim/current.json` within a day, so moving it to a
+pre-release is something to ask for. To try the release on the share first, put
+it there without moving the pointer, and move the pointer later by publishing
+the same release again:
+
+```console
+engit publish shim downloads/envoy-v0.8.1-rc.1 --no-pointer
+engit publish shim downloads/envoy-v0.8.1-rc.1 --allow-prerelease
+```
+
+## `publish shim`: "does not match SHA256SUMS", "does not list", or "has no SHA256SUMS"
+
+The archives are checked against the release's `SHA256SUMS`, and nothing is
+written when they do not agree. Download the archive again, or the `SHA256SUMS`
+from the same release: a `SHA256SUMS` from another release does not list these
+archives. It is not downloaded for you, and it is needed even for archives you
+built yourself (write one with `sha256sum` or `Get-FileHash`, one `<hash>
+<name>` line for each archive).
+
+## `publish shim`: "is on the share already and is not the ..."
+
+A published launcher version is never changed, because installed launchers copy
+from it and an install can be half way through. The version on the share does
+not have exactly the files of the archive you named: either it was published
+from another build of the same version, or someone changed a file in it. Publish
+the build you mean as a new version. If the one on the share is wrong and nobody
+uses it, an administrator can remove its folder, and then publish again.
+
+## `publish shim`: "does not run here" or "reports ..., not ..."
+
+The launcher for the system `engit` runs on is run before anything is written,
+and has to say it is the version being published. If the message says it does
+not run, a virus scanner may have blocked the unpacked program: the message
+gives the reason. If it reports another version, the archive is not the one its
+name says, so it was not published.
+
+## `publish shim`: "None on the share for ..."
+
+Only the platforms whose archive was in the folder (or published earlier with
+the same version) have a launcher on the share. If a platform listed there has
+machines, put its archive in the folder and publish again: the platforms that
+are there already are left alone, and only the new one is written. When the
+pointer moved, a note also names the platforms that had a launcher in the
+version before and have none in this one.
 
 ## Legacy bundle artifact manifest
 

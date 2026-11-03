@@ -7,7 +7,7 @@ Envoy Utils provides repository, release, and publishing tools for the
 
 `engit` supports semantic-version tagging, GitHub releases, changelog and
 repository maintenance, bundle publishing, bundle checkout updates, named
-stack publishing, and redirect file publishing.
+stack publishing, redirect file publishing, and launcher publishing.
 
 - Read the [Engit CLI reference](cli-reference/engit.md) for commands and examples.
 - Use the [troubleshooting guide](troubleshooting.md) for common failures.

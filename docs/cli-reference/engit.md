@@ -22,6 +22,7 @@ mindmap
         bundle
         stack
         redirect
+        shim
     redirect
       show
       history
@@ -311,8 +312,9 @@ drops from a folder name.
 
 Publishing into a folder is one person at a time. A second publish waits for
 the first for up to ten seconds, then stops with an error and changes nothing.
-The turn is an operating system lock on `.redirect.lock`, so it is let go when
-the program ends, however it ends: there is never a stale lock to clear.
+The turn is an operating system lock on `.redirect.lock` (`.shim.lock` for
+[`publish shim`](#engit-publish-shim)), so it is let go when the program ends,
+however it ends: there is never a stale lock to clear.
 
 A location that cannot lock files (some network mounts) cannot make anyone wait,
 and `engit` says so in a note under the result. Publishing still works there.
@@ -390,6 +392,179 @@ engit publish redirect redirect.yaml --output R:/studio/envoy/config
 engit publish redirect redirect.yaml --platform all
 engit publish redirect rigging.yaml --team rigging
 engit publish redirect R:/studio/envoy/config/history/redirect-2026-11-02-171000-alice.yaml
+```
+
+### `engit publish shim`
+
+Publish a release of the launcher: the small program on each machine that reads
+the redirect file, starts the Envoy version it names, and keeps itself up to
+date from the share. A release is one archive per platform. This command checks
+the archives, puts each platform's launcher where installed launchers and the
+installers look for it, and moves the pointer that says which launcher version
+the team runs. It does what the manual steps in the Envoy team administration
+guide do, with the checks.
+
+```text
+engit publish shim DIR [OPTIONS]
+```
+
+| Argument/Flag | Description |
+|---|---|
+| `DIR` | The folder that holds the release's launcher archives (`envoy-shim-<version>-<platform>.zip` or `.tar.gz`) and its `SHA256SUMS` |
+| `--output`, `-o DIR` | Config root to publish into. Defaults to `ENVOY_CONFIG_PUBLISH_ROOT`. It never uses `ENVOY_CONFIG_PROD`, and it must already exist |
+| `--version VERSION` | The version to publish, when `DIR` holds archives for more than one |
+| `--no-pointer` | Put the launcher on the share without copying the installers or moving the pointer: installed launchers keep following the version they follow now |
+| `--allow-prerelease` | Let the pointer move to a pre-release such as `v0.8.1-rc.1` |
+| `--dry-run` | Check everything and show what would be written, without writing |
+
+`engit` downloads nothing. Download the launcher archives and `SHA256SUMS` from
+the release's assets into one folder, and name that folder. `SHA256SUMS` may
+list other assets as well: only the archives are looked up in it.
+
+In order, it:
+
+1. Finds the launcher archives in `DIR` by their names. The `windows-x86_64`
+   archive is a ZIP file; `linux-x86_64-musl`, `macos-aarch64` and
+   `macos-x86_64` are compressed tar files. When the archives are for more than
+   one version, `--version` says which to publish.
+2. Checks every archive against `SHA256SUMS`. An archive that is not listed, or
+   does not match, stops the publish.
+3. Looks inside each archive. It must hold the launcher and the installers of
+   its platform, and no name in it may reach outside the folder it is unpacked
+   into. A link is left out: a ZIP file may not hold one, and the Linux and
+   macOS archives hold `en`, a link to `envoy`, which the installer makes
+   itself on each machine.
+4. Runs the launcher for the system `engit` runs on, if the folder has it, and
+   checks that it reports the version being published. An installed launcher
+   does the same to a launcher it is about to install, and refuses one that
+   does not run or reports another version, so a launcher that failed this
+   would be one nobody could take.
+5. Takes its turn on the shim folder (see [Two people
+   publishing](#two-people-publishing)) and looks at what is on the share. A
+   version that is there already must have exactly these files: the same files
+   are `there already`, and any difference stops the publish, because a
+   published version is never changed.
+6. Places each platform's files in `shim/<version>/<platform>/`. They are
+   written to a folder beside that place, read back, and the folder is then
+   renamed into place, so a launcher that looks never sees half of a platform.
+7. Unless `--no-pointer` was given, copies the installers up to `shim/` and
+   writes `shim/current.json`, last, so nobody is pointed at a launcher that is
+   not there yet.
+
+Nothing is written when a check fails. A publish that is stopped part way leaves
+only whole platforms, and publishing the same release again finishes it.
+
+#### What is on the share
+
+```text
+<root>/shim/current.json                 the launcher version installed launchers follow
+<root>/shim/install-envoy.ps1            the installers new machines run
+<root>/shim/uninstall-envoy.ps1
+<root>/shim/install-envoy.sh
+<root>/shim/uninstall-envoy.sh
+<root>/shim/<version>/<platform>/        a launcher per platform, as its archive holds it
+<root>/shim/.shim.lock                   publishers take turns on it
+```
+
+Installed launchers look at `current.json` about once a day. When it names
+another version they copy `shim/<version>/<platform>/envoy` (`envoy.exe` on
+Windows), check that the copy runs and reports that version, and replace
+themselves. A machine that is set up from the share runs `shim/install-envoy.ps1`
+(Windows) or `sh shim/install-envoy.sh` (Linux and macOS), which installs the
+launcher the pointer names. Leave `.shim.lock` in place: it is empty and is how
+two people publishing at once take turns.
+
+The files on the share follow the rules in [Permissions on Linux and
+macOS](#permissions-on-linux-and-macos): programs are `755`, everything else
+`644`, and a folder `engit` creates is open to the people who can use the one
+it is in.
+
+#### The pointer
+
+- By default publishing moves the pointer and copies the installers, so what
+  new machines install and what installed launchers follow change together.
+- `--no-pointer` puts the version on the share and changes nothing else. Use it
+  to stage a release, check it (for example with `shim/<version>/<platform>/envoy
+  --envoy-shim-version`), and publish it for real later by publishing it again
+  without the flag: its files are there already, so only the installers and the
+  pointer are written.
+- A pre-release such as `v0.8.1-rc.1` can be staged freely, but moving the
+  pointer to one needs `--allow-prerelease`, because every installed launcher
+  follows the pointer within a day.
+- A launcher looks in the folder named exactly as the pointer says, so the
+  pointer takes the version as the archives name it (`v0.8.0`), and a pointer
+  that names the same release another way (`0.8.0`) is rewritten.
+- A `current.json` that is not valid, or names an unsafe version, is replaced,
+  and the result says so. One written for a newer schema than this `engit`
+  understands is not overwritten: update `engit`.
+
+#### A platform with no archive
+
+A studio may have no macOS machines, so a folder without the macOS archives is
+published as far as it goes, and the result names the platforms that have no
+launcher for this version on the share (`None on the share for: ...`). A
+platform published earlier, by an earlier publish of the same version, counts
+as there.
+
+When the pointer moves, a platform that had a launcher in the version the
+pointer named before, and has none in the new one, is named in a note. Machines
+there would stop updating, and new installs there would fail.
+
+#### Examples
+
+```text
+Published the launcher v0.8.0.
+  Folder:   R:\studio\envoy\config\shim\v0.8.0
+  Launchers:
+    windows-x86_64    placed (6 files, 2.4 MB, ran and reports v0.8.0)
+    linux-x86_64-musl placed (4 files, 1.8 MB)
+    macos-aarch64     placed (4 files, 1.5 MB)
+    macos-x86_64      placed (4 files, 1.5 MB)
+  Installers:
+    install-envoy.ps1     copied
+    uninstall-envoy.ps1   copied
+    install-envoy.sh      copied
+    uninstall-envoy.sh    copied
+  Pointer:  current.json now names v0.8.0 (before: v0.7.0)
+Note: The link en in the linux-x86_64-musl, macos-aarch64, macos-x86_64 archives is not published: the installer makes it on each machine.
+```
+
+Staging a release with only the Windows archive, without moving the pointer:
+
+```text
+Published the launcher v0.8.1-rc.1.
+  Folder:   R:\studio\envoy\config\shim\v0.8.1-rc.1
+  Launchers:
+    windows-x86_64    placed (6 files, 2.4 MB, ran and reports v0.8.1-rc.1)
+  None on the share for: linux-x86_64-musl, macos-aarch64, macos-x86_64
+  Installers: not touched (they move with the pointer)
+  Pointer:  not moved: it names v0.8.0, which installed launchers keep following
+```
+
+Publishing the same release again changes nothing:
+
+```text
+Nothing to publish: the launcher v0.8.0 is on the share already.
+```
+
+A pre-release is refused unless the pointer is left alone or the flag is given:
+
+```text
+Error: v0.8.1-rc.1 is a pre-release, and publishing moves the pointer that every installed launcher follows within a day. Add --allow-prerelease to move it anyway, or --no-pointer to put the launcher on the share without moving the pointer.
+```
+
+A published version that is not the same files is refused, and nothing is written:
+
+```text
+Error: R:\studio\envoy\config\shim\v0.8.0\windows-x86_64 is on the share already and is not the windows-x86_64 in envoy-shim-v0.8.0-windows-x86_64.zip: its LICENSE is not the one in the archive. A published version is never changed: publish a new version instead.
+```
+
+```powershell
+engit publish shim C:/downloads/envoy-v0.8.0 --dry-run
+engit publish shim C:/downloads/envoy-v0.8.0 --output R:/studio/envoy/config
+engit publish shim C:/downloads/envoy-v0.8.1-rc.1 --no-pointer
+engit publish shim C:/downloads/envoy-v0.8.1-rc.1 --allow-prerelease
+engit publish shim C:/downloads/envoy --version v0.8.0
 ```
 
 ## `engit redirect`

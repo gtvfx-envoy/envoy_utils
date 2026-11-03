@@ -7,6 +7,7 @@
 //! publish bundle  Publish a versioned runtime bundle.
 //! publish stack   Publish a stack file to a named stack slot.
 //! publish redirect  Publish the redirect file that pins an Envoy version per user.
+//! publish shim      Publish a release of the launcher and the pointer installed launchers follow.
 //! redirect show     Show the published redirect file.
 //! redirect history  List the redirect files that were published.
 //! search          Search GitHub repositories.
@@ -46,6 +47,7 @@ use engit_core::redirect::{
 use engit_core::release::run_release;
 use engit_core::release_train::{run_release_train_prepare_downstream, run_release_train_status};
 use engit_core::search::run_search;
+use engit_core::shim::{publish_shim, ShimOptions};
 use engit_core::status::run_status;
 use engit_core::tag::run_tag;
 use engit_core::web::run_web;
@@ -126,10 +128,10 @@ Default organisations are read from the ENVOY_GITHUB_ORGS environment variable \
     Search(SearchArgs),
 
     #[command(
-        about = "Publish bundle, stack, or redirect-file artifacts.",
-        long_about = "Publish runtime-minimal bundle data, a named Envoy stack, or \
-the redirect file that pins an Envoy version for each user, to its canonical \
-studio location."
+        about = "Publish bundle, stack, redirect-file, or launcher artifacts.",
+        long_about = "Publish runtime-minimal bundle data, a named Envoy stack, \
+the redirect file that pins an Envoy version for each user, or a release of the \
+launcher, to its canonical studio location."
     )]
     Publish(PublishArgs),
 
@@ -399,6 +401,19 @@ Without --team the file applies to everyone; with --team it goes into that \
 team's folder under the config root."
     )]
     Redirect(PublishRedirectArgs),
+
+    #[command(
+        about = "Publish a release of the launcher and move the pointer installed launchers follow.",
+        long_about = "Check the release's launcher archives against its SHA256SUMS, \
+check what is inside them, and put each platform's launcher in shim/<version>/<platform>/ \
+under the config root. Unless --no-pointer is given it then copies the installers up \
+to shim/ and writes shim/current.json, which names the launcher version every installed \
+launcher follows within a day. The pointer is written last, so nobody is pointed at a \
+launcher that is not there yet. A version that is on the share is never changed. \
+Moving the pointer to a pre-release needs --allow-prerelease. Nothing is written when \
+a check fails."
+    )]
+    Shim(PublishShimArgs),
 }
 
 #[derive(Debug, Args)]
@@ -526,6 +541,55 @@ this, a version no source has stops the publish."
 Defaults to the system this runs on."
     )]
     platforms: Vec<PlatformArg>,
+
+    #[arg(
+        long,
+        help = "Check everything and show what would be written without \
+writing anything."
+    )]
+    dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct PublishShimArgs {
+    #[arg(
+        value_name = "DIR",
+        help = "The folder that holds the release's launcher archives \
+(envoy-shim-<version>-<platform>.zip or .tar.gz) and its SHA256SUMS."
+    )]
+    directory: PathBuf,
+
+    #[arg(
+        long = "output",
+        short = 'o',
+        value_name = "DIR",
+        help = "Config root to publish into. Defaults to \
+ENVOY_CONFIG_PUBLISH_ROOT."
+    )]
+    output: Option<PathBuf>,
+
+    #[arg(
+        long = "version",
+        value_name = "VERSION",
+        help = "The version to publish, when the folder has archives for more \
+than one."
+    )]
+    version: Option<String>,
+
+    #[arg(
+        long,
+        help = "Put the launcher on the share without moving the pointer or \
+copying the installers: installed launchers keep following the version they \
+follow now."
+    )]
+    no_pointer: bool,
+
+    #[arg(
+        long,
+        help = "Allow the pointer to move to a pre-release such as \
+v0.8.0-rc.1. Without this, publishing a pre-release needs --no-pointer."
+    )]
+    allow_prerelease: bool,
 
     #[arg(
         long,
@@ -1101,6 +1165,17 @@ fn run() -> Result<()> {
                     dry_run: args.dry_run,
                 };
                 print!("{}", publish_redirect(&options)?);
+            }
+            PublishCommands::Shim(args) => {
+                let options = ShimOptions {
+                    directory: &args.directory,
+                    output: args.output.as_deref(),
+                    version: args.version.as_deref(),
+                    move_pointer: !args.no_pointer,
+                    allow_prerelease: args.allow_prerelease,
+                    dry_run: args.dry_run,
+                };
+                print!("{}", publish_shim(&options)?);
             }
         },
         Commands::Redirect(args) => match args.command {
