@@ -114,6 +114,30 @@ archives. It is not downloaded for you, and it is needed even for archives you
 built yourself (write one with `sha256sum` or `Get-FileHash`, one `<hash>
 <name>` line for each archive).
 
+`SHA256SUMS` is read as UTF-8, with or without a byte order mark, or as UTF-16
+with one: Windows PowerShell 5.1 writes UTF-16 with `>` and `Out-File`, and that
+is fine. "has a line that is not a SHA-256 sum" shows the start of the line: it
+is a file of another kind, or UTF-16 with no byte order mark. Write it again as
+UTF-8 (`Out-File -Encoding utf8`, or PowerShell 7).
+
+## `publish shim`: "is not a launcher archive", "cannot be unpacked safely", "lists a name more than once", or "is not a plain file"
+
+The archive is not what a release builds. A launcher archive holds the
+launcher, its installers and a licence: a few files and a few megabytes, and
+the limits for what is not one are far above that (they are listed under
+[`engit publish shim`](cli-reference/engit.md#engit-publish-shim)). The message
+names the file and what is wrong with it. Download it again from the release;
+if it is one you built yourself, check what went into it: a stray folder of
+build output, a link, or a ZIP file made by adding the same file twice are the
+usual causes.
+
+## `publish shim`: "is written for schema ..."
+
+`shim/current.json` on the share was written by a newer `engit` with a layout
+this one does not know, so it is not overwritten, and nothing is published into
+that shim folder, not even with `--no-pointer`. Update `engit` and publish
+again.
+
 ## `publish shim`: "is on the share already and is not the ..."
 
 A published launcher version is never changed, because installed launchers copy
@@ -128,8 +152,11 @@ uses it, an administrator can remove its folder, and then publish again.
 The launcher for the system `engit` runs on is run before anything is written,
 and has to say it is the version being published. If the message says it does
 not run, a virus scanner may have blocked the unpacked program: the message
-gives the reason. If it reports another version, the archive is not the one its
-name says, so it was not published.
+gives the reason. The launcher is run from a file in the temporary folder, so
+where programs may not run from there (a mount that does not allow it, a
+policy), set `TMPDIR` (`TEMP` on Windows) to a folder where they may and
+publish again. If it reports another version, or more than one line, the
+archive is not the one its name says, so it was not published.
 
 ## `publish shim`: "None on the share for ..."
 

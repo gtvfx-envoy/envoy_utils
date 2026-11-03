@@ -419,7 +419,9 @@ engit publish shim DIR [OPTIONS]
 
 `engit` downloads nothing. Download the launcher archives and `SHA256SUMS` from
 the release's assets into one folder, and name that folder. `SHA256SUMS` may
-list other assets as well: only the archives are looked up in it.
+list other assets as well: only the archives are looked up in it. It may be
+UTF-8, with or without a byte order mark, or UTF-16 with one, which is what
+Windows PowerShell 5.1 writes with `>` and `Out-File`.
 
 In order, it:
 
@@ -431,15 +433,24 @@ In order, it:
    does not match, stops the publish.
 3. Looks inside each archive. It must hold the launcher and the installers of
    its platform. No name in it may reach outside the folder it is unpacked
-   into, end with a dot or a space, be one Windows keeps for a device (`NUL`,
-   `COM1`), or differ from another name only in case. A link is left out: a ZIP
-   file may not hold one, and the Linux and macOS archives hold `en`, a link to
-   `envoy`, which the installer makes itself on each machine.
+   into, hold a control character, end with a dot or a space, be one Windows
+   keeps for a device (`NUL`, `COM1`), or differ from another name only in
+   case, and a ZIP file may not list one name twice. It may hold files and
+   folders, and in a tar the symbolic link `en`: a hard link, a device or a
+   fifo is refused. A link is left out: a ZIP file may not hold one, and the
+   Linux and macOS archives hold `en`, a link to `envoy`, which the installer
+   makes itself on each machine.
+   The limits that tell a launcher archive from something else are far above
+   the size of one: 256 MiB for the archive file, 128 MiB for a file in it,
+   512 MiB for all of them, 1000 entries (files, folders and links), and 1024
+   bytes for a name. A bigger archive is refused and is not read to the end.
 4. Runs the launcher for the system `engit` runs on, if the folder has it, and
    checks that it reports the version being published. An installed launcher
    does the same to a launcher it is about to install, and refuses one that
    does not run or reports another version, so a launcher that failed this
-   would be one nobody could take.
+   would be one nobody could take. The launcher is run from a file in the
+   temporary folder and has 15 seconds to answer. Where programs may not run
+   from there, set `TMPDIR` (`TEMP` on Windows) to a folder where they may.
 5. Takes its turn on the shim folder (see [Two people
    publishing](#two-people-publishing)) and looks at what is on the share. A
    version that is there already must have exactly these files: the same files
@@ -496,8 +507,13 @@ it is in.
   pointer takes the version as the archives name it (`v0.8.0`), and a pointer
   that names the same release another way (`0.8.0`) is rewritten.
 - A `current.json` that is not valid, or names an unsafe version, is replaced,
-  and the result says so. One written for a newer schema than this `engit`
-  understands is not overwritten: update `engit`.
+  and the result says so. So is one whose `schema` is not a whole number of
+  zero or more (a string or a fraction, say), which no launcher can read. A byte
+  order mark at the start is allowed, as it is for launchers.
+- One that declares a schema newer than this `engit` understands is not
+  overwritten, whatever else it holds, and not even when `--no-pointer` leaves
+  the pointer alone, because the layout it sits in may be different too: update
+  `engit`.
 
 #### A platform with no archive
 

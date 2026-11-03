@@ -84,7 +84,7 @@ impl PublishLock {
         let file = open_lock_file(path)?;
         let give_up = Instant::now() + wait;
         loop {
-            match file.try_lock() {
+            match try_lock(&file) {
                 Ok(()) => return Ok(Self { file, note: None }),
                 Err(TryLockError::WouldBlock) if Instant::now() < give_up => {
                     thread::sleep(Duration::from_millis(25));
@@ -119,6 +119,17 @@ impl Drop for PublishLock {
     fn drop(&mut self) {
         let _ = self.file.unlock();
     }
+}
+
+/// Try to take the lock on a file, without waiting.
+fn try_lock(file: &File) -> std::result::Result<(), TryLockError> {
+    #[cfg(test)]
+    if faults::locking_is_unsupported() {
+        return Err(TryLockError::Error(io::Error::from(
+            io::ErrorKind::Unsupported,
+        )));
+    }
+    file.try_lock()
 }
 
 fn open_lock_file(path: &Path) -> Result<File> {
@@ -340,32 +351,47 @@ fn is_busy(error: &io::Error) -> bool {
 }
 
 /// What a test makes go wrong in this module, on the thread it runs on.
-#[cfg(all(test, unix))]
+#[cfg(test)]
 pub(crate) mod faults {
     use std::cell::Cell;
 
     thread_local! {
+        #[cfg(unix)]
         static REFUSE_MODES: Cell<bool> = const { Cell::new(false) };
+        static UNLOCKABLE: Cell<bool> = const { Cell::new(false) };
     }
 
     /// `true` while a test has made the filesystem refuse to change modes.
+    #[cfg(unix)]
     pub(crate) fn modes_are_refused() -> bool {
         REFUSE_MODES.with(Cell::get)
     }
 
-    /// The filesystem refuses to change modes until this is dropped, even if
-    /// the test panics.
-    pub(crate) struct RefuseModes;
-
-    pub(crate) fn refuse_modes() -> RefuseModes {
-        REFUSE_MODES.with(|refuse| refuse.set(true));
-        RefuseModes
+    /// `true` while a test has made the folder unable to lock files.
+    pub(crate) fn locking_is_unsupported() -> bool {
+        UNLOCKABLE.with(Cell::get)
     }
 
-    impl Drop for RefuseModes {
+    /// Undoes a fault when it is dropped, even if the test panics.
+    pub(crate) struct Fault(fn());
+
+    impl Drop for Fault {
         fn drop(&mut self) {
-            REFUSE_MODES.with(|refuse| refuse.set(false));
+            (self.0)();
         }
+    }
+
+    /// The filesystem refuses to change modes until the guard is dropped.
+    #[cfg(unix)]
+    pub(crate) fn refuse_modes() -> Fault {
+        REFUSE_MODES.with(|refuse| refuse.set(true));
+        Fault(|| REFUSE_MODES.with(|refuse| refuse.set(false)))
+    }
+
+    /// The folder cannot lock files until the guard is dropped.
+    pub(crate) fn unlockable() -> Fault {
+        UNLOCKABLE.with(|unlockable| unlockable.set(true));
+        Fault(|| UNLOCKABLE.with(|unlockable| unlockable.set(false)))
     }
 }
 

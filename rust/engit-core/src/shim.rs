@@ -13,6 +13,7 @@
 //! A published version is never changed, and nothing is downloaded: the folder
 //! holds what the release published.
 
+use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fmt;
@@ -20,6 +21,8 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::rc::Rc;
+use std::sync::{mpsc, Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -64,22 +67,48 @@ const INSTALLERS: [&str; 4] = [
 /// How long a launcher gets to say which version it is.
 const RUN_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// A launcher archive is a few megabytes. Anything bigger is the wrong file.
-const MAX_ARCHIVE_BYTES: u64 = 256 * 1024 * 1024;
+/// How long to wait, once the launcher has ended, for the last of what it
+/// printed. A program it started and left running can keep its output open far
+/// longer than that.
+const REPORT_GRACE: Duration = Duration::from_secs(2);
+
+/// What a launcher says about its version is one short line.
+const MAX_REPORT_BYTES: usize = 64 * 1024;
 
 /// What an archive may hold before it is not a launcher archive.
 #[derive(Debug, Clone, Copy)]
 struct Limits {
+    /// The archive file itself. A launcher archive is a few megabytes.
+    archive_bytes: u64,
+    /// One file in it.
     entry_bytes: u64,
+    /// All the files in it.
     total_bytes: u64,
+    /// Files, folders and links.
     entries: usize,
+    /// One name in it.
+    name_bytes: usize,
 }
 
 const LIMITS: Limits = Limits {
+    archive_bytes: 256 * 1024 * 1024,
     entry_bytes: 128 * 1024 * 1024,
     total_bytes: 512 * 1024 * 1024,
     entries: 1000,
+    name_bytes: 1024,
 };
+
+impl Limits {
+    /// The most a compressed tar file can be once it is decompressed: the files,
+    /// and for each entry its header, its padding and the records that carry a
+    /// long name or other attributes, then the end of the archive.
+    fn tar_stream_bytes(self) -> u64 {
+        const PER_ENTRY: u64 = 16 * 1024;
+        let entries = u64::try_from(self.entries).unwrap_or(u64::MAX);
+        self.total_bytes
+            .saturating_add(entries.saturating_add(2).saturating_mul(PER_ENTRY))
+    }
+}
 
 /// A platform the launcher is built for, named as the folders of `shim/<version>/` name it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -441,7 +470,7 @@ fn publish_with(options: &ShimOptions<'_>, env: &Env, hooks: &Hooks<'_>) -> Resu
     let sums = read_checksums(options.directory)?;
     let mut packed: Vec<(&Found, Unpacked)> = Vec::new();
     for archive in found.iter().filter(|archive| archive.version == version) {
-        let bytes = read_archive(archive, &sums)?;
+        let bytes = read_archive(archive, &sums, hooks.limits)?;
         let unpacked = unpack(archive, &bytes, hooks.limits)?;
         check_shape(archive, &unpacked)?;
         packed.push((archive, unpacked));
@@ -567,6 +596,8 @@ version is never changed: publish a new version instead.",
                 if *how == Copying::Copied {
                     let path = shim_dir.join(name);
                     replace_file(&shim_dir, &path, bytes)?;
+                    #[cfg(test)]
+                    tests::after_replace(&path);
                     confirm_written(&path, bytes)?;
                 }
             }
@@ -574,7 +605,7 @@ version is never changed: publish a new version instead.",
                 let bytes = pointer_bytes(&version);
                 replace_file(&shim_dir, &pointer_path, bytes.as_bytes())?;
                 #[cfg(test)]
-                tests::after_pointer(&pointer_path);
+                tests::after_replace(&pointer_path);
                 confirm_written(&pointer_path, bytes.as_bytes())?;
                 notes.extend(unreadable_by_others(&pointer_path));
             }
@@ -786,18 +817,20 @@ is how a publish knows they are the files the release built.",
         }
         Err(source) => return Err(EngitError::io(&path, source)),
     };
-    let text = String::from_utf8_lossy(&bytes);
+    let text = decode_text(&bytes);
 
     let mut sums = BTreeMap::new();
-    for line in text.trim_start_matches('\u{feff}').lines() {
+    for line in text.lines() {
         let line = line.trim();
         if line.is_empty() {
             continue;
         }
         let not_a_sum = || {
             EngitError::Shim(format!(
-                "{} has a line that is not a SHA-256 sum: {line}",
-                path.display()
+                "{} has a line that is not a SHA-256 sum: {}. It should be a 64 digit hash, a \
+space and the name of a file, as sha256sum writes it, in a UTF-8 or UTF-16 text file.",
+                path.display(),
+                shown(line)
             ))
         };
         let (hash, name) = line.split_once(char::is_whitespace).ok_or_else(not_a_sum)?;
@@ -828,11 +861,43 @@ fn sha256_hex(bytes: &[u8]) -> String {
         .collect()
 }
 
+/// A text file as the tools of a person write it: UTF-8 with or without a byte
+/// order mark, or UTF-16 with one (Windows PowerShell 5.1 writes UTF-16 from
+/// `Out-File` and `>`).
+fn decode_text(bytes: &[u8]) -> String {
+    fn utf16(bytes: &[u8], unit: fn([u8; 2]) -> u16) -> String {
+        // A last byte on its own is not a character.
+        let (pairs, _) = bytes.as_chunks::<2>();
+        let units: Vec<u16> = pairs.iter().map(|pair| unit(*pair)).collect();
+        String::from_utf16_lossy(&units)
+    }
+
+    match bytes {
+        [0xFF, 0xFE, rest @ ..] => utf16(rest, u16::from_le_bytes),
+        [0xFE, 0xFF, rest @ ..] => utf16(rest, u16::from_be_bytes),
+        [0xEF, 0xBB, 0xBF, rest @ ..] => String::from_utf8_lossy(rest).into_owned(),
+        _ => String::from_utf8_lossy(bytes).into_owned(),
+    }
+}
+
+/// A name or a line from a file, cut short enough to put in a message.
+fn shown(text: &str) -> String {
+    const MOST: usize = 80;
+    match text.char_indices().nth(MOST) {
+        Some((end, _)) => format!("{}...", &text[..end]),
+        None => text.to_string(),
+    }
+}
+
 /// Read an archive and check it against the release's sums.
-fn read_archive(archive: &Found, sums: &BTreeMap<String, String>) -> Result<Vec<u8>> {
+fn read_archive(
+    archive: &Found,
+    sums: &BTreeMap<String, String>,
+    limits: Limits,
+) -> Result<Vec<u8>> {
     let metadata =
         fs::metadata(&archive.path).map_err(|source| EngitError::io(&archive.path, source))?;
-    if metadata.len() > MAX_ARCHIVE_BYTES {
+    if metadata.len() > limits.archive_bytes {
         return Err(EngitError::Shim(format!(
             "{} is {} bytes, far more than a launcher archive. Is it the right file?",
             archive.name,
@@ -858,6 +923,13 @@ fn read_archive(archive: &Found, sums: &BTreeMap<String, String>) -> Result<Vec<
     Ok(bytes)
 }
 
+/// The refusal for an archive that is not the size a launcher archive is.
+fn too_big(archive: &str, what: &str) -> EngitError {
+    EngitError::Shim(format!(
+        "{archive} is not a launcher archive: {what} makes it far bigger than one is."
+    ))
+}
+
 /// What an archive has used up of its [`Limits`].
 struct Budget<'a> {
     archive: &'a str,
@@ -876,36 +948,74 @@ impl<'a> Budget<'a> {
         }
     }
 
-    /// Read an entry, which may not be bigger than what is left of the archive's
+    /// Count an entry of any kind, which is memory too: a folder or a link has a
+    /// name that is kept.
+    fn entry(&mut self, name: &str) -> Result<()> {
+        self.entries += 1;
+        if self.entries > self.limits.entries || name.len() > self.limits.name_bytes {
+            return Err(too_big(self.archive, &shown(name)));
+        }
+        Ok(())
+    }
+
+    /// Read a file, which may not be bigger than what is left of the archive's
     /// allowance. What counts is what is read, not what the archive says it holds.
     fn read(&mut self, name: &str, reader: &mut impl Read) -> Result<Vec<u8>> {
-        self.entries += 1;
         let allowance = self
             .limits
             .entry_bytes
             .min(self.limits.total_bytes.saturating_sub(self.used));
-        let too_big = || {
-            EngitError::Shim(format!(
-                "{} is not a launcher archive: {name} makes it far bigger than one is.",
-                self.archive
-            ))
-        };
-        if self.entries > self.limits.entries {
-            return Err(too_big());
-        }
 
         let mut bytes = Vec::new();
         reader
             .take(allowance.saturating_add(1))
             .read_to_end(&mut bytes)
             .map_err(|error| {
-                EngitError::Shim(format!("{}: cannot read {name}: {error}", self.archive))
+                EngitError::Shim(format!(
+                    "{}: cannot read {}: {error}",
+                    self.archive,
+                    shown(name)
+                ))
             })?;
         if bytes.len() as u64 > allowance {
-            return Err(too_big());
+            return Err(too_big(self.archive, &shown(name)));
         }
         self.used += bytes.len() as u64;
         Ok(bytes)
+    }
+}
+
+/// A reader that fails, rather than ends, when more than its allowance is asked
+/// of it, so that a stream that is too big can be told from one that was cut
+/// short.
+struct Bounded<R> {
+    inner: R,
+    left: u64,
+    exceeded: Rc<Cell<bool>>,
+}
+
+impl<R: Read> Read for Bounded<R> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        if buffer.is_empty() {
+            return Ok(0);
+        }
+        if self.left == 0 {
+            // At exactly the allowance the stream may still end. More is too much.
+            let mut probe = [0u8; 1];
+            return match self.inner.read(&mut probe)? {
+                0 => Ok(0),
+                _ => {
+                    self.exceeded.set(true);
+                    Err(io::Error::other("the stream is bigger than it may be"))
+                }
+            };
+        }
+        let room = usize::try_from(self.left)
+            .unwrap_or(usize::MAX)
+            .min(buffer.len());
+        let read = self.inner.read(&mut buffer[..room])?;
+        self.left -= read as u64;
+        Ok(read)
     }
 }
 
@@ -928,8 +1038,9 @@ fn safe_name(archive: &str, raw: &str) -> Result<String> {
     });
     if !safe {
         return Err(EngitError::Shim(format!(
-            "{archive} holds {raw:?}, a name that cannot be unpacked safely: it could land \
-outside the folder, or a system could read it as another file or as a device."
+            "{archive} holds {:?}, a name that cannot be unpacked safely: it could land \
+outside the folder, or a system could read it as another file or as a device.",
+            shown(raw)
         )));
     }
     Ok(parts.join("/"))
@@ -957,22 +1068,53 @@ fn unpack(archive: &Found, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
         if !seen.insert(file.name.to_lowercase()) {
             return Err(EngitError::Shim(format!(
                 "{} holds {} twice, or two names that differ only in case.",
-                archive.name, file.name
+                archive.name,
+                shown(&file.name)
             )));
         }
     }
     Ok(unpacked)
 }
 
+/// The number of entries a ZIP file says it holds, from the record at its end,
+/// or `None` when there is no such record. A file with more than 65534 entries
+/// says 65535, which is far more than a launcher archive has.
+fn declared_zip_entries(bytes: &[u8]) -> Option<usize> {
+    const SIGNATURE: [u8; 4] = *b"PK\x05\x06";
+    const RECORD: usize = 22;
+
+    // The record is the last thing in the file, except for a comment of at most 65535 bytes.
+    let last = bytes.len().checked_sub(RECORD)?;
+    let first = last.saturating_sub(usize::from(u16::MAX));
+    (first..=last)
+        .rev()
+        .find(|&at| bytes[at..at + 4] == SIGNATURE)
+        .map(|at| usize::from(u16::from_le_bytes([bytes[at + 10], bytes[at + 11]])))
+}
+
 fn unpack_zip(archive: &str, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
     let broken = |error: &dyn fmt::Display| {
         EngitError::Shim(format!("{archive} cannot be read as a ZIP file: {error}"))
     };
+    // What the end of the file says it holds, before the directory of it is read.
+    let declared = declared_zip_entries(bytes);
+    if declared.is_some_and(|declared| declared > limits.entries) {
+        return Err(too_big(archive, "the number of entries in it"));
+    }
     let mut zip = zip::ZipArchive::new(io::Cursor::new(bytes)).map_err(|error| broken(&error))?;
+    // A name that is listed twice is read as one entry, the later, as many tools
+    // do, so which file is meant is not clear. The count shows it.
+    if declared.is_some_and(|declared| declared != zip.len()) {
+        return Err(EngitError::Shim(format!(
+            "{archive} lists a name more than once, so which file it holds under that name is \
+not clear."
+        )));
+    }
     let mut budget = Budget::new(archive, limits);
     let mut files = Vec::new();
     for index in 0..zip.len() {
         let mut entry = zip.by_index(index).map_err(|error| broken(&error))?;
+        budget.entry(entry.name())?;
         if entry.is_dir() {
             continue;
         }
@@ -980,7 +1122,7 @@ fn unpack_zip(archive: &str, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
         if unix_mode.is_some_and(|mode| mode & 0o170_000 == 0o120_000) {
             return Err(EngitError::Shim(format!(
                 "{archive} holds the link {}, and a link is not published.",
-                entry.name()
+                shown(entry.name())
             )));
         }
         let name = safe_name(archive, entry.name())?;
@@ -999,12 +1141,26 @@ fn unpack_zip(archive: &str, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
 }
 
 fn unpack_tar(archive: &str, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
+    // The tar crate reads some records (a long name, extended attributes) whole
+    // into memory before anything here can count them, so the decompressed
+    // stream itself is bounded, and a stream that is too big is told from one
+    // that was cut short.
+    let exceeded = Rc::new(Cell::new(false));
     let broken = |error: &dyn fmt::Display| {
-        EngitError::Shim(format!(
-            "{archive} cannot be read as a compressed tar file: {error}"
-        ))
+        if exceeded.get() {
+            too_big(archive, "what it holds")
+        } else {
+            EngitError::Shim(format!(
+                "{archive} cannot be read as a compressed tar file: {error}"
+            ))
+        }
     };
-    let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(bytes));
+    let stream = Bounded {
+        inner: flate2::read::GzDecoder::new(bytes),
+        left: limits.tar_stream_bytes(),
+        exceeded: Rc::clone(&exceeded),
+    };
+    let mut tar = tar::Archive::new(stream);
     let mut budget = Budget::new(archive, limits);
     let (mut files, mut links) = (Vec::new(), Vec::new());
     for entry in tar.entries().map_err(|error| broken(&error))? {
@@ -1015,6 +1171,7 @@ fn unpack_tar(archive: &str, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
             .map_err(|error| broken(&error))?
             .to_string_lossy()
             .into_owned();
+        budget.entry(&raw)?;
         match kind {
             tar::EntryType::Directory => continue,
             tar::EntryType::Symlink => {
@@ -1024,7 +1181,9 @@ fn unpack_tar(archive: &str, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
             tar::EntryType::Regular | tar::EntryType::Continuous => {}
             other => {
                 return Err(EngitError::Shim(format!(
-                    "{archive} holds {raw}, which is neither a file nor a link ({other:?})."
+                    "{archive} holds {}, which is not a plain file ({other:?}). A launcher \
+archive holds files only, apart from the link en in a tar.",
+                    shown(&raw)
                 )));
             }
         }
@@ -1115,8 +1274,15 @@ fn check_by_running(
     write_new(&path, &launcher.bytes, 0o755).map_err(|source| EngitError::io(&path, source))?;
 
     let said = run(&path).map_err(|error| {
+        let hint = if could_not_start(&error) {
+            " The launcher is run from the temporary folder. If programs may not run there (a \
+mount that does not allow it, a virus scanner, a policy), set TMPDIR (TEMP on Windows) to a \
+folder where they may and publish again."
+        } else {
+            ""
+        };
         EngitError::Shim(format!(
-            "The launcher in {} does not run here: {error}. It was not published.",
+            "The launcher in {} does not run here: {error}. It was not published.{hint}",
             archive.name
         ))
     })?;
@@ -1124,8 +1290,9 @@ fn check_by_running(
     let reported = said.strip_prefix(REPORT_PREFIX).unwrap_or(said);
     if !same_version(reported, version) {
         return Err(EngitError::Shim(format!(
-            "The launcher in {} reports {said:?}, not {version}. It was not published.",
-            archive.name
+            "The launcher in {} reports {:?}, not {version}. It was not published.",
+            archive.name,
+            shown(said)
         )));
     }
     Ok(())
@@ -1133,24 +1300,55 @@ fn check_by_running(
 
 /// Ask a launcher which version it is.
 fn reported_version(path: &Path) -> io::Result<String> {
-    let mut child = Command::new(path)
-        .arg("--envoy-shim-version")
+    report_of(version_command(path), RUN_TIMEOUT, REPORT_GRACE)
+}
+
+/// `true` when an error from running a launcher says that it could not be
+/// started at all, as the system reports it (or, on Windows, a file that is no
+/// longer there, as a virus scanner leaves one), and not that it ran and failed
+/// or was too slow.
+fn could_not_start(error: &io::Error) -> bool {
+    error.raw_os_error().is_some() || error.kind() == io::ErrorKind::NotFound
+}
+
+/// The command that makes a launcher say which version it is.
+fn version_command(path: &Path) -> Command {
+    let mut command = Command::new(path);
+    command.arg("--envoy-shim-version");
+    command
+}
+
+/// Run a command and return what it prints.
+///
+/// The text is read on another thread, and no more of it than a version needs,
+/// so a launcher that floods its output cannot fill memory. Once the program
+/// has ended only `grace` is spent waiting for the rest of what it printed,
+/// because a program it started and left running can keep its output open.
+fn report_of(mut command: Command, run: Duration, grace: Duration) -> io::Result<String> {
+    let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()?;
-    let mut stdout = child.stdout.take().expect("stdout is piped");
-    let reader = thread::spawn(move || {
-        let mut text = String::new();
-        let _ = stdout.read_to_string(&mut text);
-        text
-    });
+    let stdout = child.stdout.take().expect("stdout is piped");
 
-    let give_up = Instant::now() + RUN_TIMEOUT;
+    let text = Arc::new(Mutex::new(Vec::new()));
+    let (finished, finished_rx) = mpsc::channel();
+    {
+        let text = Arc::clone(&text);
+        thread::spawn(move || {
+            read_some(stdout, MAX_REPORT_BYTES, &text);
+            let _ = finished.send(());
+        });
+    }
+
+    let give_up = Instant::now() + run;
     loop {
         match child.try_wait()? {
             Some(status) if status.success() => {
-                return Ok(reader.join().unwrap_or_default());
+                let _ = finished_rx.recv_timeout(grace);
+                let text = text.lock().unwrap_or_else(PoisonError::into_inner);
+                return Ok(String::from_utf8_lossy(&text).into_owned());
             }
             Some(status) => {
                 return Err(io::Error::other(format!("it exited with {status}")));
@@ -1160,10 +1358,28 @@ fn reported_version(path: &Path) -> io::Result<String> {
                 let _ = child.wait();
                 return Err(io::Error::new(
                     io::ErrorKind::TimedOut,
-                    format!("it did not answer within {} seconds", RUN_TIMEOUT.as_secs()),
+                    format!("it did not answer within {} seconds", run.as_secs_f32()),
                 ));
             }
             None => thread::sleep(Duration::from_millis(20)),
+        }
+    }
+}
+
+/// Read from `source` into `into` until it ends or `most` bytes are there.
+/// Reading stops there, and the source is let go, so a program that goes on
+/// writing is stopped by the system.
+fn read_some(mut source: impl Read, most: usize, into: &Mutex<Vec<u8>>) {
+    let mut buffer = [0u8; 4096];
+    while let Ok(read) = source.read(&mut buffer) {
+        if read == 0 {
+            break;
+        }
+        let mut text = into.lock().unwrap_or_else(PoisonError::into_inner);
+        let room = most.saturating_sub(text.len());
+        text.extend_from_slice(&buffer[..read.min(room)]);
+        if text.len() >= most {
+            break;
         }
     }
 }
@@ -1257,8 +1473,21 @@ enum PointerState {
 
 #[derive(Deserialize)]
 struct Pointer {
+    // Read so that a schema the launcher cannot parse (a string, say) makes the
+    // pointer unusable here too, as it does for the launcher.
+    #[allow(dead_code)]
     schema: Option<u32>,
     version: String,
+}
+
+/// The schema a pointer declares when it is newer than this `engit` knows,
+/// whatever else is in the file: a newer layout may not have a version at all.
+fn newer_schema(text: &str) -> Option<u64> {
+    let pointer: serde_json::Value = serde_json::from_str(text).ok()?;
+    pointer
+        .get("schema")?
+        .as_u64()
+        .filter(|schema| *schema > u64::from(POINTER_SCHEMA))
 }
 
 fn read_pointer(path: &Path) -> Result<PointerState> {
@@ -1267,22 +1496,23 @@ fn read_pointer(path: &Path) -> Result<PointerState> {
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(PointerState::Missing),
         Err(source) => return Err(EngitError::io(path, source)),
     };
+    // The launcher reads the file as UTF-8, with a byte order mark allowed.
     let text = String::from_utf8_lossy(&bytes);
-    match serde_json::from_str::<Pointer>(text.trim_start_matches('\u{feff}')) {
-        Ok(pointer) if pointer.schema.is_some_and(|schema| schema > POINTER_SCHEMA) => {
-            Err(EngitError::Shim(format!(
-                "{} is written for schema {}, but this engit understands up to schema \
+    let text = text.trim_start_matches('\u{feff}');
+    if let Some(schema) = newer_schema(text) {
+        return Err(EngitError::Shim(format!(
+            "{} is written for schema {schema}, but this engit understands up to schema \
 {POINTER_SCHEMA}. Update engit.",
-                path.display(),
-                pointer.schema.unwrap_or_default()
-            )))
-        }
+            path.display()
+        )));
+    }
+    match serde_json::from_str::<Pointer>(text) {
         Ok(pointer) if is_safe_version(&pointer.version) => {
             Ok(PointerState::Names(pointer.version))
         }
         Ok(pointer) => Ok(PointerState::Unusable(format!(
             "it names {:?}, which is not a safe version name",
-            pointer.version
+            shown(&pointer.version)
         ))),
         Err(error) => Ok(PointerState::Unusable(format!("it is not valid: {error}"))),
     }
@@ -1439,28 +1669,35 @@ mod tests {
     }
 
     thread_local! {
-        static AFTER_POINTER: RefCell<Option<Act>> = const { RefCell::new(None) };
+        static AFTER_REPLACE: RefCell<Option<Act>> = const { RefCell::new(None) };
     }
 
     /// Takes the fault away when it is dropped, even if the test panics.
-    struct PointerFault;
+    struct ReplaceFault;
 
-    impl Drop for PointerFault {
+    impl Drop for ReplaceFault {
         fn drop(&mut self) {
-            AFTER_POINTER.with(|act| *act.borrow_mut() = None);
+            AFTER_REPLACE.with(|act| *act.borrow_mut() = None);
         }
     }
 
-    /// Done to the pointer just after it was replaced, as another publisher could.
-    fn after_pointer_do(act: impl Fn(&Path) + 'static) -> PointerFault {
-        AFTER_POINTER.with(|slot| *slot.borrow_mut() = Some(Box::new(act)));
-        PointerFault
+    /// Done to the file `name` of the shim folder just after it was replaced, as another
+    /// publisher could.
+    fn after_replacing_do(name: &'static str, act: impl Fn(&Path) + 'static) -> ReplaceFault {
+        AFTER_REPLACE.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move |path: &Path| {
+                if path.file_name().is_some_and(|found| found == name) {
+                    act(path);
+                }
+            }));
+        });
+        ReplaceFault
     }
 
-    pub(super) fn after_pointer(pointer: &Path) {
-        AFTER_POINTER.with(|act| {
+    pub(super) fn after_replace(path: &Path) {
+        AFTER_REPLACE.with(|act| {
             if let Some(act) = &*act.borrow() {
-                act(pointer);
+                act(path);
             }
         });
     }
@@ -1498,12 +1735,76 @@ mod tests {
         writer.finish().expect("zip finishes").into_inner()
     }
 
+    /// A ZIP archive with a comment, and folders as well as files.
+    fn zip_with_folders(folders: usize, comment: &[u8]) -> Vec<u8> {
+        let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        writer
+            .start_file("envoy.exe", options)
+            .expect("entry starts");
+        writer.write_all(b"launcher").expect("entry is written");
+        for number in 0..folders {
+            writer
+                .add_directory(format!("folder{number}/"), options)
+                .expect("folder is added");
+        }
+        writer.set_raw_comment(comment.to_vec().into_boxed_slice());
+        writer.finish().expect("zip finishes").into_inner()
+    }
+
+    /// `bytes` with every `from` in it written as `to`, which is as long.
+    fn rewritten(bytes: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
+        assert_eq!(from.len(), to.len());
+        let mut out = bytes.to_vec();
+        let mut at = 0;
+        while at + from.len() <= out.len() {
+            if out[at..at + from.len()] == *from {
+                out[at..at + to.len()].copy_from_slice(to);
+                at += from.len();
+            } else {
+                at += 1;
+            }
+        }
+        out
+    }
+
+    /// A command that runs one line in the shell of the platform.
+    fn in_shell(unix: &str, windows: &str) -> Command {
+        if cfg!(windows) {
+            let mut command = Command::new("cmd");
+            command.args(["/D", "/C", windows]);
+            command
+        } else {
+            let mut command = Command::new("sh");
+            command.args(["-c", unix]);
+            command
+        }
+    }
+
     enum Entry<'a> {
         File(&'a str, &'a [u8], u32),
         Link(&'a str, &'a str),
         Folder(&'a str),
         /// A file whose name is written as it is, however unsafe.
         Raw(&'a str, &'a [u8]),
+        /// What a launcher archive never holds: a hard link, a device, a fifo.
+        Special(&'a str, tar::EntryType),
+        /// A PAX record of attributes, which describes the entry after it.
+        Pax(&'a str, &'a [u8]),
+    }
+
+    /// A PAX record: its own length, then `key=value` and a newline.
+    fn pax_record(key: &str, value: &[u8]) -> Vec<u8> {
+        let tail: Vec<u8> = [&b" "[..], key.as_bytes(), &b"="[..], value, &b"\n"[..]].concat();
+        let mut digits = 1;
+        let length = loop {
+            let total = tail.len() + digits;
+            if total.to_string().len() == digits {
+                break total;
+            }
+            digits += 1;
+        };
+        [length.to_string().as_bytes(), tail.as_slice()].concat()
     }
 
     fn tar_with(entries: &[Entry<'_>]) -> Vec<u8> {
@@ -1514,6 +1815,33 @@ mod tests {
         for entry in entries {
             let mut header = tar::Header::new_gnu();
             match entry {
+                Entry::Special(name, kind) => {
+                    header.set_entry_type(*kind);
+                    header.set_size(0);
+                    header.set_mode(0o644);
+                    if *kind == tar::EntryType::Link {
+                        builder
+                            .append_link(&mut header, name, "envoy")
+                            .expect("entry is added");
+                    } else {
+                        header.set_cksum();
+                        builder
+                            .append_data(&mut header, name, io::empty())
+                            .expect("entry is added");
+                    }
+                }
+                Entry::Pax(key, value) => {
+                    let record = pax_record(key, value);
+                    let mut pax = tar::Header::new_ustar();
+                    pax.set_entry_type(tar::EntryType::XHeader);
+                    pax.set_path("PaxHeader/record").expect("path is set");
+                    pax.set_size(record.len() as u64);
+                    pax.set_mode(0o644);
+                    pax.set_cksum();
+                    builder
+                        .append(&pax, record.as_slice())
+                        .expect("record is added");
+                }
                 Entry::File(name, bytes, mode) => {
                     header.set_entry_type(tar::EntryType::Regular);
                     header.set_size(bytes.len() as u64);
@@ -2072,6 +2400,83 @@ mod tests {
         assert!(message_of(read_checksums(&setup.release)).contains("not a SHA-256 sum"));
     }
 
+    #[test]
+    fn sums_are_read_in_utf_8_or_the_utf_16_that_windows_powershell_writes() {
+        let setup = setup();
+        let hash = "c".repeat(64);
+        let name = "envoy-shim-v0.8.0-windows-x86_64.zip";
+        let text = format!("{hash}  {name}\r\n");
+        let utf16 = |mark: [u8; 2], unit: fn(u16) -> [u8; 2]| -> Vec<u8> {
+            let mut bytes = mark.to_vec();
+            for value in text.encode_utf16() {
+                bytes.extend_from_slice(&unit(value));
+            }
+            bytes
+        };
+
+        for (what, bytes) in [
+            ("UTF-8", text.clone().into_bytes()),
+            (
+                "UTF-8 with a byte order mark",
+                [&[0xEF, 0xBB, 0xBF][..], text.as_bytes()].concat(),
+            ),
+            (
+                "UTF-16 little endian",
+                utf16([0xFF, 0xFE], u16::to_le_bytes),
+            ),
+            ("UTF-16 big endian", utf16([0xFE, 0xFF], u16::to_be_bytes)),
+        ] {
+            fs::write(setup.release.join(CHECKSUMS_FILE), bytes).expect("sums are written");
+
+            let sums =
+                read_checksums(&setup.release).unwrap_or_else(|error| panic!("{what}: {error}"));
+
+            assert_eq!(sums[name], hash, "{what}");
+        }
+
+        // With no mark it cannot be told from anything else. The message says what is
+        // read, and shows a part of the line, not all of it.
+        let unmarked: Vec<u8> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        fs::write(setup.release.join(CHECKSUMS_FILE), unmarked).expect("sums are written");
+        let error = message_of(read_checksums(&setup.release));
+        assert!(error.contains("UTF-8 or UTF-16"), "{error}");
+        fs::write(
+            setup.release.join(CHECKSUMS_FILE),
+            format!("{}\n", "z".repeat(5000)),
+        )
+        .expect("sums are written");
+        let error = message_of(read_checksums(&setup.release));
+        assert!(error.contains("..."), "{error}");
+        assert!(error.chars().count() < 400, "{}", error.chars().count());
+    }
+
+    #[test]
+    fn a_name_that_the_sums_list_twice_must_have_the_same_sum_both_times() {
+        let setup = setup();
+        let (one, two) = ("1".repeat(64), "2".repeat(64));
+
+        fs::write(
+            setup.release.join(CHECKSUMS_FILE),
+            format!("{one}  a.zip\n{one}  *a.zip\n"),
+        )
+        .expect("sums are written");
+        assert_eq!(
+            read_checksums(&setup.release).expect("sums read")["a.zip"],
+            one
+        );
+
+        fs::write(
+            setup.release.join(CHECKSUMS_FILE),
+            format!("{one}  a.zip\n{two}  a.zip\n"),
+        )
+        .expect("sums are written");
+        let error = message_of(read_checksums(&setup.release));
+        assert!(
+            error.contains("lists a.zip twice, with different sums"),
+            "{error}"
+        );
+    }
+
     fn message_of<T>(result: Result<T>) -> String {
         match result {
             Ok(_) => panic!("it must fail"),
@@ -2429,31 +2834,35 @@ mod tests {
         let setup = setup();
         release_of_all(&setup);
         let run: &dyn Fn(&Path) -> io::Result<String> = &no_run;
-        // The first Windows entry has 35 bytes, and the whole archive about 150.
+        // The first Windows entry has 35 bytes, and the whole archive 126.
         for (limits, why) in [
             (
                 Limits {
                     entry_bytes: 8,
-                    total_bytes: 100_000,
-                    entries: 100,
+                    ..LIMITS
                 },
                 "one entry that is too big",
             ),
             (
                 Limits {
-                    entry_bytes: 1000,
                     total_bytes: 60,
-                    entries: 100,
+                    ..LIMITS
                 },
                 "entries that are too big together",
             ),
             (
                 Limits {
-                    entry_bytes: 1000,
-                    total_bytes: 100_000,
                     entries: 2,
+                    ..LIMITS
                 },
                 "too many entries",
+            ),
+            (
+                Limits {
+                    name_bytes: 8,
+                    ..LIMITS
+                },
+                "a name that is too long",
             ),
         ] {
             let tight = Hooks {
@@ -2473,12 +2882,236 @@ mod tests {
             assert!(!shim(&setup).exists(), "{why}");
         }
 
-        // The limits are what a launcher archive never reaches.
-        let fine = Hooks {
-            limits: LIMITS,
+        // A file that is bigger than any launcher archive is refused before it is read,
+        // and one the size of the limit is not.
+        let biggest = Target::ALL
+            .iter()
+            .map(|target| archive_bytes(*target, "build 1").len() as u64)
+            .max()
+            .expect("there are platforms");
+        let over = Hooks {
+            limits: Limits {
+                archive_bytes: biggest - 1,
+                ..LIMITS
+            },
             ..hooks(None, run)
         };
-        publish_with(&options(&setup), &|_| None, &fine).expect("a launcher archive is fine");
+        let error = publish_with(&options(&setup), &|_| None, &over)
+            .expect_err("a file over the limit")
+            .to_string();
+        assert!(
+            error.contains("far more than a launcher archive"),
+            "{error}"
+        );
+        assert!(!shim(&setup).exists());
+        let at = Hooks {
+            limits: Limits {
+                archive_bytes: biggest,
+                ..LIMITS
+            },
+            ..hooks(None, run)
+        };
+        publish_with(&options(&setup), &|_| None, &at).expect("a file at the limit is fine");
+    }
+
+    #[test]
+    fn the_number_of_entries_allowed_is_the_most_and_not_one_less() {
+        // The Windows archive has 6 entries, and the Unix one 5, a link among them.
+        let windows = archive_bytes(Target::WindowsX64, "x");
+        let unix = archive_bytes(Target::LinuxX64Musl, "x");
+        let allowing = |entries| Limits { entries, ..LIMITS };
+
+        assert!(unpack_zip("w.zip", &windows, allowing(6)).is_ok());
+        assert!(message_of(unpack_zip("w.zip", &windows, allowing(5))).contains("far bigger"));
+        assert!(unpack_tar("u.tar.gz", &unix, allowing(5)).is_ok());
+        assert!(message_of(unpack_tar("u.tar.gz", &unix, allowing(4))).contains("far bigger"));
+    }
+
+    #[test]
+    fn links_and_folders_are_entries_too_and_cost_what_a_file_does() {
+        let limits = Limits {
+            entries: 8,
+            ..LIMITS
+        };
+        let names: Vec<String> = (0..20).map(|number| format!("entry{number}")).collect();
+
+        let mut links = vec![Entry::File("envoy", b"launcher", 0o755)];
+        links.extend(names.iter().map(|name| Entry::Link(name, "envoy")));
+        let error = message_of(unpack_tar("l.tar.gz", &tar_with(&links), limits));
+        assert!(error.contains("far bigger"), "{error}");
+
+        let mut folders = vec![Entry::File("envoy", b"launcher", 0o755)];
+        let folder_names: Vec<String> = names.iter().map(|name| format!("{name}/")).collect();
+        folders.extend(folder_names.iter().map(|name| Entry::Folder(name)));
+        let error = message_of(unpack_tar("f.tar.gz", &tar_with(&folders), limits));
+        assert!(error.contains("far bigger"), "{error}");
+
+        let error = message_of(unpack_zip("f.zip", &zip_with_folders(20, b""), limits));
+        assert!(error.contains("far bigger"), "{error}");
+        // A few are fine.
+        assert!(unpack_zip("f.zip", &zip_with_folders(3, b""), limits).is_ok());
+    }
+
+    #[test]
+    fn a_zip_that_says_it_holds_many_entries_is_refused_before_its_directory_is_read() {
+        // Only the record at the end of the file, saying 5000 entries, and no directory
+        // for it: reading the directory would fail, so the refusal is what came first.
+        let mut record = b"PK\x05\x06".to_vec();
+        record.extend_from_slice(&[0; 4]);
+        record.extend_from_slice(&5000u16.to_le_bytes());
+        record.extend_from_slice(&5000u16.to_le_bytes());
+        record.extend_from_slice(&[0; 10]);
+
+        let error = message_of(unpack_zip("big.zip", &record, LIMITS));
+
+        assert!(error.contains("far bigger"), "{error}");
+        assert!(error.contains("the number of entries"), "{error}");
+    }
+
+    #[test]
+    fn the_record_at_the_end_of_a_zip_is_found_whatever_its_comment() {
+        for comment in [0, 1, 1000, usize::from(u16::MAX)] {
+            let zip = zip_with_folders(2, &vec![b'c'; comment]);
+            assert_eq!(
+                declared_zip_entries(&zip),
+                Some(3),
+                "a {comment} byte comment"
+            );
+        }
+        assert_eq!(declared_zip_entries(b"not a zip"), None);
+        assert_eq!(declared_zip_entries(&[]), None);
+    }
+
+    #[test]
+    fn a_zip_that_lists_a_name_twice_is_refused() {
+        // The archive library keeps only the later of two entries with one name, so the
+        // count the file declares is the only sign. A ZIP writer refuses to write the
+        // same name twice: the second name is written as another, and changed.
+        let zip = zip_with(&[
+            ("envoy.exe", b"launcher", 0o755),
+            ("install-envoy.ps1", b"i", 0o755),
+            ("uninstall-envoy.ps1", b"u", 0o755),
+            ("LICENSE", b"one", 0o644),
+            ("LICENSX", b"two", 0o644),
+        ]);
+        let twice = rewritten(&zip, b"LICENSX", b"LICENSE");
+
+        let error = message_of(unpack_zip("twice.zip", &twice, LIMITS));
+
+        assert!(error.contains("lists a name more than once"), "{error}");
+        assert!(unpack_zip("once.zip", &zip, LIMITS).is_ok());
+    }
+
+    #[test]
+    fn a_tar_with_a_record_bigger_than_the_files_could_need_is_refused_unread() {
+        // The long name and the attributes of an entry are read whole, before the entry
+        // is seen, so what bounds them is the size of the stream. The limits are small,
+        // and the name length is not in question here.
+        let limits = Limits {
+            entry_bytes: 1000,
+            total_bytes: 1000,
+            entries: 10,
+            name_bytes: usize::MAX,
+            ..LIMITS
+        };
+        let beyond = usize::try_from(limits.tar_stream_bytes()).expect("fits") + 1000;
+        let big = "a".repeat(beyond);
+        let small = "a".repeat(150);
+
+        let long_name = tar_with(&[Entry::File(&big, b"x", 0o644)]);
+        let long_target = tar_with(&[Entry::Link("en", &big)]);
+        let attributes = tar_with(&[Entry::Pax("comment", big.as_bytes())]);
+        for (what, bytes) in [
+            ("a long name", long_name),
+            ("a long link target", long_target),
+            ("attributes", attributes),
+        ] {
+            let error = message_of(unpack_tar("b.tar.gz", &bytes, limits));
+            assert!(error.contains("far bigger"), "{what}: {error}");
+        }
+
+        // A name or attributes that are long, and no more, are read.
+        let long_name = tar_with(&[Entry::File(&small, b"x", 0o644)]);
+        let unpacked = unpack_tar("a.tar.gz", &long_name, limits).expect("a long name is fine");
+        assert_eq!(unpacked.files[0].name, small);
+        let attributes = tar_with(&[
+            Entry::Pax("comment", small.as_bytes()),
+            Entry::File("envoy", b"x", 0o755),
+        ]);
+        unpack_tar("a.tar.gz", &attributes, limits).expect("a few attributes are fine");
+    }
+
+    #[test]
+    fn a_stream_may_end_exactly_at_its_allowance_and_not_go_past_it() {
+        let read = |length: u64| {
+            let exceeded = Rc::new(Cell::new(false));
+            let mut stream = Bounded {
+                inner: io::repeat(7).take(length),
+                left: 10,
+                exceeded: Rc::clone(&exceeded),
+            };
+            let mut bytes = Vec::new();
+            let result = stream.read_to_end(&mut bytes);
+            (result.is_ok(), bytes.len(), exceeded.get())
+        };
+
+        assert_eq!(read(9), (true, 9, false));
+        assert_eq!(read(10), (true, 10, false));
+        let (ended, _, exceeded) = read(11);
+        assert!(!ended, "the 11th byte is too many");
+        assert!(
+            exceeded,
+            "and that is said, so it is not taken for a cut stream"
+        );
+    }
+
+    #[test]
+    fn a_name_is_cut_to_a_line_to_show_and_never_in_the_middle_of_a_character() {
+        assert_eq!(shown("short"), "short");
+        let exactly = "é".repeat(80);
+        assert_eq!(shown(&exactly), exactly);
+        assert_eq!(shown(&"é".repeat(81)), format!("{exactly}..."));
+    }
+
+    #[test]
+    fn a_name_with_a_control_character_is_refused_and_not_printed_as_it_is() {
+        for bad in [
+            "a\u{7}b",
+            "tab\tname",
+            "new\nline",
+            "\u{1b}[31mred",
+            "nul\0byte",
+            "\u{85}next",
+        ] {
+            let error = message_of(safe_name("x.zip", bad));
+            assert!(
+                error.contains("cannot be unpacked safely"),
+                "{bad:?}: {error}"
+            );
+            assert!(!error.chars().any(char::is_control), "{error:?}");
+        }
+    }
+
+    #[test]
+    fn a_tar_entry_that_is_no_file_folder_or_symbolic_link_is_refused() {
+        for (kind, what) in [
+            (tar::EntryType::Link, "a hard link"),
+            (tar::EntryType::Char, "a character device"),
+            (tar::EntryType::Block, "a block device"),
+            (tar::EntryType::Fifo, "a fifo"),
+        ] {
+            let bytes = tar_with(&[
+                Entry::File("envoy", b"launcher", 0o755),
+                Entry::Special("odd", kind),
+            ]);
+
+            let error = message_of(unpack_tar("s.tar.gz", &bytes, LIMITS));
+
+            assert!(
+                error.contains("odd, which is not a plain file"),
+                "{what}: {error}"
+            );
+        }
     }
 
     #[test]
@@ -2557,6 +3190,173 @@ mod tests {
             "{error}"
         );
         assert!(!shim(&other).exists());
+
+        // What the launcher did says nothing about the folder it was run from.
+        assert!(!error.contains("TMPDIR"), "{error}");
+        let slow = |_: &Path| -> io::Result<String> {
+            Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "it did not answer within 15 seconds",
+            ))
+        };
+        let error = publish_with(&options(&other), &|_| None, &hooks(host, &slow))
+            .expect_err("a launcher that does not answer")
+            .to_string();
+        assert!(error.contains("did not answer"), "{error}");
+        assert!(!error.contains("TMPDIR"), "{error}");
+
+        // An error from the system means it could not be started, and the folder it was
+        // run from may be the reason. So may a file that is gone, which is what a virus
+        // scanner leaves on Windows.
+        let denied = |_: &Path| -> io::Result<String> {
+            Err(io::Error::from_raw_os_error(if cfg!(windows) {
+                5
+            } else {
+                13
+            }))
+        };
+        let gone = |_: &Path| -> io::Result<String> {
+            Err(io::Error::new(io::ErrorKind::NotFound, "program not found"))
+        };
+        for (what, run) in [
+            ("denied", &denied as &dyn Fn(&Path) -> io::Result<String>),
+            ("gone", &gone),
+        ] {
+            let error = publish_with(&options(&other), &|_| None, &hooks(host, run))
+                .expect_err(what)
+                .to_string();
+            assert!(error.contains("does not run here"), "{what}: {error}");
+            assert!(
+                error.contains("TMPDIR (TEMP on Windows)"),
+                "{what}: {error}"
+            );
+            assert!(!shim(&other).exists(), "{what}");
+        }
+
+        // A line of any length is not printed in full.
+        let long = |_: &Path| -> io::Result<String> { Ok("x".repeat(5000)) };
+        let error = publish_with(&options(&other), &|_| None, &hooks(host, &long))
+            .expect_err("a launcher that reports no version")
+            .to_string();
+        assert!(error.contains("..."), "{error}");
+        assert!(error.chars().count() < 300, "{}", error.chars().count());
+    }
+
+    #[test]
+    fn a_launcher_is_asked_for_its_version_the_way_the_launcher_answers_it() {
+        let command = version_command(Path::new("some/envoy"));
+
+        assert_eq!(command.get_program(), "some/envoy");
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            ["--envoy-shim-version"]
+        );
+    }
+
+    #[test]
+    fn what_a_program_prints_is_its_report_and_a_failure_is_not_one() {
+        let said = report_of(
+            in_shell("echo envoy-shim v1", "echo envoy-shim v1"),
+            Duration::from_secs(30),
+            Duration::from_secs(5),
+        )
+        .expect("a program that prints a line reports it");
+        assert_eq!(said.trim(), "envoy-shim v1");
+
+        let error = report_of(
+            in_shell("exit 3", "exit 3"),
+            Duration::from_secs(30),
+            Duration::from_secs(5),
+        )
+        .expect_err("a program that fails reports nothing");
+        assert!(error.to_string().contains("it exited with"), "{error}");
+        assert!(
+            !could_not_start(&error),
+            "it ran, so it is not taken for one that could not start"
+        );
+
+        let error = report_of(
+            Command::new("this-program-does-not-exist-anywhere"),
+            Duration::from_secs(30),
+            Duration::from_secs(5),
+        )
+        .expect_err("a program that cannot be started reports nothing");
+        assert!(could_not_start(&error), "{error}");
+    }
+
+    #[test]
+    fn a_program_that_does_not_answer_is_stopped() {
+        let started = Instant::now();
+
+        let error = report_of(
+            in_shell("exec sleep 20", "ping -n 9 127.0.0.1 > nul"),
+            Duration::from_millis(300),
+            Duration::from_secs(1),
+        )
+        .expect_err("a program that does not answer has not reported");
+
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut, "{error}");
+        assert!(error.to_string().contains("did not answer"), "{error}");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "it was stopped and not waited for: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn a_program_left_running_by_the_launcher_does_not_hold_the_publish_up() {
+        // The launcher ends, and what it started goes on holding its output open, so
+        // the end of the output never comes.
+        let started = Instant::now();
+
+        let said = report_of(
+            in_shell(
+                "echo envoy-shim v1; sleep 20 &",
+                "echo envoy-shim v1 & start /b ping -n 21 127.0.0.1 > nul",
+            ),
+            Duration::from_secs(30),
+            Duration::from_millis(300),
+        )
+        .expect("what it printed is its report");
+
+        assert_eq!(said.trim(), "envoy-shim v1");
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "{:?}",
+            started.elapsed()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_launcher_that_never_stops_printing_is_stopped_and_not_read_whole() {
+        let started = Instant::now();
+
+        let error = report_of(
+            in_shell("while :; do echo envoy-shim v1; done", ""),
+            Duration::from_secs(10),
+            Duration::from_secs(5),
+        )
+        .expect_err("a program that never stops printing is not a launcher");
+
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "{error}: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn what_a_launcher_prints_is_read_no_further_than_a_version_needs() {
+        let text = Mutex::new(Vec::new());
+        // Not a whole number of the reads it makes.
+        read_some(io::repeat(b'v').take(1_000_000), 10_000, &text);
+        assert_eq!(text.lock().expect("lock").len(), 10_000);
+
+        let short = Mutex::new(Vec::new());
+        read_some(&b"envoy-shim v1\n"[..], 10_000, &short);
+        assert_eq!(short.lock().expect("lock").as_slice(), b"envoy-shim v1\n");
     }
 
     #[test]
@@ -2746,6 +3546,87 @@ mod tests {
     }
 
     #[test]
+    fn a_pointer_for_a_newer_schema_is_not_overwritten_whatever_else_it_holds() {
+        // A newer layout may not have a version at all, and no launcher or engit that
+        // reads schema 1 can tell what it means.
+        for newer in [
+            "{\"schema\": 2}",
+            "{\"schema\": 2, \"current\": {\"windows\": \"v1.0.0\"}}",
+            "{\"schema\": 4294967296, \"version\": \"v1.0.0\"}",
+            "{\"schema\": 18446744073709551615}",
+            "\u{feff}{\"schema\": 3}",
+        ] {
+            let setup = setup();
+            release_of_all(&setup);
+            fs::create_dir_all(shim(&setup)).expect("shim is created");
+            let pointer = shim(&setup).join(POINTER_FILE);
+            fs::write(&pointer, newer).expect("pointer is written");
+
+            // Staging, which leaves the pointer alone, still refuses: the layout it
+            // sits in may be different too.
+            for move_pointer in [true, false] {
+                let mut wanted = options(&setup);
+                wanted.move_pointer = move_pointer;
+
+                let error = message(publish(&setup, &wanted));
+
+                assert!(error.contains("Update engit"), "{newer}: {error}");
+                assert_eq!(
+                    fs::read_to_string(&pointer).expect("reads"),
+                    newer,
+                    "{newer}"
+                );
+                assert!(!shim(&setup).join(VERSION).exists(), "{newer}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_pointer_the_launcher_cannot_read_is_replaced_even_when_its_schema_looks_newer() {
+        // The launcher reads the schema as a whole number up to u32, and refuses
+        // anything else as it refuses a file that is not JSON.
+        for unreadable in [
+            "{\"schema\": \"2\", \"version\": \"v1.0.0\"}",
+            "{\"schema\": 2.5, \"version\": \"v1.0.0\"}",
+            "{\"schema\": 99999999999999999999999, \"version\": \"v1.0.0\"}",
+            "{\"schema\": -1, \"version\": \"v1.0.0\"}",
+        ] {
+            let setup = setup();
+            release_of_all(&setup);
+            fs::create_dir_all(shim(&setup)).expect("shim is created");
+            fs::write(shim(&setup).join(POINTER_FILE), unreadable).expect("pointer is written");
+
+            let report = publish(&setup, &options(&setup)).expect(unreadable);
+
+            assert!(
+                report.notes.join("\n").contains("was not usable"),
+                "{unreadable}: {report}"
+            );
+            assert_eq!(pointer_text(&setup), pointer_bytes(VERSION), "{unreadable}");
+        }
+    }
+
+    #[test]
+    fn a_pointer_with_a_byte_order_mark_is_read_as_the_launcher_reads_it() {
+        let setup = setup();
+        release_of_all(&setup);
+        fs::create_dir_all(shim(&setup)).expect("shim is created");
+        let mut marked = vec![0xEF, 0xBB, 0xBF];
+        marked.extend_from_slice(pointer_bytes(VERSION).as_bytes());
+        fs::write(shim(&setup).join(POINTER_FILE), &marked).expect("pointer is written");
+
+        let report = publish(&setup, &options(&setup)).expect("publishes");
+
+        assert_eq!(report.was.as_deref(), Some(VERSION));
+        assert_eq!(report.pointer, Pointing::Unchanged);
+        assert_eq!(
+            fs::read(shim(&setup).join(POINTER_FILE)).expect("reads"),
+            marked,
+            "a pointer that works is left as it is"
+        );
+    }
+
+    #[test]
     fn the_pointer_before_is_reported_and_a_pointer_without_a_schema_is_read() {
         let setup = setup();
         add_release(&setup, "v0.7.0", &[Target::WindowsX64], "old");
@@ -2788,7 +3669,7 @@ mod tests {
     fn a_pointer_that_was_changed_underneath_the_publish_says_so() {
         let setup = setup();
         release_of_all(&setup);
-        let _fault = after_pointer_do(|pointer| {
+        let _fault = after_replacing_do(POINTER_FILE, |pointer| {
             fs::write(pointer, "someone else\n").expect("the pointer is changed");
         });
 
@@ -2800,6 +3681,80 @@ mod tests {
         );
     }
 
+    #[test]
+    fn an_installer_that_was_changed_underneath_the_publish_says_so() {
+        let setup = setup();
+        release_of_all(&setup);
+        let _fault = after_replacing_do("install-envoy.sh", |installer| {
+            fs::write(installer, "someone else\n").expect("the installer is changed");
+        });
+
+        let error = message(publish(&setup, &options(&setup)));
+
+        assert!(
+            error.contains("install-envoy.sh does not have the content that was just published"),
+            "{error}"
+        );
+        assert!(
+            !shim(&setup).join(POINTER_FILE).exists(),
+            "the pointer is moved last"
+        );
+    }
+
+    #[test]
+    fn a_file_where_a_launcher_folder_goes_is_not_replaced_by_one() {
+        let setup = setup();
+        release_of_all(&setup);
+        let version_dir = shim(&setup).join(VERSION);
+        fs::create_dir_all(&version_dir).expect("version folder is created");
+        fs::write(version_dir.join("windows-x86_64"), "in the way").expect("file is written");
+
+        let error = message(publish(&setup, &options(&setup)));
+
+        assert!(error.contains("it is not a folder"), "{error}");
+        assert!(error.contains("never changed"), "{error}");
+        assert_eq!(
+            fs::read_to_string(version_dir.join("windows-x86_64")).expect("reads"),
+            "in the way"
+        );
+        assert!(!shim(&setup).join(POINTER_FILE).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_where_a_launcher_folder_goes_is_not_followed() {
+        let setup = setup();
+        release_of_all(&setup);
+        let elsewhere = setup.root.join("elsewhere");
+        fs::create_dir_all(&elsewhere).expect("elsewhere is created");
+        let version_dir = shim(&setup).join(VERSION);
+        fs::create_dir_all(&version_dir).expect("version folder is created");
+        std::os::unix::fs::symlink(&elsewhere, version_dir.join("windows-x86_64"))
+            .expect("link is made");
+
+        let error = message(publish(&setup, &options(&setup)));
+
+        assert!(error.contains("it is not a folder"), "{error}");
+        assert!(
+            files_under(&elsewhere).is_empty(),
+            "nothing is written through it"
+        );
+    }
+
+    #[test]
+    fn a_folder_that_cannot_lock_files_is_published_to_and_says_so() {
+        let setup = setup();
+        release_of_all(&setup);
+        let _fault = crate::share::faults::unlockable();
+
+        let report = publish(&setup, &options(&setup)).expect("publishes");
+
+        assert_eq!(report.outcome, ShimOutcome::Published);
+        let notes = report.notes.join("\n");
+        assert!(notes.contains("cannot lock files"), "{notes}");
+        assert!(notes.contains("nothing stopped another publish"), "{notes}");
+    }
+
     #[cfg(unix)]
     #[test]
     fn a_pointer_other_users_cannot_read_is_reported() {
@@ -2808,7 +3763,7 @@ mod tests {
         let setup = setup();
         release_of_all(&setup);
         // As if the filesystem had refused to set the mode under a strict umask.
-        let _fault = after_pointer_do(|pointer| {
+        let _fault = after_replacing_do(POINTER_FILE, |pointer| {
             fs::set_permissions(pointer, fs::Permissions::from_mode(0o600)).expect("mode is set");
         });
 
