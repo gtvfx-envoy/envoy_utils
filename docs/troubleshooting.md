@@ -128,7 +128,8 @@ the limits for what is not one are far above that (they are listed under
 [`engit publish shim`](cli-reference/engit.md#engit-publish-shim)). The message
 names the file and what is wrong with it. Download it again from the release;
 if it is one you built yourself, check what went into it: a stray folder of
-build output, a link, or a ZIP file made by adding the same file twice are the
+build output, a link, another ZIP file stored inside it (its entries count
+against the limit too), or a ZIP file made by adding the same file twice are the
 usual causes. A ZIP file that "lists a name more than once, or more entries than
 it says it has" is one that tools read differently: one unpacks the first file
 of a name or only the entries its end counts, and another the last or all of

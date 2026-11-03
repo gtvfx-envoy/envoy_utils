@@ -1131,7 +1131,10 @@ fn unpack_zip(archive: &str, bytes: &[u8], limits: Limits) -> Result<Unpacked> {
         EngitError::Shim(format!("{archive} cannot be read as a ZIP file: {error}"))
     };
     if central_signatures(bytes, limits.entries) > limits.entries {
-        return Err(too_big(archive, "the number of entries in it"));
+        return Err(too_big(
+            archive,
+            "the number of entries in it, or of things in it that look like entries,",
+        ));
     }
     let mut zip = zip::ZipArchive::new(io::Cursor::new(bytes)).map_err(|error| broken(&error))?;
     // A name that is listed twice is read as one entry, the later, as many tools
@@ -3069,6 +3072,39 @@ mod tests {
         let few = [&b"PK\x01\x02"[..]; 8].concat();
         let error = message_of(unpack_zip("few.zip", &few, limits));
         assert!(error.contains("cannot be read as a ZIP file"), "{error}");
+    }
+
+    #[test]
+    fn what_looks_like_records_inside_a_file_of_the_zip_counts_too() {
+        // The count is over the whole file, because that is what bounds the cost of reading
+        // it wherever it says its directory is, so another ZIP file stored in it counts with
+        // its records. They are at the start of a file bigger than the end of this one that a
+        // count of the last part only would look at.
+        let limits = Limits {
+            entries: 8,
+            ..LIMITS
+        };
+        let zip_holding = |records: usize| {
+            let inner = [b"PK\x01\x02".repeat(records), vec![0u8; 100_000]].concat();
+            let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
+            let stored = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+            writer
+                .start_file("envoy.exe", stored)
+                .expect("entry starts");
+            writer.write_all(b"launcher").expect("entry is written");
+            writer
+                .start_file("inner.zip", stored)
+                .expect("entry starts");
+            writer.write_all(&inner).expect("entry is written");
+            writer.finish().expect("zip finishes").into_inner()
+        };
+
+        // Two records of its own, and the others in the file stored in it.
+        let error = message_of(unpack_zip("outer.zip", &zip_holding(7), limits));
+        assert!(error.contains("far bigger"), "{error}");
+        assert!(error.contains("look like entries"), "{error}");
+        assert!(unpack_zip("outer.zip", &zip_holding(6), limits).is_ok());
     }
 
     /// What looks like the end of a ZIP file and says it holds `entries` entries.

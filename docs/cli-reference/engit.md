@@ -445,8 +445,10 @@ In order, it:
    the size of one: 256 MiB for the archive file, 128 MiB for a file in it,
    512 MiB for all of them, 1000 entries (files, folders and links), and 1024
    bytes for a name. A bigger archive is refused and is not read to the end.
-   The entries of a ZIP file are counted before its directory is read, and a
-   ZIP file that has more than the limit is refused whatever its end says.
+   The places in a ZIP file that start a record of its directory are counted
+   before the directory is read, wherever they are in the file (so a ZIP file
+   stored inside it counts too), and a ZIP file with more than the limit is
+   refused whatever its end says.
 4. Runs the launcher for the system `engit` runs on, if the folder has it, and
    checks that it reports the version being published. An installed launcher
    does the same to a launcher it is about to install, and refuses one that
