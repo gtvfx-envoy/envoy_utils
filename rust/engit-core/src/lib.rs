@@ -21,6 +21,8 @@ pub mod release;
 pub mod release_train;
 pub mod search;
 pub mod semver;
+mod share;
+pub mod shim;
 pub mod status;
 pub mod tag;
 pub mod web;

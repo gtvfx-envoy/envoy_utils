@@ -55,6 +55,10 @@ https://cli.github.com/ to use this command."
     #[error("{0}")]
     Redirect(String),
 
+    /// Local module-specific error for publishing the launcher.
+    #[error("{0}")]
+    Shim(String),
+
     /// Local module-specific error for bundle cache maintenance flows.
     #[error("{0}")]
     Cache(String),

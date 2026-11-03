@@ -14,13 +14,14 @@ name = "engit_core"
 [dependencies]
 envoy-core.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+flate2 = "1"
 globset = "0.4"
 regex = "1"
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
-thiserror.workspace = true
-zip = { version = "2", default-features = false, features = ["deflate"] }
-
-[dev-dependencies]
+sha2 = "0.10"
+tar = { version = "0.4", default-features = false }
 tempfile = "3"
+thiserror.workspace = true
+zip = { version = "2.2", default-features = false, features = ["deflate"] }

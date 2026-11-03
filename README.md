@@ -7,8 +7,8 @@ Small command-line tools that operate on repositories and artifacts in the
 
 `engit` provides semantic-version tagging, GitHub releases, changelog and
 repository maintenance, Envoy bundle publishing, bundle checkout updates,
-named stack publishing, redirect file publishing, local cross-repo development
-links, and release-train orchestration.
+named stack publishing, redirect file publishing, launcher publishing, local
+cross-repo development links, and release-train orchestration.
 
 See the [Engit CLI reference](docs/cli-reference/engit.md) for commands and
 examples. Common failures are covered in the

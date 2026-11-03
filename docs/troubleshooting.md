@@ -90,7 +90,88 @@ again.
 The config root must already exist, and a team's folder is made by that team's
 first publish, so a mistyped `--output` or `--team` is an error instead of a new
 folder that no launcher reads. `redirect show` and `redirect history` give the
-same errors for a root or team that is not there.
+same errors for a root or team that is not there. `publish shim` also needs the
+root to exist, and makes `shim/` in it itself.
+
+## `publish shim`: "is a pre-release, and publishing moves the pointer"
+
+Installed launchers follow `shim/current.json` within a day, so moving it to a
+pre-release is something to ask for. To try the release on the share first, put
+it there without moving the pointer, and move the pointer later by publishing
+the same release again:
+
+```console
+engit publish shim downloads/envoy-v0.8.1-rc.1 --no-pointer
+engit publish shim downloads/envoy-v0.8.1-rc.1 --allow-prerelease
+```
+
+## `publish shim`: "does not match SHA256SUMS", "does not list", or "has no SHA256SUMS"
+
+The archives are checked against the release's `SHA256SUMS`, and nothing is
+written when they do not agree. Download the archive again, or the `SHA256SUMS`
+from the same release: a `SHA256SUMS` from another release does not list these
+archives. It is not downloaded for you, and it is needed even for archives you
+built yourself (write one with `sha256sum` or `Get-FileHash`, one `<hash>
+<name>` line for each archive).
+
+`SHA256SUMS` is read as UTF-8, with or without a byte order mark, or as UTF-16
+with one: Windows PowerShell 5.1 writes UTF-16 with `>` and `Out-File`, and that
+is fine. "has a line that is not a SHA-256 sum" shows the start of the line: it
+is a file of another kind, or UTF-16 with no byte order mark. Write it again as
+UTF-8 (`Out-File -Encoding utf8`, or PowerShell 7).
+
+## `publish shim`: "is not a launcher archive", "cannot be unpacked safely", "lists a name more than once", or "is not a plain file"
+
+The archive is not what a release builds. A launcher archive holds the
+launcher, its installers and a licence: a few files and a few megabytes, and
+the limits for what is not one are far above that (they are listed under
+[`engit publish shim`](cli-reference/engit.md#engit-publish-shim)). The message
+names the file and what is wrong with it. Download it again from the release;
+if it is one you built yourself, check what went into it: a stray folder of
+build output, a link, another ZIP file stored inside it (its entries count
+against the limit too), or a ZIP file made by adding the same file twice are the
+usual causes. A ZIP file that "lists a name more than once, or more entries than
+it says it has" is one that tools read differently: one unpacks the first file
+of a name or only the entries its end counts, and another the last or all of
+them. That is why it is refused and not guessed at.
+
+## `publish shim`: "is written for schema ..."
+
+`shim/current.json` on the share was written by a newer `engit` with a layout
+this one does not know, so it is not overwritten, and nothing is published into
+that shim folder, not even with `--no-pointer`. Update `engit` and publish
+again.
+
+## `publish shim`: "is on the share already and is not the ..."
+
+A published launcher version is never changed, because installed launchers copy
+from it and an install can be half way through. The version on the share does
+not have exactly the files of the archive you named: either it was published
+from another build of the same version, or someone changed a file in it. Publish
+the build you mean as a new version. If the one on the share is wrong and nobody
+uses it, an administrator can remove its folder, and then publish again.
+
+## `publish shim`: "does not run here" or "reports ..., not ..."
+
+The launcher for the system `engit` runs on is run before anything is written,
+and has to say it is the version being published. If the message says it does
+not run, a virus scanner may have blocked the unpacked program: the message
+gives the reason. The launcher is run from a file in the temporary folder, so
+where programs may not run from there (a mount that does not allow it, a
+policy), set `TMPDIR` to a folder where they may and publish again. On Windows
+the variable is `TMP`: it is read before `TEMP`, which counts only when `TMP`
+is not set, so changing `TEMP` alone changes nothing. If it reports another
+version, or more than one line, the archive is not the one its name says, so it
+was not published.
+
+## `publish shim`: "None on the share for ..."
+
+Only the platforms whose archive was in the folder (or published earlier with
+the same version) have a launcher on the share. If a platform listed there has
+machines, put its archive in the folder and publish again: the platforms that
+are there already are left alone, and only the new one is written. When the
+pointer moved, a note also names the platforms that had a launcher in the
+version before and have none in this one.
 
 ## Legacy bundle artifact manifest
 
